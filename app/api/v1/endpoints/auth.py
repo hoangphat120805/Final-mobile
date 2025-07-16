@@ -1,4 +1,5 @@
 from datetime import timedelta
+from app.schemas.user import UserRegister
 from fastapi import APIRouter, HTTPException, Query, Path, Body, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
@@ -26,3 +27,12 @@ def signin_access_token(session: SessionDep, form_data: Annotated[OAuth2Password
         expires_in=access_token_expires
     )
 
+@router.post("/register")
+def register_user(session: SessionDep, user_create: UserRegister):
+    user = crud.create_user(session=session, user_create=user_create)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User registration failed",
+        )
+    return user

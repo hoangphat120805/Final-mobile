@@ -41,7 +41,6 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=settings.POSTGRES_URL,
         target_metadata=target_metadata,
