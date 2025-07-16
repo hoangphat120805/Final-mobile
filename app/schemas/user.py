@@ -13,3 +13,9 @@ class UserUpdatePassword(SQLModel):
     old_password: str = Field(max_length=100)
     new_password: str = Field(max_length=100)
 
+class UserPublic(SQLModel):
+    id: str
+    username: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+

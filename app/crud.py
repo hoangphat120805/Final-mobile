@@ -9,6 +9,10 @@ def get_user_by_username(*, session: Session, username: str) -> Optional[User]:
     statement = select(User).where(User.username == username)
     return session.exec(statement).first()
 
+def get_user_by_email(*, session: Session, email: str) -> Optional[User]:
+    statement = select(User).where(User.email == email)
+    return session.exec(statement).first()
+
 def authenticate(session: Session, username: str, password: str) -> Optional[User]:
     db_user = get_user_by_username(session=session, username=username)
     if not db_user:
