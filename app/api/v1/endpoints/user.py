@@ -3,7 +3,7 @@ from typing import Annotated, Any
 from app.models import User
 from fastapi import APIRouter
 
-from app.api.v1.schemas.user import UserPublic 
+from app.schemas.user import UserPublic 
 from app.schemas.auth import Message
 from app.api.deps import CurrentUser, SessionDep
 from app.schemas.user import UserCreate, UserUpdate, UserUpdatePassword

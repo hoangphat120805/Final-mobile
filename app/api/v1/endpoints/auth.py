@@ -5,7 +5,7 @@ from typing import Annotated
 
 from app.schemas.auth import Token
 from app.schemas.user import UserCreate, UserUpdate, UserUpdatePassword
-from app.api.deps import SessionDep, Current_user
+from app.api.deps import SessionDep
 from app.core.security import get_password_hash, create_access_token
 from app.core.config import settings
 from app import crud
