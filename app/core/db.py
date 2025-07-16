@@ -1,5 +1,7 @@
 from sqlmodel import create_engine
 from app.core.config import settings
+from sqlmodel import Session
+from app import crud
 
 engine = create_engine(
     str(settings.POSTGRES_URL), 
@@ -11,3 +13,7 @@ engine = create_engine(
     pool_timeout=30,
     pool_recycle=1800,
     )
+
+def init_db(session: Session) -> None:
+    crud.create_role(session=session, role_name="user")
+    crud.create_role(session=session, role_name="admin")

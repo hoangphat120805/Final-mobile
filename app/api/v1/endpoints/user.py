@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from app.api.v1.schemas.user import UserResponse
 from app.api.deps import Current_user
-from app.schemas.user import UserRegister, UserUpdate, UserUpdatePassword
+from app.schemas.user import UserCreate, UserUpdate, UserUpdatePassword
 from app import crud
 
 router = APIRouter(prefix="/user", tags=["user"])

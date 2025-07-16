@@ -1,8 +1,8 @@
 from typing import Optional
 from sqlmodel import Session, select
 
-from app.schemas.user import UserRegister
-from app.models import User
+from app.schemas.user import UserCreate
+from app.models import User, Role
 from app.core.security import get_password_hash, verify_password
 
 def get_user_by_username(*, session: Session, username: str) -> Optional[User]:
@@ -17,13 +17,18 @@ def authenticate(session: Session, username: str, password: str) -> Optional[Use
         return None
     return db_user
 
-def create_user(session: Session, user_create: UserRegister) -> User:
+def create_user(session: Session, user_create: UserCreate) -> None:
+    user_role = session.exec(select(Role).where(Role.name == "user")).first()
     db_user = User.model_validate(
         user_create,
-        update={"hashed_password": get_password_hash(user_create.password)}
+        update={"hashed_password": get_password_hash(user_create.password), "role_id": user_role.id}
     )
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
-    return db_user
 
+def create_role(session: Session, role_name: str) -> None:
+    role = Role(name=role_name)
+    session.add(role)
+    session.commit()
+    session.refresh(role)

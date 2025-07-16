@@ -1,10 +1,10 @@
 from datetime import timedelta
-from app.schemas.user import UserRegister
 from fastapi import APIRouter, HTTPException, Query, Path, Body, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
 
 from app.schemas.auth import Token
+from app.schemas.user import UserCreate, UserUpdate, UserUpdatePassword
 from app.api.deps import SessionDep, Current_user
 from app.core.security import get_password_hash, create_access_token
 from app.core.config import settings
@@ -27,12 +27,14 @@ def signin_access_token(session: SessionDep, form_data: Annotated[OAuth2Password
         expires_in=access_token_expires
     )
 
-@router.post("/register")
-def register_user(session: SessionDep, user_create: UserRegister):
-    user = crud.create_user(session=session, user_create=user_create)
-    if not user:
+@router.post("/siginup")
+def signup(session: SessionDep, user_create: UserCreate):
+    existing_user = crud.get_user_by_username(session=session, username=user_create.username)
+    if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User registration failed",
+            detail="Username already exists",
         )
-    return user
+    user = crud.create_user(session=session, user_create=user_create)
+    return {"message": "User created successfully"}
+

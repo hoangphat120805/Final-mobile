@@ -1,8 +1,7 @@
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field
 from typing import Optional
-import uuid
 
-class UserRegister(SQLModel):
+class UserCreate(SQLModel):
     username: str = Field(max_length=100)
     password: str = Field(max_length=100)
 
