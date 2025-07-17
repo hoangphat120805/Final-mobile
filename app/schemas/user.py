@@ -1,5 +1,6 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
+import uuid
 
 class UserCreate(SQLModel):
     username: str = Field(max_length=100)
@@ -14,7 +15,7 @@ class UserUpdatePassword(SQLModel):
     new_password: str = Field(max_length=100)
 
 class UserPublic(SQLModel):
-    id: str
+    id: uuid.UUID
     username: str
     email: Optional[str] = None
     phone: Optional[str] = None
