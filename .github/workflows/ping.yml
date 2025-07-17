@@ -1,0 +1,14 @@
+name: Ping Backend
+
+on:
+    schedule:
+        - cron: "*/10 * * * *" # chạy mỗi 10 phút
+    workflow_dispatch: # cho phép bạn chạy thủ công trên GitHub nếu muốn
+
+jobs:
+    ping:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Gửi request tới backend
+              run: curl -s -o /dev/null -w "%{http_code}" https://backend-mobile-0518.onrender.com/api/v1/auth/keep-alive

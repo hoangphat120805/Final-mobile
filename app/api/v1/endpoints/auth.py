@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Query, Path, Body, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
 
-from app.schemas.auth import Token
+from app.schemas.auth import Message, Token
 from app.schemas.user import UserCreate, UserUpdate, UserUpdatePassword
 from app.api.deps import SessionDep
 from app.core.security import get_password_hash, create_access_token
@@ -38,3 +38,6 @@ def signup(session: SessionDep, user_create: UserCreate):
     user = crud.create_user(session=session, user_create=user_create)
     return {"message": "User created successfully"}
 
+@router.get("/keep-alive", response_model=Message)
+def keep_alive():
+    return {"message": "I'm alive!"}
