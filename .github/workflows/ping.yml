@@ -2,7 +2,7 @@ name: Ping Backend
 
 on:
     schedule:
-        - cron: "*/10 * * * *" # chạy mỗi 10 phút
+        - cron: "*/5 * * * *" # chạy mỗi 5 phút
     workflow_dispatch: # cho phép bạn chạy thủ công trên GitHub nếu muốn
 
 jobs:
