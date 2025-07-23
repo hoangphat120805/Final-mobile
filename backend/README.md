@@ -1,75 +1,75 @@
 # Backend Mobile API
 
-Dự án backend API sử dụng FastAPI, PostgreSQL và SQLModel để phục vụ ứng dụng mobile.
+Backend API project using FastAPI, PostgreSQL, and SQLModel to serve mobile applications.
 
-## 🚀 Công nghệ sử dụng
+## 🚀 Technologies Used
 
-- **FastAPI** - Web framework hiện đại và nhanh chóng
-- **SQLModel** - ORM dựa trên SQLAlchemy và Pydantic
-- **PostgreSQL** - Cơ sở dữ liệu quan hệ
+- **FastAPI** - Modern and fast web framework
+- **SQLModel** - ORM based on SQLAlchemy and Pydantic
+- **PostgreSQL** - Relational database
 - **Alembic** - Database migration tool
-- **JWT** - Authentication và authorization
-- **Bcrypt** - Mã hóa password
+- **JWT** - Authentication and authorization
+- **Bcrypt** - Password encryption
 
-## 📋 Yêu cầu hệ thống
+## 📋 System Requirements
 
 - Python 3.12+
 - PostgreSQL 12+
-- UV (Package manager) hoặc pip
+- UV (Package manager) or pip
 
-## ⚙️ Cài đặt và Chạy dự án
+## ⚙️ Installation and Running the Project
 
 ### 1. Clone repository
 
 ```bash
 git clone <repository-url>
 cd backend-mobile
+cd backend
 ```
 
-### 2. Cài đặt dependencies
+### 2. Install dependencies
 
 ```bash
-# Nếu sử dụng UV (khuyến nghị)
+# Using UV (recommended)
 uv sync
 ```
-
-### 3. Chạy database migrations
+### 3. Run database migrations
 
 ```bash
-# Áp dụng migrations
+# Apply migrations
 alembic upgrade head
 ```
 
-### 7. Chạy ứng dụng
+### 4. Run the application
 
 #### Development mode
 ```bash
-# Sử dụng FastAPI development server
+# Using FastAPI development server
 fastapi run app/main.py --reload
-```
-Ứng dụng sẽ chạy tại: `http://localhost:8000`
+
+The application will run at: `http://localhost:8000`
 
 ## 📚 API Documentation
 
-Sau khi chạy ứng dụng, bạn có thể truy cập:
+After running the application, you can access:
 
 - **Swagger UI**: `http://localhost:8000/docs`
 - **ReDoc**: `http://localhost:8000/redoc`
 - **OpenAPI JSON**: `http://localhost:8000/openapi.json`
 
-## 🔧 Các lệnh hữu ích
+## 🔧 Useful Commands
 
 ### Database Operations
 ```bash
-# Tạo migration mới
+# Create new migration
 alembic revision --autogenerate -m "Description"
 
-# Áp dụng migrations
+# Apply migrations
 alembic upgrade head
 
 # Rollback migration
 alembic downgrade -1
 
-# Xem lịch sử migrations
+# View migration history
 alembic history
 ```
