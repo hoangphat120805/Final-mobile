@@ -1,14 +1,14 @@
 import uuid
 from typing import Annotated, Any
 from app.models import User
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 
 from app.schemas.user import UserPublic 
 from app.schemas.auth import Message
 from app.api.deps import CurrentUser, SessionDep
 from app.schemas.user import UserCreate, UserUpdate, UserUpdatePassword
 from app import crud
-from app.core.security import verify_password
+from app.core.security import verify_password, get_password_hash
 
 router = APIRouter(prefix="/user", tags=["user"])
 
