@@ -46,7 +46,7 @@ alembic upgrade head
 ```bash
 # Sử dụng FastAPI development server
 fastapi run app/main.py --reload
-
+```
 Ứng dụng sẽ chạy tại: `http://localhost:8000`
 
 ## 📚 API Documentation
