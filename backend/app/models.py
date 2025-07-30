@@ -16,7 +16,7 @@ class User(SQLModel, table=True):
     full_name: str = Field(max_length=100, nullable=False)
     phone_number: str = Field(unique=True, nullable=False)
     hashed_password: str = Field(nullable=False)
-    role_id: UserRole = Field(default=UserRole.USER)
+    role: UserRole = Field(default=UserRole.USER)
     address: str = Field(default="")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})

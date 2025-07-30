@@ -22,10 +22,9 @@ def authenticate(session: Session, username: str, password: str) -> Optional[Use
     return db_user
 
 def create_user(session: Session, user_create: UserCreate) -> None:
-    user_role = session.exec(select(UserRole).where(UserRole.name == "user")).first()
     db_user = User.model_validate(
         user_create,
-        update={"hashed_password": get_password_hash(user_create.password), "role_id": user_role.id}
+        update={"hashed_password": get_password_hash(user_create.password), "role": UserRole.USER} 
     )
     session.add(db_user)
     session.commit()
