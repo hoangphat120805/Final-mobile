@@ -15,5 +15,5 @@ engine = create_engine(
     )
 
 def init_db(session: Session) -> None:
-    crud.create_role(session=session, role_name="user")
-    crud.create_role(session=session, role_name="admin")
+    pass
+    

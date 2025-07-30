@@ -46,6 +46,7 @@ alembic upgrade head
 ```bash
 # Using FastAPI development server
 fastapi run app/main.py --reload
+```
 
 The application will run at: `http://localhost:8000`
 

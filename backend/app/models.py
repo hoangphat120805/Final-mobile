@@ -1,49 +1,83 @@
 import uuid
-import datetime
-
+from typing import Optional, List
+from datetime import datetime
+from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional 
+from sqlalchemy.sql import func
 
-class Role(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: str = Field(max_length=50, index=True, unique=True)
-    description: Optional[str] = Field(default=None, max_length=200)
-    created_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
-    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
-
-    users: list["User"] = Relationship(back_populates="role", sa_relationship_kwargs={"lazy": "selectin"})
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    USER = "user"
+    COLLECTOR = "collector"
+    BUSINESS = "business"
 
 class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    email: Optional[str] = Field(default=None, max_length=100, index=True, unique=True)
-    phone: Optional[str] = Field(default=None, max_length=15, index=True, unique=True)
-    username: str = Field(max_length=100)
-    hashed_password: str = Field(max_length=100)
-    role_id: uuid.UUID = Field(foreign_key="role.id")
-    created_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
-    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
+    full_name: str = Field(max_length=100, nullable=False)
+    phone_number: str = Field(unique=True, nullable=False)
+    hashed_password: str = Field(nullable=False)
+    role_id: UserRole = Field(default=UserRole.USER)
+    address: str = Field(default="")
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
-    role: Role = Relationship(back_populates="users", sa_relationship_kwargs={"lazy": "selectin"})
-    agency_prices: list["AgencyItemPrice"] = Relationship(back_populates="agency", sa_relationship_kwargs={"lazy": "selectin"})
+    orders: List["Order"] = Relationship(back_populates="owner")
+    received_orders: List["Order"] = Relationship(back_populates="collector")
+    reviews: List["Review"] = Relationship(back_populates="user")
 
-class Item(SQLModel, table=True):
+class ScrapCategory(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: str = Field(max_length=100)
-    description: Optional[str] = Field(default=None, max_length=500)
-    base_price: float = Field(gt=0)
-    created_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
-    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
+    name: str = Field(unique=True)
+    description: Optional[str] = None
+    unit: str = Field(default="kg")
+    icon_url: Optional[str] = None
+    estimated_price_per_unit: Optional[float] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
-    agency_prices: list["AgencyItemPrice"] = Relationship(back_populates="item", sa_relationship_kwargs={"lazy": "selectin"})
+    listing_items: List["OrderItem"] = Relationship(back_populates="category")
 
-class AgencyItemPrice(SQLModel, table=True):
+class OrderStatus(str, Enum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+class Order(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    item_id: uuid.UUID = Field(foreign_key="item.id")
-    agency_id: uuid.UUID = Field(foreign_key="user.id") 
-    price: float = Field(gt=0)
-    created_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
-    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
+    owner_id: uuid.UUID = Field(foreign_key="user.id")
+    collector_id: Optional[uuid.UUID] = Field(foreign_key="user.id", nullable=True)
+    total_amount: float
+    status: OrderStatus = Field(default=OrderStatus.PENDING)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
-    item: Item = Relationship(sa_relationship_kwargs={"lazy": "selectin"})
-    agency: User = Relationship(sa_relationship_kwargs={"lazy": "selectin"}) 
+    owner: "User" = Relationship(back_populates="orders")
+    collector: Optional["User"] = Relationship(back_populates="received_orders")
+    items: List["OrderItem"] = Relationship(back_populates="order")
+    review: Optional["Review"] = Relationship(back_populates="order")
 
+
+class OrderItem(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    order_id: uuid.UUID = Field(foreign_key="order.id")
+    category_id: uuid.UUID = Field(foreign_key="scrapcategory.id")
+
+    quantity: float
+    price_per_unit: float
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
+
+    order: "Order" = Relationship(back_populates="items")
+    category: "ScrapCategory" = Relationship(back_populates="listing_items")
+
+class Review(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    order_id: uuid.UUID = Field(foreign_key="order.id")
+    rating: int = Field(ge=1, le=5)  
+    comment: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
+
+    user: "User" = Relationship(back_populates="reviews")
+    order: "Order" = Relationship(back_populates="review")
