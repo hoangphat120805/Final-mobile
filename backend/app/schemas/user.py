@@ -3,11 +3,15 @@ from typing import Optional
 import uuid
 
 class UserCreate(SQLModel):
-    username: str = Field(max_length=100)
+    phone_number: str = Field(max_length=100)
+    password: str = Field(max_length=100)
+
+class UserLogin(SQLModel):
+    phone_number: str = Field(max_length=100)
     password: str = Field(max_length=100)
 
 class UserUpdate(SQLModel):
-    phone: Optional[str] = Field(default=None, max_length=15)
+    phone_number: Optional[str] = Field(default=None, max_length=15)
     email: Optional[str] = Field(default=None, max_length=100)
 
 class UserUpdatePassword(SQLModel):

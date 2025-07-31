@@ -31,8 +31,8 @@ def update_me(session: SessionDep, current_user: CurrentUser, user_update: UserU
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already exists",
             )
-    if user_update.phone:
-        existing_user = crud.get_user_by_phone(session=session, phone=user_update.phone)
+    if user_update.phone_number:
+        existing_user = crud.get_user_by_phone(session=session, phone=user_update.phone_number)
         if existing_user and existing_user.id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

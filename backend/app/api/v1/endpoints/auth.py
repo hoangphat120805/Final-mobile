@@ -2,10 +2,9 @@ from datetime import timedelta
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
-from starlette.requests import Request
 
 from app.schemas.auth import Message, Token
-from app.schemas.user import UserCreate, UserUpdate, UserUpdatePassword
+from app.schemas.user import UserCreate, UserLogin, UserUpdate, UserUpdatePassword
 from app.api.deps import SessionDep
 from app.core.security import get_password_hash, create_access_token
 from app.core.config import settings
@@ -15,11 +14,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login/access-token")
 def signin_access_token(session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    user = crud.authenticate(session=session, username=form_data.username, password=form_data.password)
+    user = crud.authenticate(session=session, phone_number=form_data.username, password=form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect phone number or password",
         )
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return Token(
@@ -28,13 +27,28 @@ def signin_access_token(session: SessionDep, form_data: Annotated[OAuth2Password
         expires_in=access_token_expires
     )
 
-@router.post("/siginup")
+@router.post("/login")
+def login(session: SessionDep, login: UserLogin):
+    user = crud.authenticate(session=session, phone_number=login.phone_number, password=login.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect phone number or password",
+        )
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    return Token(
+        access_token=create_access_token(user.id, expires_delta=access_token_expires),
+        token_type="bearer",
+        expires_in=access_token_expires
+    )
+
+@router.post("/signup")
 def signup(session: SessionDep, user_create: UserCreate):
-    existing_user = crud.get_user_by_username(session=session, username=user_create.username)
+    existing_user = crud.get_user_by_phone_number(session=session, phone_number=user_create.phone_number)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already exists",
+            detail="Phone number already exists",
         )
     user = crud.create_user(session=session, user_create=user_create)
     return {"message": "User created successfully"}

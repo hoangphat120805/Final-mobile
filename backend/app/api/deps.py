@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.db import engine
 from app.models import User
 from app.schemas.auth import TokenPayLoad
+from app.schemas.user import UserPublic
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login/access-token")
 
@@ -40,5 +41,5 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
         )
     return user
 
-CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentUser = Annotated[UserPublic, Depends(get_current_user)]
 

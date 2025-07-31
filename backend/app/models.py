@@ -13,29 +13,55 @@ class UserRole(str, Enum):
 
 class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    full_name: str = Field(max_length=100, nullable=False)
+    full_name: str | None = Field(default=None, max_length=100, nullable=True)
     phone_number: str = Field(unique=True, nullable=False)
     hashed_password: str = Field(nullable=False)
     role: UserRole = Field(default=UserRole.USER)
-    address: str = Field(default="")
+    address: str | None = Field(default=None, max_length=255, nullable=True)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
-    orders: List["Order"] = Relationship(back_populates="owner")
-    received_orders: List["Order"] = Relationship(back_populates="collector")
+    orders: List["Order"] = Relationship(
+        back_populates="owner", 
+        sa_relationship_kwargs={"foreign_keys": "Order.owner_id"}
+    )
+    received_orders: List["Order"] = Relationship(
+        back_populates="collector", 
+        sa_relationship_kwargs={"foreign_keys": "Order.collector_id"}
+    )
     reviews: List["Review"] = Relationship(back_populates="user")
+    categories_created: List["ScrapCategory"] = Relationship(
+        back_populates="created_by_user",
+        sa_relationship_kwargs={"foreign_keys": "ScrapCategory.created_by"}
+    )
+    categories_updated: List["ScrapCategory"] = Relationship(
+        back_populates="last_updated_by_user",
+        sa_relationship_kwargs={"foreign_keys": "ScrapCategory.last_updated_by"}
+    )
+
 
 class ScrapCategory(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(unique=True)
-    description: Optional[str] = None
+    description: str | None = Field(default=None, max_length=255, nullable=True)
     unit: str = Field(default="kg")
-    icon_url: Optional[str] = None
-    estimated_price_per_unit: Optional[float] = None
+    icon_url: str | None = Field(default=None, max_length=255, nullable=True)
+    estimated_price_per_unit: float = Field(ge=0)
+    created_by: uuid.UUID | None = Field(foreign_key="user.id")
+    last_updated_by: uuid.UUID | None = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
     listing_items: List["OrderItem"] = Relationship(back_populates="category")
+    created_by_user: User = Relationship(
+        back_populates="categories_created",
+        sa_relationship_kwargs={"foreign_keys": "ScrapCategory.created_by"}
+    )
+    last_updated_by_user: User = Relationship(
+        back_populates="categories_updated",
+        sa_relationship_kwargs={"foreign_keys": "ScrapCategory.last_updated_by"}
+    )
+
 
 class OrderStatus(str, Enum):
     PENDING = "pending"
@@ -45,14 +71,14 @@ class OrderStatus(str, Enum):
 class Order(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_id: uuid.UUID = Field(foreign_key="user.id")
-    collector_id: Optional[uuid.UUID] = Field(foreign_key="user.id", nullable=True)
+    collector_id: uuid.UUID | None = Field(foreign_key="user.id", nullable=True)
     total_amount: float
     status: OrderStatus = Field(default=OrderStatus.PENDING)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
-    owner: "User" = Relationship(back_populates="orders")
-    collector: Optional["User"] = Relationship(back_populates="received_orders")
+    owner: "User" = Relationship(back_populates="orders", sa_relationship_kwargs={"foreign_keys": "Order.owner_id"})
+    collector: Optional["User"] = Relationship(back_populates="received_orders", sa_relationship_kwargs={"foreign_keys": "Order.collector_id"})
     items: List["OrderItem"] = Relationship(back_populates="order")
     review: Optional["Review"] = Relationship(back_populates="order")
 
@@ -75,7 +101,7 @@ class Review(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="user.id")
     order_id: uuid.UUID = Field(foreign_key="order.id")
     rating: int = Field(ge=1, le=5)  
-    comment: Optional[str] = None
+    comment: str | None = Field(default=None, max_length=500, nullable=True)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
