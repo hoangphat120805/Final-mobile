@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
 
 from app.schemas.auth import Message, Token
-from app.schemas.user import UserCreate, UserLogin, UserUpdate, UserUpdatePassword
+from app.schemas.user import UserCreate, UserLogin, UserPublic, UserUpdate, UserUpdatePassword
 from app.api.deps import SessionDep
 from app.core.security import get_password_hash, create_access_token
 from app.core.config import settings
@@ -42,7 +42,7 @@ def login(session: SessionDep, login: UserLogin):
         expires_in=access_token_expires
     )
 
-@router.post("/signup")
+@router.post("/signup", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
 def signup(session: SessionDep, user_create: UserCreate):
     existing_user = crud.get_user_by_phone_number(session=session, phone_number=user_create.phone_number)
     if existing_user:
@@ -51,7 +51,7 @@ def signup(session: SessionDep, user_create: UserCreate):
             detail="Phone number already exists",
         )
     user = crud.create_user(session=session, user_create=user_create)
-    return {"message": "User created successfully"}
+    return user
 
 @router.get("/keep-alive", response_model=Message)
 def keep_alive():

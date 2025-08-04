@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     POSTGRES_URL: str
 
     PROJECT_NAME: str
-    API_V1_STR: str = "/api/v1"
+    API_STR: str = "/api"
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60*24
     SECRET_KEY: str 

@@ -24,34 +24,21 @@ def update_me(session: SessionDep, current_user: CurrentUser, user_update: UserU
     """
     Update the current authenticated user.
     """
-    if user_update.email:
-        existing_user = crud.get_user_by_email(session=session, email=user_update.email)
-        if existing_user and existing_user.id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already exists",
-            )
     if user_update.phone_number:
-        existing_user = crud.get_user_by_phone(session=session, phone=user_update.phone_number)
+        existing_user = crud.get_user_by_phone_number(session=session, phone_number=user_update.phone_number)
         if existing_user and existing_user.id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Phone number already exists",
             )
-    user_data = user_update.dict(exclude_unset=True)
-    current_user = current_user.sqlmodel_update(user_data)
-    session.add(current_user)
-    session.commit()
-    session.refresh(current_user)
-    return current_user
+    return crud.update_user(session=session, user=current_user, user_update=user_update)
 
 @router.delete("/me", response_model=Message)
 def delete_me(session: SessionDep, current_user: CurrentUser) -> Any:
     """
     Delete the current authenticated user.
     """
-    session.delete(current_user)
-    session.commit()
+    crud.delete_user(session=session, user=current_user)
     return Message(message="User deleted successfully")
 
 @router.patch("/me/password", response_model=Message)

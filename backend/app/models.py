@@ -14,10 +14,9 @@ class UserRole(str, Enum):
 class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     full_name: str | None = Field(default=None, max_length=100, nullable=True)
-    phone_number: str = Field(unique=True, nullable=False)
+    phone_number: str = Field(unique=True, nullable=False, index=True, max_length=15)
     hashed_password: str = Field(nullable=False)
     role: UserRole = Field(default=UserRole.USER)
-    address: str | None = Field(default=None, max_length=255, nullable=True)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
@@ -38,17 +37,35 @@ class User(SQLModel, table=True):
         back_populates="last_updated_by_user",
         sa_relationship_kwargs={"foreign_keys": "ScrapCategory.last_updated_by"}
     )
+    addresses: List["Address"] = Relationship(back_populates="user")
+
+class Address(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    street: str = Field(max_length=255)
+    city: str = Field(max_length=100)
+    district: str = Field(max_length=100)
+    ward: str = Field(max_length=100)
+    street_address: str = Field(max_length=255)
+    longitude: float = Field(ge=-180, le=180)
+    latitude: float = Field(ge=-90, le=90)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
+
+    user: User = Relationship(back_populates="addresses")
+    orders: List["Order"] = Relationship(back_populates="address")
 
 
 class ScrapCategory(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: str = Field(unique=True)
+    name: str = Field(unique=True, max_length=100)
+    slug: str = Field(unique=True, max_length=100, index=True)
     description: str | None = Field(default=None, max_length=255, nullable=True)
     unit: str = Field(default="kg")
     icon_url: str | None = Field(default=None, max_length=255, nullable=True)
     estimated_price_per_unit: float = Field(ge=0)
-    created_by: uuid.UUID | None = Field(foreign_key="user.id")
-    last_updated_by: uuid.UUID | None = Field(foreign_key="user.id")
+    created_by: uuid.UUID = Field(foreign_key="user.id")
+    last_updated_by: uuid.UUID = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
@@ -70,14 +87,16 @@ class OrderStatus(str, Enum):
 
 class Order(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner_id: uuid.UUID = Field(foreign_key="user.id")
-    collector_id: uuid.UUID | None = Field(foreign_key="user.id", nullable=True)
-    total_amount: float
+    owner_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    address_id: uuid.UUID = Field(foreign_key="address.id", index=True)
+    collector_id: uuid.UUID | None = Field(foreign_key="user.id", nullable=True, index=True)
+    total_amount: float = Field(default=0, ge=0)
     status: OrderStatus = Field(default=OrderStatus.PENDING)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
     owner: "User" = Relationship(back_populates="orders", sa_relationship_kwargs={"foreign_keys": "Order.owner_id"})
+    address: "Address" = Relationship(back_populates="orders")
     collector: Optional["User"] = Relationship(back_populates="received_orders", sa_relationship_kwargs={"foreign_keys": "Order.collector_id"})
     items: List["OrderItem"] = Relationship(back_populates="order")
     review: Optional["Review"] = Relationship(back_populates="order")
@@ -85,8 +104,8 @@ class Order(SQLModel, table=True):
 
 class OrderItem(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    order_id: uuid.UUID = Field(foreign_key="order.id")
-    category_id: uuid.UUID = Field(foreign_key="scrapcategory.id")
+    order_id: uuid.UUID = Field(foreign_key="order.id", index=True)
+    category_id: uuid.UUID = Field(foreign_key="scrapcategory.id", index=True)
 
     quantity: float
     price_per_unit: float
@@ -98,8 +117,8 @@ class OrderItem(SQLModel, table=True):
 
 class Review(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(foreign_key="user.id")
-    order_id: uuid.UUID = Field(foreign_key="order.id")
+    user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    order_id: uuid.UUID = Field(foreign_key="order.id", index=True)
     rating: int = Field(ge=1, le=5)  
     comment: str | None = Field(default=None, max_length=500, nullable=True)
     created_at: datetime = Field(default_factory=datetime.now)
