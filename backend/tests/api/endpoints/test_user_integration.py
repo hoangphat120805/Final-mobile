@@ -31,7 +31,7 @@ class TestUserIntegration:
         # 3. Change password
         password_data = {
             "old_password": "testpassword",
-            "new_password": "newworkflowpass"
+            "new_password": "newworkfl@2Aowpass"
         }
         response = authenticated_client.patch(f"{settings.API_STR}/user/me/password", json=password_data)
         assert response.status_code == 200
@@ -39,7 +39,7 @@ class TestUserIntegration:
         # 4. Verify password change worked
         session.refresh(test_user)
         from app.core.security import verify_password
-        assert verify_password("newworkflowpass", test_user.hashed_password)
+        assert verify_password("newworkfl@2Aowpass", test_user.hashed_password)
         
         # 5. Delete user
         response = authenticated_client.delete(f"{settings.API_STR}/user/me")

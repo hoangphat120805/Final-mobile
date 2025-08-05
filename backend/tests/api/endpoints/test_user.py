@@ -83,7 +83,7 @@ class TestUserEndpoints:
         """Test successful password update."""
         password_data = {
             "old_password": "testpassword",
-            "new_password": "newpassword123"
+            "new_password": "newpassword@@A123"
         }
 
         response = authenticated_client.patch(f"{settings.API_STR}/user/me/password", json=password_data)
@@ -95,13 +95,13 @@ class TestUserEndpoints:
         # Verify password was actually changed
         session.refresh(test_user)
         from app.core.security import verify_password
-        assert verify_password("newpassword123", test_user.hashed_password)
+        assert verify_password("newpassword@@A123", test_user.hashed_password)
 
     def test_update_password_wrong_old_password(self, authenticated_client: TestClient):
         """Test password update with wrong old password."""
         password_data = {
             "old_password": "wrongpassword",
-            "new_password": "newpassword123"
+            "new_password": "newpassword@@A123"
         }
 
         response = authenticated_client.patch(f"{settings.API_STR}/user/me/password", json=password_data)
@@ -150,8 +150,4 @@ class TestUserEndpoints:
 
         response = authenticated_client.patch(f"{settings.API_STR}/user/me", json=update_data)
 
-        assert response.status_code == 200
-        data = response.json()
-        # Data should remain unchanged
-        assert data["id"] == str(test_user.id)
-        assert data["phone_number"] == test_user.phone_number
+        assert response.status_code == 400

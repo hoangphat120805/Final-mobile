@@ -35,7 +35,7 @@ class TestAuthEndpoints:
         """Test successful user signup."""
         signup_data = {
             "phone_number": "0987654321",
-            "password": "newpassword"
+            "password": "hdhoH!@##212"
         }
 
         response = client.post(f"{settings.API_STR}/auth/signup", json=signup_data)
@@ -48,7 +48,7 @@ class TestAuthEndpoints:
         signup_data = {
             "full_name": "Another User",
             "phone_number": test_user.phone_number,
-            "password": "anotherpassword"
+            "password": "anotherpas@##3Sword"
         }
 
         response = client.post(f"{settings.API_STR}/auth/signup", json=signup_data)

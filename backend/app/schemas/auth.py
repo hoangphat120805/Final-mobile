@@ -1,14 +1,16 @@
 from datetime import timedelta
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, Field
+from pydantic import validator
 
 class TokenPayLoad(SQLModel):
-    sub: str
-    exp: int
+    sub: str = Field(min_length=1)
+    exp: int = Field(gt=0)
+
 
 class Token(SQLModel):
-    access_token: str
-    token_type: str = "bearer"
-    expires_in: timedelta  
+    access_token: str = Field(min_length=10)
+    token_type: str = Field(default="bearer", regex="^bearer$")
+
 
 class Message(SQLModel):
-    message: str
+    message: str = Field(min_length=1, max_length=1000)

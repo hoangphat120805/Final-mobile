@@ -78,7 +78,7 @@ def update_category(session: Session, category: ScrapCategory, category_update: 
     return current_category
 
 def get_order_by_id(session: Session, order_id: uuid.UUID) -> Order:
-    statement = select(Order).where(Order.id == order_id)
+    statement = select(Order).where(Order.id == order_id).join(Order.items)
     return session.exec(statement).first()
 
 def create_order(session: Session, order_create: OrderCreate, owner_id: uuid.UUID) -> Order:
@@ -96,5 +96,7 @@ def add_order_items(session: Session, order_id: uuid.UUID, order_items: list[Ord
         db_item = OrderItemCreate.model_validate(item, update={"order_id": order_id})
         session.add(db_item)
     session.commit()
-    session.refresh(order)
-    return order
+
+def get_order_items(session: Session, order_id: uuid.UUID) -> list[OrderItemCreate]:
+    statement = select(OrderItemCreate).where(OrderItemCreate.order_id == order_id)
+    return session.exec(statement).all()

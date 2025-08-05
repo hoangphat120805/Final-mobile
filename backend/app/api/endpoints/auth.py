@@ -24,7 +24,6 @@ def signin_access_token(session: SessionDep, form_data: Annotated[OAuth2Password
     return Token(
         access_token=create_access_token(user.id, expires_delta=access_token_expires),
         token_type="bearer",
-        expires_in=access_token_expires
     )
 
 @router.post("/login")
@@ -39,7 +38,6 @@ def login(session: SessionDep, login: UserLogin):
     return Token(
         access_token=create_access_token(user.id, expires_delta=access_token_expires),
         token_type="bearer",
-        expires_in=access_token_expires
     )
 
 @router.post("/signup", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
