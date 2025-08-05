@@ -2,9 +2,10 @@ from typing import Optional
 from sqlmodel import Session, select
 import uuid
 
-from app.schemas.user import UserCreate, UserPublic
+from app.schemas.user import UserCreate, UserPublic, UserUpdate
 from app.schemas.category import CategoryCreate
-from app.models import OrderStatus, User, UserRole, ScrapCategory
+from app.schemas.order import OrderItemCreate, OrderCreate
+from app.models import OrderStatus, User, UserRole, ScrapCategory, Order
 from app.core.security import get_password_hash, verify_password
 
 def authenticate(session: Session, phone_number: str, password: str) -> Optional[User]:
@@ -33,7 +34,7 @@ def get_user_by_id(session: Session, user_id: uuid.UUID) -> Optional[User]:
     statement = select(User).where(User.id == user_id)
     return session.exec(statement).first()
 
-def update_user(session: Session, user: User, user_update: UserCreate) -> User:
+def update_user(session: Session, user: User, user_update: UserUpdate) -> User:
     user_data = user_update.dict(exclude_unset=True)
     current_user = user.sqlmodel_update(user_data)
     session.add(current_user)
@@ -60,7 +61,7 @@ def get_category_by_slug(session: Session, slug: str) -> Optional[ScrapCategory]
     return session.exec(statement).first()
 
 def get_all_categories(session: Session) -> list[ScrapCategory]:
-    statement = select(ScrapCategory)
+    statement = select(ScrapCategory).order_by(ScrapCategory.name.asc())
     return session.exec(statement).all()
 
 def delete_category(session: Session, category: ScrapCategory) -> None:
@@ -75,3 +76,25 @@ def update_category(session: Session, category: ScrapCategory, category_update: 
     session.commit()
     session.refresh(current_category)
     return current_category
+
+def get_order_by_id(session: Session, order_id: uuid.UUID) -> Order:
+    statement = select(Order).where(Order.id == order_id)
+    return session.exec(statement).first()
+
+def create_order(session: Session, order_create: OrderCreate, owner_id: uuid.UUID) -> Order:
+    db_order = Order.model_validate(
+        order_create,
+        update={"owner_id": owner_id, "status": OrderStatus.PENDING}
+    )
+    session.add(db_order)
+    session.commit()
+    session.refresh(db_order)
+    return db_order
+
+def add_order_items(session: Session, order_id: uuid.UUID, order_items: list[OrderItemCreate]) -> None:
+    for item in order_items:
+        db_item = OrderItemCreate.model_validate(item, update={"order_id": order_id})
+        session.add(db_item)
+    session.commit()
+    session.refresh(order)
+    return order

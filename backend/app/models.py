@@ -42,6 +42,7 @@ class User(SQLModel, table=True):
 class Address(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    is_default: bool = Field(default=False)
     street: str = Field(max_length=255)
     city: str = Field(max_length=100)
     district: str = Field(max_length=100)
@@ -53,7 +54,6 @@ class Address(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
     user: User = Relationship(back_populates="addresses")
-    orders: List["Order"] = Relationship(back_populates="address")
 
 
 class ScrapCategory(SQLModel, table=True):
@@ -88,15 +88,15 @@ class OrderStatus(str, Enum):
 class Order(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_id: uuid.UUID = Field(foreign_key="user.id", index=True)
-    address_id: uuid.UUID = Field(foreign_key="address.id", index=True)
-    collector_id: uuid.UUID | None = Field(foreign_key="user.id", nullable=True, index=True)
-    total_amount: float = Field(default=0, ge=0)
-    status: OrderStatus = Field(default=OrderStatus.PENDING)
+    pickup_address: str = Field(max_length=255, nullable=True)
+    pickup_latitude: float = Field(ge=-90, le=90, nullable=True)
+    pickup_longitude: float = Field(ge=-180, le=180, nullable=True)
+    collector_id: uuid.UUID | None = Field(foreign_key="user.id", nullable=True, index=True, default=None)
+    status: OrderStatus
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
     owner: "User" = Relationship(back_populates="orders", sa_relationship_kwargs={"foreign_keys": "Order.owner_id"})
-    address: "Address" = Relationship(back_populates="orders")
     collector: Optional["User"] = Relationship(back_populates="received_orders", sa_relationship_kwargs={"foreign_keys": "Order.collector_id"})
     items: List["OrderItem"] = Relationship(back_populates="order")
     review: Optional["Review"] = Relationship(back_populates="order")

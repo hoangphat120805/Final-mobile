@@ -5,15 +5,14 @@ from app.models import OrderStatus
 from sqlmodel import SQLModel
 
 class OrderCreate(SQLModel):
-    owner_id: uuid.UUID
-    address_id: uuid.UUID
-    order_items: list["OrderItemCreate"] = []
+    pickup_address: str
+    pickup_latitude: float
+    pickup_longitude: float
 
 class OrderPublic(SQLModel):
     id: uuid.UUID
     owner_id: uuid.UUID
     collector_id: uuid.UUID | None
-    total_amount: float
     status: OrderStatus
     created_at: datetime
     updated_at: datetime
