@@ -1,7 +1,7 @@
 """fix nullable
 
 Revision ID: 88056839676e
-Revises: 4623c4e98062
+Revises: 59db12976b19
 Create Date: 2025-07-31 10:19:19.739285
 
 """
@@ -14,7 +14,7 @@ import sqlmodel.sql.sqltypes
 
 # revision identifiers, used by Alembic.
 revision: str = '88056839676e'
-down_revision: Union[str, Sequence[str], None] = '4623c4e98062'
+down_revision: Union[str, Sequence[str], None] = '59db12976b19'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

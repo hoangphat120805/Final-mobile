@@ -1,7 +1,7 @@
 """add slug to category
 
 Revision ID: a708edae86cb
-Revises: ea03c348a2c2
+Revises: 3671dc91e666
 Create Date: 2025-08-04 20:34:13.702416
 
 """
@@ -14,7 +14,7 @@ import sqlmodel.sql.sqltypes
 
 # revision identifiers, used by Alembic.
 revision: str = 'a708edae86cb'
-down_revision: Union[str, Sequence[str], None] = 'ea03c348a2c2'
+down_revision: Union[str, Sequence[str], None] = '3671dc91e666'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
