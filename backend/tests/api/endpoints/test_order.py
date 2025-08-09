@@ -12,7 +12,7 @@ class TestOrderEndpoints:
             "pickup_longitude": 98.765432,
         }
 
-        response = authenticated_client.post(f"{settings.API_STR}/order/", json=order_data)
+        response = authenticated_client.post(f"{settings.API_STR}/orders/", json=order_data)
         assert response.status_code == 201
         data = response.json()
         assert data["owner_id"] == str(test_user.id)
