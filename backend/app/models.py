@@ -82,6 +82,7 @@ class ScrapCategory(SQLModel, table=True):
 
 class OrderStatus(str, Enum):
     PENDING = "pending"
+    ACCEPTED = "accepted"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
@@ -100,6 +101,9 @@ class Order(SQLModel, table=True):
     collector: Optional["User"] = Relationship(back_populates="received_orders", sa_relationship_kwargs={"foreign_keys": "Order.collector_id"})
     items: List["OrderItem"] = Relationship(back_populates="order")
     review: Optional["Review"] = Relationship(back_populates="order")
+    
+    total_amount_paid: float | None = Field(default=None)
+    transaction: Optional["Transaction"] = Relationship(back_populates="order")
 
 
 class OrderItem(SQLModel, table=True):
@@ -126,3 +130,31 @@ class Review(SQLModel, table=True):
 
     user: "User" = Relationship(back_populates="reviews")
     order: "Order" = Relationship(back_populates="review")
+
+
+class TransactionMethod(str, Enum):
+    CASH = "cash"
+    WALLET = "wallet"
+
+class TransactionStatus(str, Enum):
+    SUCCESSFUL = "successful"
+    FAILED = "failed"
+    PENDING = "pending"
+
+class Transaction(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    order_id: uuid.UUID = Field(foreign_key="order.id", index=True, unique=True) 
+    
+   
+    payer_id: uuid.UUID = Field(foreign_key="user.id", index=True) 
+    payee_id: uuid.UUID = Field(foreign_key="user.id", index=True) 
+    
+    amount: float = Field(ge=0)
+    method: TransactionMethod
+    status: TransactionStatus
+    
+    transaction_date: datetime = Field(default_factory=datetime.now)
+
+    order: "Order" = Relationship(back_populates="transaction")
+    payer: "User" = Relationship(sa_relationship_kwargs={"foreign_keys": "Transaction.payer_id"})
+    payee: "User" = Relationship(sa_relationship_kwargs={"foreign_keys": "Transaction.payee_id"})

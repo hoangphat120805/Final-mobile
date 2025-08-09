@@ -14,6 +14,7 @@ from app.core.db import engine
 from app.models import User
 from app.schemas.auth import TokenPayLoad
 from app.schemas.user import UserPublic
+from app.models import UserRole
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_STR}/auth/login/access-token")
 
@@ -43,3 +44,25 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
 
 CurrentUser = Annotated[UserPublic, Depends(get_current_user)]
 
+
+
+
+
+def get_current_active_collector(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    Checks if the current user is an active collector.
+    
+    This dependency calls get_current_user and then performs an
+    additional check on the user's role.
+    """
+    if current_user.role != UserRole.COLLECTOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user does not have sufficient privileges. Collector role required.",
+        )
+    return current_user
+
+# Create a convenient shortcut, similar to CurrentUser
+CurrentCollector = Annotated[User, Depends(get_current_active_collector)]

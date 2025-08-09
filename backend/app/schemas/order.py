@@ -52,6 +52,16 @@ class OrderItemPublic(SQLModel):
     price_per_unit: float
 
 
+class OrderAcceptRequest(SQLModel):
+    note: str | None = None
+
+class OrderAcceptResponse(SQLModel):
+    id: uuid.UUID
+    status: OrderStatus
+    owner_id: uuid.UUID
+    collector_id: uuid.UUID | None
+    # optional echo of note later if persisted (not stored yet)
+
 
 
     
