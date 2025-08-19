@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.vaicheuserapp"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.vaicheuserapp"
@@ -36,7 +36,7 @@ android {
 }
 
 dependencies {
-
+    implementation(libs.androidx.lifecycle.common.java8)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
