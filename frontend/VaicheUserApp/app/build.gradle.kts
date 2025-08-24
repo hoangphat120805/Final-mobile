@@ -10,6 +10,7 @@ android {
     defaultConfig {
         applicationId = "com.example.vaicheuserapp"
         minSdk = 24
+        //noinspection OldTargetApi
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -33,6 +34,10 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+
+    buildFeatures {
+        viewBinding = true
+    }
 }
 
 dependencies {
@@ -45,4 +50,17 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    implementation(libs.retrofit)
+    implementation (libs.converter.gson)
+
+    // OkHttp & Logging Interceptor (for debugging network calls)
+    implementation (libs.okhttp)
+    implementation (libs.logging.interceptor)
+
+    // Coroutines for asynchronous calls
+    implementation (libs.kotlinx.coroutines.android)
+    implementation (libs.androidx.lifecycle.runtime.ktx) // For lifecycleScope
+
+    implementation(libs.coil)
 }

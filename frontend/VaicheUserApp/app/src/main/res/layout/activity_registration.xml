@@ -7,13 +7,14 @@
     android:layout_height="match_parent"
     android:background="@color/background_light"
     android:fillViewport="true"
-    tools:context=".LoginActivity">
+    tools:context=".RegistrationActivity">
 
+    <!-- ConstraintLayout inside ScrollView -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- 1. Top Decoration (Reusing the same graphic) -->
+        <!-- 1. Top Decoration (Background image placed top-start) -->
         <ImageView
             android:id="@+id/iv_decoration_top"
             android:layout_width="wrap_content"
@@ -23,13 +24,13 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- 2. Welcome Header -->
+        <!-- 2. Welcome Header (Centered horizontally, constrained below decoration) -->
         <TextView
             android:id="@+id/tv_welcome_header"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="80dp"
-            android:text="Welcome Back!"
+            android:layout_marginTop="100dp"
+            android:text="Welcome Onboard!"
             android:textColor="@color/text_dark"
             android:textSize="24sp"
             android:textStyle="bold"
@@ -37,84 +38,79 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/iv_decoration_top" />
 
-        <!-- 3. Illustration with Dashed Border -->
-        <FrameLayout
-            android:id="@+id/fl_illustration_container"
+        <TextView
+            android:id="@+id/tv_welcome_subheader"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:background="@drawable/bg_dashed_border"
-            android:padding="20dp"
+            android:layout_marginTop="4dp"
+            android:text="Let's help you meet up your tasks"
+            android:textColor="@color/text_dark"
+            android:textSize="14sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_welcome_header">
+            app:layout_constraintTop_toBottomOf="@id/tv_welcome_header" />
 
-            <ImageView
-                android:id="@+id/iv_illustration"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
-                android:src="@drawable/ic_login_illustration"
-                android:contentDescription="Login Illustration" />
-
-        </FrameLayout>
-
-
-        <!-- 4. Input Fields (Reusing our TextInputStyle) -->
-        <EditText
-            android:id="@+id/et_phone_number"
-            style="@style/TextInputStyle"
-            android:layout_width="0dp"
+        <!-- 3. Input Fields (Using Material components for better design support) -->
+        <LinearLayout
+            android:id="@+id/ll_inputs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginHorizontal="24dp"
             android:layout_marginTop="32dp"
-            android:hint="Enter your phone number"
-            android:inputType="phone"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/fl_illustration_container" />
+            android:orientation="vertical"
+            app:layout_constraintTop_toBottomOf="@id/tv_welcome_subheader">
 
-        <EditText
-            android:id="@+id/et_password"
-            style="@style/TextInputStyle"
-            android:layout_width="0dp"
-            android:layout_marginHorizontal="24dp"
-            android:layout_marginTop="16dp"
-            android:hint="Enter password"
-            android:inputType="textPassword"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/et_phone_number" />
+            <!-- Full Name Input -->
+            <EditText
+                android:id="@+id/et_full_name"
+                style="@style/TextInputStyle"
+                android:hint="Enter your full name"
+                android:inputType="textPersonName" />
 
-        <!-- 5. Forgot Password Link -->
-        <TextView
-            android:id="@+id/tv_forgot_password"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:padding="8dp"
-            android:text="Forgot Password"
-            android:textColor="@color/teal_primary"
-            android:textSize="14sp"
-            app:layout_constraintEnd_toEndOf="@id/et_password"
-            app:layout_constraintTop_toBottomOf="@id/et_password" />
+            <!-- Phone Number Input -->
+            <EditText
+                android:id="@+id/et_phone_number"
+                style="@style/TextInputStyle"
+                android:hint="Enter your phone number"
+                android:inputType="phone"
+                android:layout_marginTop="16dp" />
 
-        <!-- 6. Sign In Button -->
+            <!-- Password Input -->
+            <EditText
+                android:id="@+id/et_password"
+                style="@style/TextInputStyle"
+                android:hint="Enter password"
+                android:inputType="textPassword"
+                android:layout_marginTop="16dp" />
+
+            <!-- Confirm Password Input -->
+            <EditText
+                android:id="@+id/et_confirm_password"
+                style="@style/TextInputStyle"
+                android:hint="Confirm password"
+                android:inputType="textPassword"
+                android:layout_marginTop="16dp" />
+
+        </LinearLayout>
+
+        <!-- 4. Register Button -->
         <Button
-            android:id="@+id/btn_sign_in"
+            android:id="@+id/btn_register"
             android:layout_width="0dp"
             android:layout_height="56dp"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="32dp"
             android:layout_marginHorizontal="24dp"
             android:backgroundTint="@color/teal_primary"
-            android:text="Sign In"
+            android:text="Register"
             android:textColor="@color/white"
             android:textSize="18sp"
             android:textStyle="bold"
             app:cornerRadius="12dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_forgot_password" />
+            app:layout_constraintTop_toBottomOf="@id/ll_inputs" />
 
-        <!-- 7. "Don't have an account? Sign Up" Link -->
+        <!-- 5. "Already have an account? Sign In" Link -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -124,20 +120,20 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btn_sign_in">
+            app:layout_constraintTop_toBottomOf="@id/btn_register">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Don't have an account? "
+                android:text="Already have an account? "
                 android:textColor="@color/text_dark"
                 android:textSize="14sp" />
 
             <TextView
-                android:id="@+id/tv_sign_up_link"
+                android:id="@+id/tv_sign_in_link"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Sign Up"
+                android:text="Sign In"
                 android:textColor="@color/teal_primary"
                 android:textSize="14sp"
                 android:textStyle="bold" />

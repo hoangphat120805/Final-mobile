@@ -1,10 +1,155 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- THE FIX: The root must be a ConstraintLayout for this design to work -->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/background_light"
     tools:context=".MainActivity">
+
+    <!-- This container holds all the content that scrolls or is above the nav bar -->
+
+    <!-- Bottom Navigation Container -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/main_content_container"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@id/bottom_nav_container"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0">
+
+        <!-- Header Section -->
+        <View
+            android:id="@+id/view_header_background"
+            android:layout_width="0dp"
+            android:layout_height="200dp"
+            android:background="@drawable/bg_header"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Search Bar -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/card_search"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginTop="-25dp"
+            app:cardCornerRadius="25dp"
+            app:cardElevation="4dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/view_header_background">
+
+            <EditText
+                android:id="@+id/et_search"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@null"
+                android:hint="Search for scrap type"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:paddingStart="50dp"
+                android:paddingEnd="16dp" />
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="16dp"
+                android:src="@drawable/ic_search" />
+
+        </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:id="@+id/tv_scrap_prices_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Scrap prices today!"
+            android:textColor="@color/text_dark"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/card_search"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_categories"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_marginTop="16dp"
+            android:paddingHorizontal="8dp"
+            app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+            app:spanCount="2"
+            app:layout_constraintTop_toBottomOf="@id/tv_scrap_prices_title"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:listitem="@layout/item_scrap_category"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <FrameLayout
+        android:id="@+id/bottom_nav_container"
+        android:layout_width="0dp"
+        android:layout_height="100dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/bg_bottom_nav_wave"
+            android:scaleType="fitXY"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:orientation="horizontal"
+            android:layout_marginTop="40dp"
+            android:gravity="center_vertical">
+            <ImageView
+                style="@style/BottomNavIcon"
+                android:src="@drawable/ic_home"/>
+            <ImageView
+                style="@style/BottomNavIcon"
+                android:src="@drawable/ic_notifications"/>
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="3"/>
+            <ImageView
+                style="@style/BottomNavIcon"
+                android:src="@drawable/ic_history"/>
+            <ImageView
+                style="@style/BottomNavIcon"
+                android:src="@drawable/ic_profile"/>
+        </LinearLayout>
+
+    </FrameLayout>
+
+    <!-- Floating Action Button -->
+    <TextView
+        android:id="@+id/fab_sell"
+        android:background="@drawable/bg_circle_button"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:layout_marginBottom="20dp"
+        android:text="Sell"
+        android:textColor="@color/text_dark"
+        android:textStyle="bold"
+        android:textSize="28sp"
+        android:gravity="center"
+        android:elevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
