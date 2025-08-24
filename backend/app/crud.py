@@ -5,7 +5,7 @@ import uuid
 from app.schemas.user import UserCreate, UserPublic, UserUpdate
 from app.schemas.category import CategoryCreate
 from app.schemas.order import OrderItemCreate, OrderCreate
-from app.models import OrderStatus, User, UserRole, ScrapCategory, Order
+from app.models import OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction
 from app.core.security import get_password_hash, verify_password
 
 def authenticate(session: Session, phone_number: str, password: str) -> Optional[User]:
@@ -98,5 +98,129 @@ def add_order_items(session: Session, order_id: uuid.UUID, order_items: list[Ord
     session.commit()
 
 def get_order_items(session: Session, order_id: uuid.UUID) -> list[OrderItemCreate]:
-    statement = select(OrderItemCreate).where(OrderItemCreate.order_id == order_id)
-    return session.exec(statement).all()
+    session.refresh(order)
+    return order
+
+def accept_order_service(db: Session, order_id: uuid.UUID, collector: User, note: str | None = None):
+    from fastapi import HTTPException
+    from fastapi import status as fas
+    order = db.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=fas.HTTP_404_NOT_FOUND, detail="Order not found")
+    if order.status != OrderStatus.PENDING:
+        raise HTTPException(status_code=fas.HTTP_400_BAD_REQUEST, detail="Order not in pending state")
+    if order.collector_id and order.collector_id != collector.id:
+        raise HTTPException(status_code=fas.HTTP_409_CONFLICT, detail="Order already assigned")
+    order.collector_id = collector.id
+    order.status = OrderStatus.ACCEPTED
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    return order
+
+def get_nearby_orders(db: Session, latitude: float, longitude: float, radius_km: float, limit: int = 50):
+    """Return pending, unassigned orders within radius_km of given point sorted by distance."""
+    from math import radians, sin, cos, asin, sqrt
+    # Fetch candidate orders (simple filter first)
+    statement = select(Order).where(
+        Order.status == OrderStatus.PENDING,
+        Order.collector_id.is_(None),
+        Order.pickup_latitude.is_not(None),
+        Order.pickup_longitude.is_not(None)
+    )
+    candidates = db.exec(statement).all()
+    results = []
+    for o in candidates:
+        # Haversine
+        lat1, lon1, lat2, lon2 = map(radians, [latitude, longitude, o.pickup_latitude, o.pickup_longitude])
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        c = 2 * asin(sqrt(a))
+        earth_radius_km = 6371.0
+        distance = earth_radius_km * c
+        if distance <= radius_km:
+            results.append((o, distance))
+    # sort and trim
+    results.sort(key=lambda x: x[1])
+    return results[:limit]
+
+
+
+
+
+from app.schemas.transaction import OrderCompletionRequest
+from fastapi import HTTPException, status
+from app.models import Transaction, TransactionStatus
+
+def complete_order_payment_service(
+    db: Session,
+    order_id: uuid.UUID,
+    collector: User,
+    completion_data: OrderCompletionRequest
+):
+    """
+    Handles the business logic for completing and paying for an order.
+    This is a critical operation and is executed within a database transaction.
+    """
+    try:
+        # Step 1: Fetch and Lock the Order.
+        # `with_for_update=True` places a row-level lock on this order,
+        # preventing race conditions where two requests might process the same order simultaneously.
+        order_to_complete = db.exec(
+            select(Order).where(Order.id == order_id).with_for_update()
+        ).first()
+
+        # Step 2: Perform Business Rule Validations.
+        if not order_to_complete:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found.")
+        
+        if order_to_complete.collector_id != collector.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to complete this order.")
+
+        if order_to_complete.status not in [OrderStatus.ACCEPTED]:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Order is in an invalid state: {order_to_complete.status}")
+
+        # Step 3: Iterate, Update Quantities, and Calculate Total Amount.
+        final_total_amount = 0
+        for item_data in completion_data.items:
+            order_item = db.get(OrderItem, item_data.order_item_id)
+            
+            if not order_item or order_item.order_id != order_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid OrderItem ID: {item_data.order_item_id}")
+
+            order_item.quantity = item_data.actual_quantity
+            final_total_amount += order_item.price_per_unit * order_item.quantity
+            db.add(order_item)
+
+        # Step 4: Update the main Order record.
+        order_to_complete.status = OrderStatus.COMPLETED
+        order_to_complete.total_amount_paid = final_total_amount
+        db.add(order_to_complete)
+        
+        # Step 5: Create the financial Transaction record.
+        new_transaction = Transaction(
+            order_id=order_id,
+            payer_id=collector.id,
+            payee_id=order_to_complete.owner_id,
+            amount=final_total_amount,
+            method=completion_data.payment_method,
+            status=TransactionStatus.SUCCESSFUL
+        )
+        db.add(new_transaction)
+        
+        # Step 6: Commit the Transaction.
+        # If all steps succeed, this saves all changes to the database atomically.
+        db.commit()
+
+        # Refresh the object to get the latest state from the DB (e.g., generated IDs, dates).
+        db.refresh(new_transaction)
+        
+        return new_transaction
+        
+    except Exception as e:
+        # If any error occurs, rollback all changes made during this session.
+        # This ensures the database remains in a consistent state.
+        db.rollback()
+        raise e
+

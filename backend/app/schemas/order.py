@@ -20,6 +20,7 @@ class OrderPublic(SQLModel):
     pickup_latitude: float
     pickup_longitude: float
     items: list['OrderItemPublic'] = []
+    # Optionally: location_geojson: dict | None
 
 class OrderItemCreate(SQLModel):
     category_id: uuid.UUID
@@ -51,6 +52,19 @@ class OrderItemPublic(SQLModel):
     quantity: float
     price_per_unit: float
 
+
+class OrderAcceptRequest(SQLModel):
+    note: str | None = None
+
+class OrderAcceptResponse(SQLModel):
+    id: uuid.UUID
+    status: OrderStatus
+    owner_id: uuid.UUID
+    collector_id: uuid.UUID | None
+    # optional echo of note later if persisted (not stored yet)
+
+class NearbyOrderPublic(OrderPublic):
+    distance_km: float
 
 
 
