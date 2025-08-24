@@ -5,7 +5,7 @@ from fastapi import HTTPException, Depends, status
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.api.deps import SessionDep, CurrentUser
+from app.api.deps import SessionDep, CurrentUser, CurrentCollector
 
 from app.schemas.order import OrderCreate, OrderItemCreate, OrderPublic
 from app.schemas.order import OrderCreate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
@@ -23,14 +23,14 @@ router = APIRouter(
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=OrderPublic)
-def create_order(session: SessionDep, current_user: CurrentUser, order: OrderCreate) -> OrderPublic:
+def create_order(order: OrderCreate, current_user: CurrentUser, session: SessionDep) -> OrderPublic:
     """
     Create a new order.
     """
     return crud.create_order(session=session, order_create=order, owner_id=current_user.id)
 
 @router.post("/{order_id}/items", response_model=OrderPublic)
-def add_order_items(session: SessionDep, current_user: CurrentUser, order_id: uuid.UUID, items: list[OrderItemCreate]) -> OrderPublic:
+def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_user: CurrentUser, session: SessionDep) -> OrderPublic:
     """
     Add items to an order.
     """
@@ -53,13 +53,15 @@ def add_order_items(session: SessionDep, current_user: CurrentUser, order_id: uu
 def list_nearby_orders(
     lat: float,
     lng: float,
+    current_collector: CurrentCollector,
+    session: SessionDep,
     radius_km: float = 5.0,
-    limit: int = 50,
-    db: Session = Depends(get_db),
-    current_collector: User = Depends(get_current_active_collector)
+    limit: int = 50
 ):
     """List pending, unassigned orders near the collector's current location within given radius (km)."""
-    pairs = crud.get_nearby_orders(db=db, latitude=lat, longitude=lng, radius_km=radius_km, limit=limit)
+    # current_collector is accessed here to ensure dependency is triggered
+    _ = current_collector.id
+    pairs = crud.get_nearby_orders(db=session, latitude=lat, longitude=lng, radius_km=radius_km, limit=limit)
     response = []
     for order, distance in pairs:
         response.append(NearbyOrderPublic(
@@ -76,7 +78,7 @@ def list_nearby_orders(
     return response
 
 @router.get("/{order_id}", response_model=OrderPublic)
-def get_order(session: SessionDep, order_id: uuid.UUID) -> OrderPublic:
+def get_order(order_id: uuid.UUID, session: SessionDep) -> OrderPublic:
     """
     Get order details by ID.
     """
@@ -86,7 +88,7 @@ def get_order(session: SessionDep, order_id: uuid.UUID) -> OrderPublic:
     return order
 
 @router.get("/", response_model=list[OrderPublic])
-def get_orders(session: SessionDep, current_user: CurrentUser) -> list[OrderPublic]:
+def get_orders(current_user: CurrentUser, session: SessionDep) -> list[OrderPublic]:
     """
     Get all orders for the current user.
     """
@@ -111,34 +113,10 @@ def add_order_items(session: SessionDep, current_user: CurrentUser, order_id: uu
     updated_order = crud.get_order_by_id(session=session, order_id=order_id)
     return updated_order
 
-@router.get("/nearby", response_model=list[NearbyOrderPublic])
-def list_nearby_orders(
-    lat: float,
-    lng: float,
-    radius_km: float = 5.0,
-    limit: int = 50,
-    db: Session = Depends(get_db),
-    current_collector: User = Depends(get_current_active_collector)
-):
-    """List pending, unassigned orders near the collector's current location within given radius (km)."""
-    pairs = crud.get_nearby_orders(db=db, latitude=lat, longitude=lng, radius_km=radius_km, limit=limit)
-    # Map to schema objects with distance
-    response = []
-    for order, distance in pairs:
-        response.append(NearbyOrderPublic(
-            id=order.id,
-            owner_id=order.owner_id,
-            collector_id=order.collector_id,
-            status=order.status,
-            created_at=order.created_at,
-            updated_at=order.updated_at,
-            distance_km=round(distance, 3)
-        ))
-    return response
 
 
 @router.get("/{order_id}", response_model=OrderPublic)
-def get_order(session: SessionDep, order_id: uuid.UUID) -> OrderPublic:
+def get_order(order_id: uuid.UUID, session: SessionDep):
     """
     Get order details by ID.
     """
@@ -148,7 +126,7 @@ def get_order(session: SessionDep, order_id: uuid.UUID) -> OrderPublic:
     return order
 
 @router.get("/", response_model=list[OrderPublic])
-def get_orders(session: SessionDep, current_user: CurrentUser) -> list[OrderPublic]:
+def get_orders(current_user: CurrentUser, session: SessionDep):
     """
     Get all orders for the current user.
     """
@@ -159,8 +137,8 @@ def get_orders(session: SessionDep, current_user: CurrentUser) -> list[OrderPubl
 def accept_order(
     order_id: uuid.UUID,
     payload: OrderAcceptRequest,
-    db: Session = Depends(get_db),
-    current_collector: User = Depends(get_current_active_collector)
+    current_collector: CurrentCollector,
+    session: SessionDep
 ):
     """Collector accepts (claims) an order -> status becomes ACCEPTED and collector assigned.
 
@@ -169,7 +147,7 @@ def accept_order(
     - Not already assigned.
     - Collector performing action matches current_collector (redundant but explicit).
     """
-    order = crud.accept_order_service(db=db, order_id=order_id, collector=current_collector, note=payload.note)
+    order = crud.accept_order_service(db=session, order_id=order_id, collector=current_collector, note=payload.note)
     return order
 
 
@@ -183,9 +161,9 @@ def accept_order(
 )
 def complete_order_and_pay(
     order_id: uuid.UUID,
-    completion_data: OrderCompletionRequest, # FastAPI validates the request body against this schema.
-    db: Session = Depends(get_db), # Dependency to get a database session.
-    current_collector: User = Depends(get_current_active_collector) # Dependency to get and authorize the current user.
+    completion_data: OrderCompletionRequest,
+    current_collector: CurrentCollector,
+    session: SessionDep
 ):
     """
     API endpoint for a collector to complete an order. This action will:
@@ -197,7 +175,7 @@ def complete_order_and_pay(
     
     # Call the service layer to execute the core business logic.
     transaction = crud.complete_order_payment_service(
-        db=db,
+        db=session,
         order_id=order_id,
         collector=current_collector,
         completion_data=completion_data
