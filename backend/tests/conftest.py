@@ -15,14 +15,13 @@ from app.core.config import settings
 from datetime import timedelta
 
 
-# Test database URL using in-memory SQLite
-TEST_DATABASE_URL = "sqlite:///:memory:"
+
+# Test database URL using PostgreSQL/PostGIS on Render
+#TEST_DATABASE_URL = "postgresql+psycopg2://vechai_db_user:1oCfnnI5IoxXz20ni3rYj0vvwUjJhmWt@dpg-d2lc2rjuibrs73f2uhs0-a.singapore-postgres.render.com/vechai_db"
 
 # Create test engine
 engine = create_engine(
     TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
 )
 
 
@@ -105,8 +104,8 @@ def another_test_user(session: Session) -> User:
     return user
 
 @pytest.fixture
-def test_scrap_category(session: Session) -> list[ScrapCategory]:
-    """Create a test scrap category."""
+def test_scrap_category(session: Session, test_user: User) -> list[ScrapCategory]:
+    """Create a test scrap category with valid user references."""
     category = ScrapCategory(
         id=uuid.uuid4(),
         name="Test Category",
@@ -115,8 +114,8 @@ def test_scrap_category(session: Session) -> list[ScrapCategory]:
         unit="kg",
         estimated_price_per_unit=10.0,
         icon_url=None,
-        created_by=uuid.uuid4(),
-        last_updated_by=uuid.uuid4()
+        created_by=test_user.id,
+        last_updated_by=test_user.id
     )
     session.add(category)
     session.commit()

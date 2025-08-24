@@ -4,7 +4,8 @@ from datetime import datetime
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
-
+from geoalchemy2 import Geometry
+from sqlalchemy import Column
 class UserRole(str, Enum):
     ADMIN = "admin"
     USER = "user"
@@ -90,8 +91,9 @@ class Order(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_id: uuid.UUID = Field(foreign_key="user.id", index=True)
     pickup_address: str = Field(max_length=255, nullable=True)
-    pickup_latitude: float = Field(ge=-90, le=90, nullable=True)
-    pickup_longitude: float = Field(ge=-180, le=180, nullable=True)
+    # Use PostGIS geometry for location
+    
+    location: str = Field(sa_column=Column(Geometry(geometry_type="POINT", srid=4326), nullable=True))
     collector_id: uuid.UUID | None = Field(foreign_key="user.id", nullable=True, index=True, default=None)
     status: OrderStatus
     created_at: datetime = Field(default_factory=datetime.now)

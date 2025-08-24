@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 from app.models import Order, OrderStatus, User, UserRole
+from shapely.geometry import Point
 from app.core.config import settings
 import uuid
 import pytest
@@ -35,9 +36,9 @@ class TestNearbyOrders:
     def test_nearby_orders_success(self, collector_client_nearby: TestClient, session: Session, test_user):
         center_lat = 10.0
         center_lng = 106.0
-        o1 = Order(owner_id=test_user.id, pickup_address="A", pickup_latitude=10.0005, pickup_longitude=106.0005, status=OrderStatus.PENDING, collector_id=None)
-        o2 = Order(owner_id=test_user.id, pickup_address="B", pickup_latitude=11.0, pickup_longitude=107.0, status=OrderStatus.PENDING, collector_id=None)
-        o3 = Order(owner_id=test_user.id, pickup_address="C", pickup_latitude=10.001, pickup_longitude=106.001, status=OrderStatus.ACCEPTED, collector_id=uuid.uuid4())
+        o1 = Order(owner_id=test_user.id, pickup_address="A", location=Point(106.0005, 10.0005), status=OrderStatus.PENDING, collector_id=None)
+        o2 = Order(owner_id=test_user.id, pickup_address="B", location=Point(107.0, 11.0), status=OrderStatus.PENDING, collector_id=None)
+        o3 = Order(owner_id=test_user.id, pickup_address="C", location=Point(106.001, 10.001), status=OrderStatus.ACCEPTED, collector_id=uuid.uuid4())
         session.add(o1); session.add(o2); session.add(o3)
         session.commit(); session.refresh(o1)
         resp = collector_client_nearby.get(f"{settings.API_STR}/orders/nearby", params={"lat": center_lat, "lng": center_lng, "radius_km": 5})
@@ -50,7 +51,7 @@ class TestNearbyOrders:
         assert all("distance_km" in d for d in data)
 
     def test_nearby_requires_collector(self, authenticated_client: TestClient, session: Session, test_user):
-        o = Order(owner_id=test_user.id, pickup_address="A", pickup_latitude=10.0, pickup_longitude=106.0, status=OrderStatus.PENDING, collector_id=None)
+        o = Order(owner_id=test_user.id, pickup_address="A", location=Point(106.0, 10.0), status=OrderStatus.PENDING, collector_id=None)
         session.add(o); session.commit()
         resp = authenticated_client.get(f"{settings.API_STR}/orders/nearby", params={"lat": 10.0, "lng": 106.0, "radius_km": 5})
         assert resp.status_code == 403

@@ -7,10 +7,9 @@ from sqlmodel import Session
 from app.core.config import settings
 from app.api.deps import SessionDep, CurrentUser, CurrentCollector
 
-from app.schemas.order import OrderCreate, OrderItemCreate, OrderPublic
-from app.schemas.order import OrderCreate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
+from app.schemas.order import OrderCreate, OrderItemCreate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
 
-from app.models import User
+from app.models import User, Order, OrderStatus
 from app import crud
 from app.api.deps import get_db, get_current_active_collector
 from app.schemas.transaction import OrderCompletionRequest, TransactionReadResponse
@@ -22,12 +21,40 @@ router = APIRouter(
 )
 
 
+from geoalchemy2.shape import from_shape
+from shapely.geometry import Point
+
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=OrderPublic)
 def create_order(order: OrderCreate, current_user: CurrentUser, session: SessionDep) -> OrderPublic:
     """
     Create a new order.
     """
-    return crud.create_order(session=session, order_create=order, owner_id=current_user.id)
+    point = from_shape(Point(order.pickup_longitude, order.pickup_latitude), srid=4326)
+    db_order = Order(
+        owner_id=current_user.id,
+        pickup_address=order.pickup_address,
+        location=point,
+        status=OrderStatus.PENDING
+    )
+    session.add(db_order)
+    session.commit()
+    session.refresh(db_order)
+    # Extract lat/lng from geometry for response
+    coords = None
+    if db_order.location:
+        from geoalchemy2.elements import WKBElement
+        from shapely import wkb
+        coords = wkb.loads(bytes(db_order.location.data)).coords[0]
+    return OrderPublic(
+        id=db_order.id,
+        owner_id=db_order.owner_id,
+        collector_id=db_order.collector_id,
+        status=db_order.status,
+        pickup_address=db_order.pickup_address,
+        pickup_latitude=coords[1] if coords else None,
+        pickup_longitude=coords[0] if coords else None,
+        items=[]
+    )
 
 @router.post("/{order_id}/items", response_model=OrderPublic)
 def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_user: CurrentUser, session: SessionDep) -> OrderPublic:

@@ -20,6 +20,7 @@ class OrderPublic(SQLModel):
     pickup_latitude: float
     pickup_longitude: float
     items: list['OrderItemPublic'] = []
+    # Optionally: location_geojson: dict | None
 
 class OrderItemCreate(SQLModel):
     category_id: uuid.UUID
