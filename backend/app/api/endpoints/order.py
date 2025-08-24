@@ -120,44 +120,10 @@ def get_orders(current_user: CurrentUser, session: SessionDep) -> list[OrderPubl
     Get all orders for the current user.
     """
     return crud.get_orders_by_user(session=session, user_id=current_user.id)
-@router.post("/{order_id}/items", response_model=OrderPublic)
-def add_order_items(session: SessionDep, current_user: CurrentUser, order_id: uuid.UUID, items: list[OrderItemCreate]) -> OrderPublic:
-    """
-    Add items to an order.
-    """
-    # Verify order exists and belongs to current user
-    order = crud.get_order_by_id(session=session, order_id=order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    if order.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    # Add items to order
-    for item in items:
-        crud.add_order_item(session=session, order_id=order_id, item=item)
-    
-    # Return updated order with items
-    updated_order = crud.get_order_by_id(session=session, order_id=order_id)
-    return updated_order
 
 
 
-@router.get("/{order_id}", response_model=OrderPublic)
-def get_order(order_id: uuid.UUID, session: SessionDep):
-    """
-    Get order details by ID.
-    """
-    order = crud.get_order_by_id(session=session, order_id=order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return order
 
-@router.get("/", response_model=list[OrderPublic])
-def get_orders(current_user: CurrentUser, session: SessionDep):
-    """
-    Get all orders for the current user.
-    """
-    return crud.get_orders_by_user(session=session, user_id=current_user.id)
 
 
 @router.post("/{order_id}/accept", response_model=OrderAcceptResponse, status_code=status.HTTP_200_OK)

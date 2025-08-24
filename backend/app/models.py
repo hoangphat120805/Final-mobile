@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
@@ -20,6 +20,7 @@ class User(SQLModel, table=True):
     role: UserRole = Field(default=UserRole.USER)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
+    current_location: Optional[Any] = Field(sa_column=Column(Geometry(geometry_type="POINT", srid=4326), nullable=True), default=None)
 
     orders: List["Order"] = Relationship(
         back_populates="owner", 

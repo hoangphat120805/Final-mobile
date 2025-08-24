@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from typing import Annotated
+from typing import Annotated,Tuple
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -15,6 +15,7 @@ from app.models import User
 from app.schemas.auth import TokenPayLoad
 from app.schemas.user import UserPublic
 from app.models import UserRole
+from fastapi import WebSocket, Query
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_STR}/auth/login/access-token")
 
@@ -66,3 +67,33 @@ def get_current_active_collector(
 
 # Create a convenient shortcut, similar to CurrentUser
 CurrentCollector = Annotated[User, Depends(get_current_active_collector)]
+
+async def get_ws_session_and_user(
+    websocket: WebSocket,
+    token: str = Query(...),
+) -> tuple[Session, User | None]:
+    """
+    Một dependency duy nhất cho WebSocket:
+    1. Tạo một session DB.
+    2. Xác thực token và lấy user.
+    3. Trả về cả session và user.
+    4. Sẽ không đóng kết nối WebSocket, chỉ trả về None nếu lỗi.
+    """
+    db = Session(engine)
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[security.ALGORITHM])
+        token_data = TokenPayLoad(**payload)
+        user = db.get(User, token_data.sub)
+        
+        if not user:
+            # Nếu user không tồn tại, đóng session và trả về None
+            db.close()
+            return None, None
+
+        # Trả về cả session và user nếu thành công
+        return db, user
+
+    except (InvalidTokenError, ValidationError):
+        # Nếu token không hợp lệ, đóng session và trả về None
+        db.close()
+        return None, None
