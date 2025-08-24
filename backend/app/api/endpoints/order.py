@@ -49,6 +49,32 @@ def add_order_items(session: SessionDep, current_user: CurrentUser, order_id: uu
     updated_order = crud.get_order_by_id(session=session, order_id=order_id)
     return updated_order
 
+@router.get("/nearby", response_model=list[NearbyOrderPublic])
+def list_nearby_orders(
+    lat: float,
+    lng: float,
+    radius_km: float = 5.0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_collector: User = Depends(get_current_active_collector)
+):
+    """List pending, unassigned orders near the collector's current location within given radius (km)."""
+    pairs = crud.get_nearby_orders(db=db, latitude=lat, longitude=lng, radius_km=radius_km, limit=limit)
+    response = []
+    for order, distance in pairs:
+        response.append(NearbyOrderPublic(
+            id=order.id,
+            owner_id=order.owner_id,
+            collector_id=order.collector_id,
+            status=order.status,
+            pickup_address=order.pickup_address,
+            pickup_latitude=order.pickup_latitude,
+            pickup_longitude=order.pickup_longitude,
+            items=order.items,
+            distance_km=distance
+        ))
+    return response
+
 @router.get("/{order_id}", response_model=OrderPublic)
 def get_order(session: SessionDep, order_id: uuid.UUID) -> OrderPublic:
     """
@@ -85,6 +111,32 @@ def add_order_items(session: SessionDep, current_user: CurrentUser, order_id: uu
     updated_order = crud.get_order_by_id(session=session, order_id=order_id)
     return updated_order
 
+@router.get("/nearby", response_model=list[NearbyOrderPublic])
+def list_nearby_orders(
+    lat: float,
+    lng: float,
+    radius_km: float = 5.0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_collector: User = Depends(get_current_active_collector)
+):
+    """List pending, unassigned orders near the collector's current location within given radius (km)."""
+    pairs = crud.get_nearby_orders(db=db, latitude=lat, longitude=lng, radius_km=radius_km, limit=limit)
+    # Map to schema objects with distance
+    response = []
+    for order, distance in pairs:
+        response.append(NearbyOrderPublic(
+            id=order.id,
+            owner_id=order.owner_id,
+            collector_id=order.collector_id,
+            status=order.status,
+            created_at=order.created_at,
+            updated_at=order.updated_at,
+            distance_km=round(distance, 3)
+        ))
+    return response
+
+
 @router.get("/{order_id}", response_model=OrderPublic)
 def get_order(session: SessionDep, order_id: uuid.UUID) -> OrderPublic:
     """
@@ -119,32 +171,6 @@ def accept_order(
     """
     order = crud.accept_order_service(db=db, order_id=order_id, collector=current_collector, note=payload.note)
     return order
-
-@router.get("/nearby", response_model=list[NearbyOrderPublic])
-def list_nearby_orders(
-    lat: float,
-    lng: float,
-    radius_km: float = 5.0,
-    limit: int = 50,
-    db: Session = Depends(get_db),
-    current_collector: User = Depends(get_current_active_collector)
-):
-    """List pending, unassigned orders near the collector's current location within given radius (km)."""
-    pairs = crud.get_nearby_orders(db=db, latitude=lat, longitude=lng, radius_km=radius_km, limit=limit)
-    # Map to schema objects with distance
-    response = []
-    for order, distance in pairs:
-        response.append(NearbyOrderPublic(
-            id=order.id,
-            owner_id=order.owner_id,
-            collector_id=order.collector_id,
-            status=order.status,
-            created_at=order.created_at,
-            updated_at=order.updated_at,
-            distance_km=round(distance, 3)
-        ))
-    return response
-
 
 
 
