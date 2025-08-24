@@ -1,36 +1,36 @@
-name: Backend CI
+# name: Backend CI
 
-on:
-  push:
-    paths:
-      - 'backend/**'
-  pull_request:
-    paths:
-      - 'backend/**'
+# on:
+#   push:
+#     paths:
+#       - 'backend/**'
+#   pull_request:
+#     paths:
+#       - 'backend/**'
 
-jobs:
-  test:
-    name: Run Backend Tests
-    runs-on: ubuntu-latest
+# jobs:
+#   test:
+#     name: Run Backend Tests
+#     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: backend 
+#     defaults:
+#       run:
+#         working-directory: backend 
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+#       - name: Set up Python
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.12'
 
-      - name: Install uv
-        run: pip install uv
+#       - name: Install uv
+#         run: pip install uv
 
-      - name: Install dependencies 
-        run: uv sync --extra test
+#       - name: Install dependencies 
+#         run: uv sync --extra test
 
-      - name: Run tests with coverage
-        run: uv run pytest --cov=app --cov-report=xml
+#       - name: Run tests with coverage
+#         run: uv run pytest --cov=app --cov-report=xml

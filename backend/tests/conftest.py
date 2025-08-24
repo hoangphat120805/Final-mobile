@@ -17,7 +17,7 @@ from datetime import timedelta
 
 
 # Test database URL using PostgreSQL/PostGIS on Render
-#TEST_DATABASE_URL = "postgresql+psycopg2://vechai_db_user:1oCfnnI5IoxXz20ni3rYj0vvwUjJhmWt@dpg-d2lc2rjuibrs73f2uhs0-a.singapore-postgres.render.com/vechai_db"
+#TEST_DATABASE_URL = ""
 
 # Create test engine
 engine = create_engine(
