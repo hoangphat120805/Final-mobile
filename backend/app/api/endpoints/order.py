@@ -6,8 +6,10 @@ from sqlmodel import Session
 
 from app.core.config import settings
 from app.api.deps import SessionDep, CurrentUser
-from app.schemas.order import OrderCreate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse
+
 from app.schemas.order import OrderCreate, OrderItemCreate, OrderPublic
+from app.schemas.order import OrderCreate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
+
 from app.models import User
 from app import crud
 from app.api.deps import get_db, get_current_active_collector
@@ -117,6 +119,31 @@ def accept_order(
     """
     order = crud.accept_order_service(db=db, order_id=order_id, collector=current_collector, note=payload.note)
     return order
+
+@router.get("/nearby", response_model=list[NearbyOrderPublic])
+def list_nearby_orders(
+    lat: float,
+    lng: float,
+    radius_km: float = 5.0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_collector: User = Depends(get_current_active_collector)
+):
+    """List pending, unassigned orders near the collector's current location within given radius (km)."""
+    pairs = crud.get_nearby_orders(db=db, latitude=lat, longitude=lng, radius_km=radius_km, limit=limit)
+    # Map to schema objects with distance
+    response = []
+    for order, distance in pairs:
+        response.append(NearbyOrderPublic(
+            id=order.id,
+            owner_id=order.owner_id,
+            collector_id=order.collector_id,
+            status=order.status,
+            created_at=order.created_at,
+            updated_at=order.updated_at,
+            distance_km=round(distance, 3)
+        ))
+    return response
 
 
 

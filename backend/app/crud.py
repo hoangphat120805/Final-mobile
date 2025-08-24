@@ -118,6 +118,33 @@ def accept_order_service(db: Session, order_id: uuid.UUID, collector: User, note
     db.refresh(order)
     return order
 
+def get_nearby_orders(db: Session, latitude: float, longitude: float, radius_km: float, limit: int = 50):
+    """Return pending, unassigned orders within radius_km of given point sorted by distance."""
+    from math import radians, sin, cos, asin, sqrt
+    # Fetch candidate orders (simple filter first)
+    statement = select(Order).where(
+        Order.status == OrderStatus.PENDING,
+        Order.collector_id.is_(None),
+        Order.pickup_latitude.is_not(None),
+        Order.pickup_longitude.is_not(None)
+    )
+    candidates = db.exec(statement).all()
+    results = []
+    for o in candidates:
+        # Haversine
+        lat1, lon1, lat2, lon2 = map(radians, [latitude, longitude, o.pickup_latitude, o.pickup_longitude])
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        c = 2 * asin(sqrt(a))
+        earth_radius_km = 6371.0
+        distance = earth_radius_km * c
+        if distance <= radius_km:
+            results.append((o, distance))
+    # sort and trim
+    results.sort(key=lambda x: x[1])
+    return results[:limit]
+
 
 
 

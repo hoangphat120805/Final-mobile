@@ -62,6 +62,9 @@ class OrderAcceptResponse(SQLModel):
     collector_id: uuid.UUID | None
     # optional echo of note later if persisted (not stored yet)
 
+class NearbyOrderPublic(OrderPublic):
+    distance_km: float
+
 
 
     
