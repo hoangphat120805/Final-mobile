@@ -79,10 +79,10 @@ async def websocket_tracking_endpoint(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Unauthorized")
             return
 
-        # --- CONNECTION ---
+        
         await manager.connect(websocket, order_id, client_type)
 
-        # --- MAIN LOOP ---
+       
         while True:
             if client_type == "collector":
                 data = await websocket.receive_text()
