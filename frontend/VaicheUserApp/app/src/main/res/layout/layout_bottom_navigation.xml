@@ -1,0 +1,62 @@
+<!-- res/layout/layout_bottom_navigation.xml -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <FrameLayout
+        android:id="@+id/bottom_nav_container"
+        android:layout_width="0dp"
+        android:layout_height="100dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/bg_bottom_nav_wave"
+            android:scaleType="fitXY"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:orientation="horizontal"
+            android:layout_marginTop="40dp"
+            android:gravity="center_vertical">
+            <ImageView
+                style="@style/BottomNavIcon"
+                android:src="@drawable/ic_home"/>
+            <ImageView
+                style="@style/BottomNavIcon"
+                android:src="@drawable/ic_notifications"/>
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="3"/>
+            <ImageView
+                style="@style/BottomNavIcon"
+                android:src="@drawable/ic_history"/>
+            <ImageView
+                style="@style/BottomNavIcon"
+                android:src="@drawable/ic_profile"/>
+        </LinearLayout>
+
+    </FrameLayout>
+
+    <!-- Floating Action Button -->
+    <TextView
+        android:id="@+id/fab_sell"
+        android:background="@drawable/bg_circle_button"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:layout_marginBottom="20dp"
+        android:text="Sell"
+        android:textColor="@color/text_dark"
+        android:textStyle="bold"
+        android:textSize="28sp"
+        android:gravity="center"
+        android:elevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</merge>

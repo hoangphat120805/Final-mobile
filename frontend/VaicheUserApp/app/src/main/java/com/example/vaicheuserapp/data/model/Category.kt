@@ -1,7 +1,10 @@
 package com.example.vaicheuserapp.data.model
 
 import com.google.gson.annotations.SerializedName
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 
+@Parcelize
 data class CategoryPublic(
     val id: String,
     val name: String,
@@ -12,4 +15,4 @@ data class CategoryPublic(
     val iconUrl: String?,
     @SerializedName("estimated_price_per_unit")
     val price: Double?
-)
+) : Parcelable

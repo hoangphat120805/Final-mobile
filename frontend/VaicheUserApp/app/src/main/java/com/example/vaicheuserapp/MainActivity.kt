@@ -11,6 +11,8 @@ import com.example.vaicheuserapp.data.network.RetrofitClient
 import com.example.vaicheuserapp.databinding.ActivityMainBinding
 import com.example.vaicheuserapp.ui.dashboard.CategoryAdapter
 import kotlinx.coroutines.launch
+import android.content.Intent
+import kotlin.jvm.java
 
 class MainActivity : AppCompatActivity() {
 
@@ -29,7 +31,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        categoryAdapter = CategoryAdapter(emptyList())
+        categoryAdapter = CategoryAdapter { clickedCategory ->
+            val intent = Intent(this, ScrapDetailActivity::class.java)
+            intent.putExtra("EXTRA_CATEGORY", clickedCategory)
+            startActivity(intent)
+        }
         binding.rvCategories.apply {
             layoutManager = GridLayoutManager(this@MainActivity, 2)
             adapter = categoryAdapter
@@ -38,13 +44,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupSearch() {
         binding.etSearch.addTextChangedListener { text ->
-            val query = text.toString().lowercase().trim()
-            val filteredList = if (query.isEmpty()) {
+            val rawQuery = text.toString().trim()
+
+            val normalizedQuery = rawQuery.lowercase().normalizeVietnamese()
+
+            val filteredList = if (normalizedQuery.isEmpty()) {
                 allCategories
             } else {
-                allCategories.filter { it.name.lowercase().contains(query) }
+                allCategories.filter { category ->
+                    // 2. Normalize the category name before comparing
+                    category.name.lowercase().normalizeVietnamese().contains(normalizedQuery)
+                }
             }
-            categoryAdapter.updateData(filteredList)
+            categoryAdapter.submitList(filteredList)
         }
     }
 
@@ -54,7 +66,7 @@ class MainActivity : AppCompatActivity() {
                 val response = RetrofitClient.instance.getCategories()
                 if (response.isSuccessful && response.body() != null) {
                     allCategories = response.body()!!
-                    categoryAdapter.updateData(allCategories)
+                    categoryAdapter.submitList(allCategories)
                 } else {
                     Toast.makeText(this@MainActivity, "Failed to load categories", Toast.LENGTH_SHORT).show()
                 }
