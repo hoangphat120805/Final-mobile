@@ -1,54 +1,62 @@
+
+
 name: Backend CI
 
 on:
   push:
+    
     paths:
       - 'backend/**'
   pull_request:
+    
     paths:
       - 'backend/**'
 
 jobs:
   test:
     name: Run Backend Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest 
 
     defaults:
       run:
+        
         working-directory: backend 
 
     steps:
       - name: Checkout code
+        
         uses: actions/checkout@v4
 
-      - name: Install docker-compose
-        run: |
-          sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-          export PATH=$PATH:/usr/local/bin
-          hash -r
-          docker-compose version
+      # Bỏ qua bước cài đặt docker-compose vì runner của GitHub đã tích hợp sẵn `docker compose`
+      # - name: Install docker-compose ...
 
-      - name: Create .env file for CI
+      - name: Create .env file for Docker Compose
+        
         run: |
-          echo "POSTGRES_USER=testuser" >> .env
+          echo "POSTGRES_USER=testuser" > .env
           echo "POSTGRES_PASSWORD=testpass" >> .env
           echo "POSTGRES_DB=testdb" >> .env
-          echo "POSTGRES_EXTERNAL_PORT=5432" >> .env
-          echo "POSTGRES_HOST=db" >> .env
+          echo "POSTGRES_EXTERNAL_PORT=5432" >> .env # Cổng này không quá quan trọng trong CI
+          echo "SECRET_KEY=a_random_secret_key_for_ci" >> .env
+          # Thêm các biến khác nếu docker-compose.yml cần
 
-      - name: Set up Docker Compose
-        run: docker-compose up -d db
-
-      - name: Wait for DB to be healthy
+      - name: Create .env.test file for Pytest in CI
+        
         run: |
-          for i in {1..30}; do
-            docker-compose exec db pg_isready -U $POSTGRES_USER -d $POSTGRES_DB && break
-            sleep 2
-          done
+          echo "POSTGRES_USER=testuser" > .env.test
+          echo "POSTGRES_PASSWORD=testpass" >> .env.test
+          echo "POSTGRES_DB=testdb" >> .env.test
+          echo "POSTGRES_PORT=5432" >> .env.test   # Luôn dùng cổng nội bộ của Postgres
+          echo "POSTGRES_HOST=db" >> .env.test     # <--- SỬA LỖI QUAN TRỌNG NHẤT
+          echo "SECRET_KEY=a_random_secret_key_for_ci" >> .env.test
+          # Thêm các biến khác nếu pytest/app config của bạn cần
+
+      - name: Start Database Service
+      
+        run: docker compose up -d --wait db
 
       - name: Run migrations
-        run: docker-compose run migrate
+        run: docker compose run migrate
 
       - name: Run backend tests
-        run: docker-compose run web pytest
+        run: docker compose run web pytest

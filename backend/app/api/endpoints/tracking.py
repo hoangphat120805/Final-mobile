@@ -54,15 +54,15 @@ def update_collector_location_in_db(db: Session, collector_id: uuid.UUID, lat: f
 async def websocket_tracking_endpoint(
     websocket: WebSocket,
     order_id: str,
-    client_type: str,  # "owner" or "collector"
-    # SỬ DỤNG DEPENDENCY MỚI
+    client_type: str,  
+   
     session_and_user: Tuple[Session, User | None] = Depends(get_ws_session_and_user),
 ):
     db, current_user = session_and_user
 
-    # --- AUTHENTICATION ---
+
     if not current_user or not db:
-        # Dependency đã thất bại, đóng kết nối
+        
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
