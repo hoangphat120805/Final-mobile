@@ -24,7 +24,6 @@ def update_me(session: SessionDep, current_user: CurrentUser, user_update: UserU
     """
     Update the current authenticated user.
     """
-    # Validate that at least one field is being updated
     update_data = user_update.dict(exclude_unset=True)
     if not update_data:
         raise HTTPException(
