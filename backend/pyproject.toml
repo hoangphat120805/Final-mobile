@@ -12,6 +12,7 @@ dependencies = [
     "psycopg2>=2.9.10",
     "pydantic-settings>=2.10.1",
     "pyjwt>=2.10.1",
+    "pytest-dotenv>=0.5.2",
     "shapely>=2.1.1",
     "sqlmodel>=0.0.24",
 ]

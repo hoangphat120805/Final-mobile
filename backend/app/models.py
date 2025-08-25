@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional, List, Any
-from datetime import datetime
+from datetime import datetime, date
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
@@ -17,6 +17,9 @@ class User(SQLModel, table=True):
     full_name: str | None = Field(default=None, max_length=100, nullable=True)
     phone_number: str = Field(unique=True, nullable=False, index=True, max_length=15)
     hashed_password: str = Field(nullable=False)
+    gender: Optional[str] = Field(default=None, max_length=10, nullable=True)
+    birth_date: Optional[date] = Field(default=None, nullable=True)
+    email: Optional[str] = Field(default=None, max_length=100, nullable=True, index=True)
     role: UserRole = Field(default=UserRole.USER)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})

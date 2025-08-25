@@ -11,7 +11,6 @@ router = APIRouter(prefix="/ws", tags=["websocket-tracking"])
 
 class ConnectionManager:
     def __init__(self):
-        # Lưu kết nối theo cặp: {order_id: {"owner": websocket, "collector": websocket}}
         self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, order_id: str, client_type: str):
@@ -55,15 +54,15 @@ def update_collector_location_in_db(db: Session, collector_id: uuid.UUID, lat: f
 async def websocket_tracking_endpoint(
     websocket: WebSocket,
     order_id: str,
-    client_type: str,  # "owner" or "collector"
-    # SỬ DỤNG DEPENDENCY MỚI
+    client_type: str,  
+   
     session_and_user: Tuple[Session, User | None] = Depends(get_ws_session_and_user),
 ):
     db, current_user = session_and_user
 
-    # --- AUTHENTICATION ---
+
     if not current_user or not db:
-        # Dependency đã thất bại, đóng kết nối
+        
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
@@ -80,10 +79,10 @@ async def websocket_tracking_endpoint(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Unauthorized")
             return
 
-        # --- CONNECTION ---
+        
         await manager.connect(websocket, order_id, client_type)
 
-        # --- MAIN LOOP ---
+       
         while True:
             if client_type == "collector":
                 data = await websocket.receive_text()
@@ -91,7 +90,7 @@ async def websocket_tracking_endpoint(
                     location_data = json.loads(data)
                     lat, lng = location_data.get("lat"), location_data.get("lng")
                     if lat is not None and lng is not None and order.collector_id:
-                        # Dùng session 'db' đã có để cập nhật
+                        
                         update_collector_location_in_db(db, order.collector_id, lat, lng)
                         await manager.broadcast_location_to_owner(order_id, lat, lng)
                 except (json.JSONDecodeError, AttributeError):
