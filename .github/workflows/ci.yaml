@@ -29,7 +29,7 @@ jobs:
           echo "POSTGRES_USER=testuser" > .env
           echo "POSTGRES_PASSWORD=testpass" >> .env
           echo "POSTGRES_HOST=db" >> .env 
-          echo "POSTGRES_DB=testdb" >> .env
+          echo "POSTGRES_DB=vechai_db_test" >> .env
           echo "POSTGRES_EXTERNAL_PORT=5432" >> .env 
           echo "SECRET_KEY=a_random_secret_key_for_ci" >> .env
           
@@ -38,14 +38,16 @@ jobs:
         run: |
           echo "POSTGRES_USER=testuser" > .env.test
           echo "POSTGRES_PASSWORD=testpass" >> .env.test
-          echo "POSTGRES_DB=testdb" >> .env.test
+          echo "POSTGRES_DB=vechai_db_test" >> .env.test
           echo "POSTGRES_PORT=5432" >> .env.test   
           echo "POSTGRES_HOST=db" >> .env.test     
           echo "SECRET_KEY=a_random_secret_key_for_ci" >> .env.test
-          echo "TEST_DATABASE_URL=postgresql+psycopg2://testuser:testpass@db:5432/testdb" >> .env.test
+          echo "TEST_DATABASE_URL=postgresql+psycopg2://testuser:testpass@db:5432/vechai_db_test" >> .env.test
          
       - name: Export DATABASE_URL for Alembic
         run: echo "DATABASE_URL=postgresql+psycopg2://testuser:testpass@db:5432/testdb" >> $GITHUB_ENV
+      - name: Export DATABASE_URL for Alembic
+          run: echo "DATABASE_URL=postgresql+psycopg2://testuser:testpass@db:5432/vechai_db_test" >> $GITHUB_ENV
 
       - name: Start Database Service
         run: docker compose up -d --wait db
