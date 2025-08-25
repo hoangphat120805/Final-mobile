@@ -29,7 +29,7 @@ jobs:
           echo "POSTGRES_USER=testuser" > .env
           echo "POSTGRES_PASSWORD=testpass" >> .env
           echo "POSTGRES_HOST=db" >> .env 
-          echo "POSTGRES_DB=db" >> .env
+          echo "POSTGRES_DB=testdb" >> .env
           echo "POSTGRES_EXTERNAL_PORT=5432" >> .env 
           echo "SECRET_KEY=a_random_secret_key_for_ci" >> .env
           
