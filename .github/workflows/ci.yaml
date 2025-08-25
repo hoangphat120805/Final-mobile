@@ -44,10 +44,9 @@ jobs:
           echo "SECRET_KEY=a_random_secret_key_for_ci" >> .env.test
           echo "TEST_DATABASE_URL=postgresql+psycopg2://testuser:testpass@db:5432/vechai_db_test" >> .env.test
          
+
       - name: Export DATABASE_URL for Alembic
-        run: echo "DATABASE_URL=postgresql+psycopg2://testuser:testpass@db:5432/testdb" >> $GITHUB_ENV
-      - name: Export DATABASE_URL for Alembic
-          run: echo "DATABASE_URL=postgresql+psycopg2://testuser:testpass@db:5432/vechai_db_test" >> $GITHUB_ENV
+        run: echo "DATABASE_URL=postgresql+psycopg2://testuser:testpass@db:5432/vechai_db_test" >> $GITHUB_ENV
 
       - name: Start Database Service
         run: docker compose up -d --wait db
