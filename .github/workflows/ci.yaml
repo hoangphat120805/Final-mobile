@@ -1,36 +1,38 @@
-# name: Backend CI
+name: Backend CI
 
-# on:
-#   push:
-#     paths:
-#       - 'backend/**'
-#   pull_request:
-#     paths:
-#       - 'backend/**'
+on:
+  push:
+    paths:
+      - 'backend/**'
+  pull_request:
+    paths:
+      - 'backend/**'
 
-# jobs:
-#   test:
-#     name: Run Backend Tests
-#     runs-on: ubuntu-latest
+jobs:
+  test:
+    name: Run Backend Tests
+    runs-on: ubuntu-latest
 
-#     defaults:
-#       run:
-#         working-directory: backend 
+    defaults:
+      run:
+        working-directory: backend 
 
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-#       - name: Set up Python
-#         uses: actions/setup-python@v5
-#         with:
-#           python-version: '3.12'
+      - name: Set up Docker Compose
+        run: docker-compose up -d db
 
-#       - name: Install uv
-#         run: pip install uv
+      - name: Wait for DB to be healthy
+        run: |
+          for i in {1..30}; do
+            docker-compose exec db pg_isready -U $POSTGRES_USER -d $POSTGRES_DB && break
+            sleep 2
+          done
 
-#       - name: Install dependencies 
-#         run: uv sync --extra test
+      - name: Run migrations
+        run: docker-compose run migrate
 
-#       - name: Run tests with coverage
-#         run: uv run pytest --cov=app --cov-report=xml
+      - name: Run backend tests
+        run: docker-compose run web pytest

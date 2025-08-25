@@ -7,6 +7,7 @@ from app.schemas.category import CategoryCreate
 from app.schemas.order import OrderItemCreate, OrderCreate
 from app.models import OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction
 from app.core.security import get_password_hash, verify_password
+from math import radians, sin, cos, asin, sqrt
 
 def authenticate(session: Session, phone_number: str, password: str) -> Optional[User]:
     db_user = get_user_by_phone_number(session=session, phone_number=phone_number)
@@ -122,17 +123,25 @@ def get_nearby_orders(db: Session, latitude: float, longitude: float, radius_km:
     """Return pending, unassigned orders within radius_km of given point sorted by distance."""
     from math import radians, sin, cos, asin, sqrt
     # Fetch candidate orders (simple filter first)
+    from geoalchemy2.shape import to_shape
     statement = select(Order).where(
         Order.status == OrderStatus.PENDING,
         Order.collector_id.is_(None),
-        Order.pickup_latitude.is_not(None),
-        Order.pickup_longitude.is_not(None)
+        Order.location.is_not(None)
     )
     candidates = db.exec(statement).all()
     results = []
     for o in candidates:
-        # Haversine
-        lat1, lon1, lat2, lon2 = map(radians, [latitude, longitude, o.pickup_latitude, o.pickup_longitude])
+        # Extract coordinates from geometry
+        coords = None
+        try:
+            coords = to_shape(o.location).coords[0]
+        except Exception:
+            continue
+        lat2, lon2 = coords[1], coords[0]
+       
+        lat1, lon1 = latitude, longitude
+        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
         dlat = lat2 - lat1
         dlon = lon2 - lon1
         a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2

@@ -5,16 +5,17 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 from app.models import Transaction, Order, TransactionMethod, TransactionStatus, OrderStatus
 from app.core.config import settings
-
+from shapely.geometry import Point
+from geoalchemy2.shape import from_shape
 
 class TestTransactionEndpoints:
     def test_get_transactions_by_user_success(self, authenticated_client: TestClient, session: Session, test_user, another_test_user):
         # Arrange: create order, transaction for test_user
+        
         order = Order(
             owner_id=test_user.id,
             pickup_address="123 Test St",
-            pickup_latitude=10.0,
-            pickup_longitude=106.0,
+            location=from_shape(Point(106.0, 10.0), srid=4326),
             status=OrderStatus.PENDING
         )
         session.add(order)

@@ -1,8 +1,10 @@
 import uuid
 from fastapi.testclient import TestClient
 from sqlmodel import Session
-from app.models import TransactionMethod, Order, OrderItem, OrderStatus
+from app.models import TransactionMethod, Order, OrderItem, OrderStatus, ScrapCategory
 from app.core.config import settings
+from shapely.geometry import Point
+from geoalchemy2.shape import from_shape
 
 
 import pytest
@@ -49,23 +51,32 @@ def collector_client(client: TestClient, collector_user, collector_token):
 
 class TestOrderCompleteAndPay:
     def test_complete_order_and_pay_success(self, collector_client, session: Session, collector_user, test_user):
-        # Arrange: create order and order item for the test user
-        # Owner is the scrap provider (test_user), collector_user is assigned as collector
+        # Create referenced ScrapCategory with required fields
+        category = ScrapCategory(
+            name="Test Category",
+            slug="test-category",
+            unit="kg",
+            estimated_price_per_unit=10000,
+            created_by=test_user.id,
+            last_updated_by=test_user.id
+        )
+        session.add(category)
+        session.commit()
+        session.refresh(category)
+        # Create order and order item for the test user
         order = Order(
             owner_id=test_user.id,
             collector_id=collector_user.id,
             pickup_address="123 Test St",
-            pickup_latitude=10.0,
-            pickup_longitude=106.0,
+            location=from_shape(Point(106.0, 10.0), srid=4326),
             status=OrderStatus.ACCEPTED
         )
         session.add(order)
         session.commit()
         session.refresh(order)
-
         order_item = OrderItem(
             order_id=order.id,
-            category_id=uuid.uuid4(),
+            category_id=category.id,
             quantity=2.0,
             price_per_unit=10.0
         )
@@ -94,23 +105,31 @@ class TestOrderCompleteAndPay:
         assert "payer" in data and "payee" in data
 
     def test_complete_order_and_pay_unauthorized(self, client: TestClient, session: Session, test_user, collector_user):
-        # Arrange: create order and order item for the test user
-        # Create order owned by test_user with assigned collector (collector_user) but unauthenticated client performs call
+        # Create referenced ScrapCategory with required fields
+        category = ScrapCategory(
+            name="Test Category",
+            slug="test-category",
+            unit="kg",
+            estimated_price_per_unit=10000,
+            created_by=test_user.id,
+            last_updated_by=test_user.id
+        )
+        session.add(category)
+        session.commit()
+        session.refresh(category)
         order = Order(
             owner_id=test_user.id,
             collector_id=collector_user.id,
             pickup_address="123 Test St",
-            pickup_latitude=10.0,
-            pickup_longitude=106.0,
-            status=OrderStatus.ACCEPTED  # ensure passes service precondition
+            location=from_shape(Point(106.0, 10.0), srid=4326),
+            status=OrderStatus.ACCEPTED
         )
         session.add(order)
         session.commit()
         session.refresh(order)
-
         order_item = OrderItem(
             order_id=order.id,
-            category_id=uuid.uuid4(),
+            category_id=category.id,
             quantity=2.0,
             price_per_unit=10.0
         )

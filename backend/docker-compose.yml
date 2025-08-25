@@ -13,11 +13,22 @@ services:
       - "${POSTGRES_EXTERNAL_PORT}:5432"   # host:container
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  migrate:
+    build: .
+    container_name: vechai_migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uv run alembic upgrade head
+    env_file:
+      - .env
 
   web:
     build: .

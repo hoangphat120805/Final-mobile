@@ -8,8 +8,7 @@ import re
 
 class OrderCreate(SQLModel):
     pickup_address: str = Field(min_length=10, max_length=500)
-    pickup_latitude: float = Field(ge=-90, le=90)
-    pickup_longitude: float = Field(ge=-180, le=180)
+    location: dict
 
 class OrderPublic(SQLModel):
     id: uuid.UUID
@@ -17,10 +16,8 @@ class OrderPublic(SQLModel):
     collector_id: uuid.UUID | None
     status: OrderStatus
     pickup_address: str
-    pickup_latitude: float
-    pickup_longitude: float
+    location: dict
     items: list['OrderItemPublic'] = []
-    # Optionally: location_geojson: dict | None
 
 class OrderItemCreate(SQLModel):
     category_id: uuid.UUID

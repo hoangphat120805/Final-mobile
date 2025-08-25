@@ -21,38 +21,39 @@ router = APIRouter(
 )
 
 
-from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
+# Accept GeoJSON for location, convert to PostGIS geometry
+from shapely.geometry import shape,mapping
+from geoalchemy2.shape import from_shape,to_shape
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=OrderPublic)
 def create_order(order: OrderCreate, current_user: CurrentUser, session: SessionDep) -> OrderPublic:
     """
     Create a new order.
     """
-    point = from_shape(Point(order.pickup_longitude, order.pickup_latitude), srid=4326)
+    
+    # Convert GeoJSON dict to Shapely geometry
+    location_geom = from_shape(shape(order.location), srid=4326)
     db_order = Order(
         owner_id=current_user.id,
         pickup_address=order.pickup_address,
-        location=point,
+        location=location_geom,
         status=OrderStatus.PENDING
     )
     session.add(db_order)
     session.commit()
     session.refresh(db_order)
-    # Extract lat/lng from geometry for response
-    coords = None
+    
+    location_geojson = None
     if db_order.location:
-        from geoalchemy2.elements import WKBElement
-        from shapely import wkb
-        coords = wkb.loads(bytes(db_order.location.data)).coords[0]
+        location_geojson = mapping(to_shape(db_order.location))
     return OrderPublic(
         id=db_order.id,
         owner_id=db_order.owner_id,
         collector_id=db_order.collector_id,
         status=db_order.status,
         pickup_address=db_order.pickup_address,
-        pickup_latitude=coords[1] if coords else None,
-        pickup_longitude=coords[0] if coords else None,
+        location=location_geojson,
         items=[]
     )
 
@@ -91,14 +92,14 @@ def list_nearby_orders(
     pairs = crud.get_nearby_orders(db=session, latitude=lat, longitude=lng, radius_km=radius_km, limit=limit)
     response = []
     for order, distance in pairs:
+        location_geojson = mapping(to_shape(order.location)) if order.location else None
         response.append(NearbyOrderPublic(
             id=order.id,
             owner_id=order.owner_id,
             collector_id=order.collector_id,
             status=order.status,
             pickup_address=order.pickup_address,
-            pickup_latitude=order.pickup_latitude,
-            pickup_longitude=order.pickup_longitude,
+            location=location_geojson,
             items=order.items,
             distance_km=distance
         ))
