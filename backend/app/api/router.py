@@ -13,7 +13,6 @@ api_router.include_router(auth.router)
 api_router.include_router(user.router)
 api_router.include_router(category.router)
 api_router.include_router(order.router, prefix="/orders")
-
 api_router.include_router(transaction.router, prefix="/transactions", tags=["transactions"])
 api_router.include_router(tracking.router, prefix="/ws", tags=["websocket-tracking"])
 
