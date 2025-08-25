@@ -11,7 +11,6 @@ router = APIRouter(prefix="/ws", tags=["websocket-tracking"])
 
 class ConnectionManager:
     def __init__(self):
-        # Lưu kết nối theo cặp: {order_id: {"owner": websocket, "collector": websocket}}
         self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, order_id: str, client_type: str):
