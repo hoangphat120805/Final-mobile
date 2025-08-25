@@ -24,6 +24,7 @@ engine = create_engine(
 )
 
 
+
 @pytest.fixture(scope="function")
 def session() -> Generator[Session, None, None]:
     """Create a test database session."""
