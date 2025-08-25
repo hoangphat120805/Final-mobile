@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from sqlmodel import SQLModel, Field
 from pydantic import validator  
 from typing import Optional
@@ -58,6 +58,8 @@ class UserUpdate(SQLModel):
     full_name: str | None = Field(default=None, max_length=100)
     phone_number: str | None = Field(default=None, max_length=15)
     email: str | None = Field(default=None, max_length=100)
+    gender: Optional[str] = Field(default=None, max_length=10)
+    birth_date: Optional[date] = Field(default=None)
 
     @validator("phone_number")
     def validate_phone_number(cls, v):
@@ -86,7 +88,9 @@ class UserPublic(SQLModel):
     id: uuid.UUID
     full_name: str | None = Field(max_length=100, nullable=True)
     phone_number: str = Field(max_length=15)
-    role: str
+    gender: Optional[str] = Field(default=None, max_length=10)
+    birth_date: Optional[date] = Field(default=None)
+    email: Optional[str] = Field(default=None, max_length=100)
 
 class AddressCreate(SQLModel):
     street: str = Field(min_length=5, max_length=255)
