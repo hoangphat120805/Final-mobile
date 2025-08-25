@@ -90,7 +90,7 @@ async def websocket_tracking_endpoint(
                     location_data = json.loads(data)
                     lat, lng = location_data.get("lat"), location_data.get("lng")
                     if lat is not None and lng is not None and order.collector_id:
-                        # Dùng session 'db' đã có để cập nhật
+                        
                         update_collector_location_in_db(db, order.collector_id, lat, lng)
                         await manager.broadcast_location_to_owner(order_id, lat, lng)
                 except (json.JSONDecodeError, AttributeError):
