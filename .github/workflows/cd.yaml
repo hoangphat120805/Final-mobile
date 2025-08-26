@@ -28,7 +28,7 @@ jobs:
             # Bước 3: Build và triển khai với Docker Compose trên VPS
             - name: Deploy to VPS
               run: |
-                  ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_IP }} << 'EOF'
+                  ssh -vvv ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_IP }} << 'EOF'
                     set -e
                     # Đi đến thư mục dự án trên VPS
                     cd /home/dev/Final-mobile
