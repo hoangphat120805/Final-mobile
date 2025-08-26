@@ -40,7 +40,7 @@ jobs:
                     # --build: Bắt buộc build lại image nếu Dockerfile có thay đổi
                     # -d: Chạy ở chế độ nền (detached mode)
                     cd /home/dev/Final-mobile/backend
-                    docker-compose up -d --build
+                    docker compose up -d --build
                     
                     # (Khuyến khích) Dọn dẹp các image cũ không còn được sử dụng
                     docker image prune -f
