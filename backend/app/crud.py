@@ -24,7 +24,10 @@ def get_user_by_phone_number(*, session: Session, phone_number: str) -> Optional
 def create_user(session: Session, user_create: UserCreate) -> User:
     db_user = User.model_validate(
         user_create,
-        update={"hashed_password": get_password_hash(user_create.password), "role": UserRole.USER} 
+        update={"hashed_password": get_password_hash(user_create.password), 
+                "role": UserRole.USER,
+                "avt_url": "https://i.ibb.co/5xt2NvW0/453178253-471506465671661-2781666950760530985-n.png"
+                }
     )
     session.add(db_user)
     session.commit()

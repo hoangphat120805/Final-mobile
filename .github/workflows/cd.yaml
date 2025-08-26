@@ -1,0 +1,48 @@
+name: Deploy to VPS with Docker
+
+on:
+    push:
+        paths:
+            - "backend/**"
+    pull_request:
+        paths:
+            - "backend/**"
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            # Bước 1: Lấy mã nguồn về
+            - name: Checkout code
+              uses: actions/checkout@v3
+
+            # Bước 2: Thiết lập kết nối SSH (giữ nguyên như trước)
+            - name: Set up SSH
+              run: |
+                  mkdir -p ~/.ssh/
+                  echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+                  chmod 600 ~/.ssh/id_rsa
+                  ssh-keyscan -H "${{ secrets.VPS_IP }}" >> ~/.ssh/known_hosts
+
+            # Bước 3: Build và triển khai với Docker Compose trên VPS
+            - name: Deploy to VPS
+              run: |
+                  ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_IP }} << 'EOF'
+                    # Đi đến thư mục dự án trên VPS
+                    cd /path/to/your/project
+                    
+                    # Kéo code mới nhất từ nhánh main
+                    git pull origin main
+                    
+                    # Sử dụng Docker Compose để build lại image và khởi động container
+                    # --build: Bắt buộc build lại image nếu Dockerfile có thay đổi
+                    # -d: Chạy ở chế độ nền (detached mode)
+                    docker-compose up -d --build
+                    
+                    # (Khuyến khích) Dọn dẹp các image cũ không còn được sử dụng
+                    docker image prune -f
+
+                    echo "Deployment successful!"
+                    
+                  EOF
