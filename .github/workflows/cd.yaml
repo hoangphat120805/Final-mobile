@@ -30,4 +30,3 @@ jobs:
               run: |
                   ssh -vvv ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_IP }} 
                     "cd /home/dev/Final-mobile && git pull origin main && cd /home/dev/Final-mobile/backend && docker compose up -d --build && docker image prune -f"
-                  EOF
