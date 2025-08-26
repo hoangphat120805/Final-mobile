@@ -62,6 +62,7 @@ class UserUpdate(SQLModel):
     email: str | None = Field(default=None, max_length=100)
     gender: Optional[str] = Field(default=None, max_length=10)
     birth_date: Optional[date] = Field(default=None)
+    avt_url: str
 
     @validator("phone_number")
     def validate_phone_number(cls, v):
