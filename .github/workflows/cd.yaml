@@ -31,7 +31,7 @@ jobs:
                   ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_IP }} << 'EOF'
                     set -e
                     # Đi đến thư mục dự án trên VPS
-                    cd Final-mobile
+                    cd /home/dev/Final-mobile
                     
                     # Kéo code mới nhất từ nhánh main
                     git pull origin main
@@ -39,7 +39,7 @@ jobs:
                     # Sử dụng Docker Compose để build lại image và khởi động container
                     # --build: Bắt buộc build lại image nếu Dockerfile có thay đổi
                     # -d: Chạy ở chế độ nền (detached mode)
-                    cd backend
+                    cd /home/dev/Final-mobile/backend
                     docker-compose up -d --build
                     
                     # (Khuyến khích) Dọn dẹp các image cũ không còn được sử dụng
