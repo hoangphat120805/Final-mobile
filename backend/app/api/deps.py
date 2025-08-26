@@ -94,6 +94,6 @@ async def get_ws_session_and_user(
         return db, user
 
     except (InvalidTokenError, ValidationError):
-        # Nếu token không hợp lệ, đóng session và trả về None
+        
         db.close()
         return None, None

@@ -1,61 +1,50 @@
-name: Backend CI
+# # .github/workflows/backend-ci.yml
 
-on:
-  push:
-    
-    paths:
-      - 'backend/**'
-  pull_request:
-    
-    paths:
-      - 'backend/**'
+# name: Backend CI
 
-jobs:
-  test:
-    name: Run Backend Tests
-    runs-on: ubuntu-latest 
+# on:
+#   push:
+#     paths:
+#       - 'backend/**'
+#   pull_request:
+#     paths:
+#       - 'backend/**'
 
-    defaults:
-      run:
+# jobs:
+#   test:
+#     name: Run Backend Tests
+#     runs-on: ubuntu-latest
+
+#     defaults:
+#       run:
+#         working-directory: backend
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Create .env file for services
         
-        working-directory: backend 
-
-    steps:
-      - name: Checkout code
-        
-        uses: actions/checkout@v4
-
-      # Bỏ qua bước cài đặt docker-compose vì runner của GitHub đã tích hợp sẵn `docker compose`
-      # - name: Install docker-compose ...
-
-      - name: Create .env file for Docker Compose
-        
-        run: |
-          echo "POSTGRES_USER=testuser" > .env
-          echo "POSTGRES_PASSWORD=testpass" >> .env
-          echo "POSTGRES_HOST=db" >> .env 
-          echo "POSTGRES_DB=db" >> .env
-          echo "POSTGRES_EXTERNAL_PORT=5432" >> .env 
-          echo "SECRET_KEY=a_random_secret_key_for_ci" >> .env
+#         run: |
+#           echo "POSTGRES_USER=testuser" > .env
+#           echo "POSTGRES_PASSWORD=testpass" >> .env
+#           echo "POSTGRES_HOST=db" >> .env
+#           echo "POSTGRES_PORT=5432" >> .env
+#           echo "POSTGRES_DB=vechai_db_test" >> .env
+#           echo "PROJECT_NAME=Vechai CI Test" >> .env
+#           echo "API_STR=/api/v1" >> .env
+#           echo "DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}" >> .env
           
-
-      - name: Create .env.test file for Pytest in CI
+#       - name: Start All Services
         
-        run: |
-          echo "POSTGRES_USER=testuser" > .env.test
-          echo "POSTGRES_PASSWORD=testpass" >> .env.test
-          echo "POSTGRES_DB=testdb" >> .env.test
-          echo "POSTGRES_PORT=5432" >> .env.test   
-          echo "POSTGRES_HOST=db" >> .env.test     
-          echo "SECRET_KEY=a_random_secret_key_for_ci" >> .env.test
-          echo "TEST_DATABASE_URL=postgresql+psycopg2://testuser:testpass@db:5432/testdb" >> .env.test
-         
-      - name: Start Database Service
-      
-        run: docker compose up -d --wait db
+#         run: docker compose up -d --wait
 
-      - name: Run migrations
-        run: docker compose run migrate
+#       - name: Show running containers
+        
+#         run: docker compose ps
 
-      - name: Run backend tests
-        run: docker compose run web pytest
+#       - name: Run migrations
+#         run: docker compose exec migrate alembic upgrade head
+
+#       - name: Run backend tests
+#         run: PYTEST_ENV_FILE=.env.ci.test docker compose run web pytest
