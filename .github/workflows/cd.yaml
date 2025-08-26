@@ -28,5 +28,4 @@ jobs:
             # Bước 3: Build và triển khai với Docker Compose trên VPS
             - name: Deploy to VPS
               run: |
-                  ssh -vvv ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_IP }} 
-                    "cd /home/dev/Final-mobile && git pull origin main && cd /home/dev/Final-mobile/backend && docker compose up -d --build && docker image prune -f"
+                  ssh -vvv ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_IP }} "cd /home/dev/Final-mobile && git pull origin main && cd /home/dev/Final-mobile/backend && docker compose up -d --build && docker image prune -f"
