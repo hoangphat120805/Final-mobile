@@ -31,10 +31,71 @@
         <item name="android:layout_height">50dp</item>
         <item name="android:layout_weight">1</item>
         <item name="android:padding">8dp</item>
-        <item name="android:tint">@color/white</item>
+        <item name="android:tint">@color/unselected_icon_color</item>
     </style>
 
     <style name="Theme.VaicheUserApp.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
 
     <style name="Theme.VaicheUserApp.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+
+    <style name="ShapeAppearanceOverlay.App.CornerSize50Percent" parent="">
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- Profile Detail Row (LinearLayout) -->
+    <style name="ProfileDetailRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingVertical" tools:targetApi="26">8dp</item>
+    </style>
+
+    <!-- Profile Detail Label (TextView) -->
+    <style name="ProfileDetailLabel">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">0.4</item>
+        <item name="android:textColor">@color/text_dark</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <!-- Profile Detail Value (TextView - View Mode) -->
+    <style name="ProfileDetailValue">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">0.6</item>
+        <item name="android:textColor">@color/text_dark</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAlignment">viewEnd</item>
+    </style>
+
+    <!-- Profile Detail Value (EditText - Edit Mode) -->
+    <style name="ProfileDetailValueEdit">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">0.6</item>
+        <item name="android:textColor">@color/text_dark</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAlignment">viewEnd</item>
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:paddingVertical" tools:targetApi="26">0dp</item>
+    </style>
+
+    <!-- Profile Detail Divider (View) -->
+    <style name="ProfileDetailDivider">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">1dp</item>
+        <item name="android:background">#F0F0F0</item>
+        <item name="android:layout_marginVertical" tools:targetApi="26">4dp</item>
+    </style>
+
+    <!-- Profile Action Buttons -->
+    <style name="ProfileActionButton" parent="Widget.Material3.Button">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">50dp</item>
+        <item name="android:backgroundTint">@color/teal_primary</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>

@@ -22,16 +22,21 @@ class RegistrationActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        // *** CORRECTED SECTION ***
-        // We only have ONE listener for the register button now.
         binding.btnRegister.setOnClickListener {
+            // Get user input from EditText fields
             val fullName = binding.etFullName.text.toString().trim()
+            val email = binding.etEmail.text.toString().trim() // <-- NEW
             val phone = binding.etPhoneNumber.text.toString().trim()
             val password = binding.etPassword.text.toString().trim()
             val confirmPassword = binding.etConfirmPassword.text.toString().trim()
 
-            if (fullName.isEmpty() || phone.isEmpty() || password.isEmpty()) {
+            // Basic Input Validation (Updated for new fields)
+            if (fullName.isEmpty() || email.isEmpty() || phone.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
                 Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { // Basic email validation
+                Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             if (password != confirmPassword) {
@@ -39,11 +44,18 @@ class RegistrationActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            val request = UserCreateRequest(phoneNumber = phone, password = password)
+            // Create the request object (Updated for new fields)
+            val request = UserCreateRequest(
+                phoneNumber = phone,
+                password = password,
+                fullName = fullName, // <-- ADDED
+                email = email        // <-- ADDED
+            )
+
+            // Perform the network call using coroutines
             registerUser(request)
         }
 
-        // Handle "Sign In" link click
         binding.tvSignInLink.setOnClickListener {
             navigateToLoginScreen()
         }

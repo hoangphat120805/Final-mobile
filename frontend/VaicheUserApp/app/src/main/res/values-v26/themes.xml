@@ -11,4 +11,11 @@
         <item name="android:textColorHint">#A0A0A0</item>
         <!-- This is crucial to keep text visible over the white background -->
     </style>
+
+    <style name="ProfileDetailRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingVertical">8dp</item>
+    </style>
 </resources>

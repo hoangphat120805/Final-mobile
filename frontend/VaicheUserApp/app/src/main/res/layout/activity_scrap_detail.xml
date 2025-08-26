@@ -78,6 +78,4 @@
         app:layout_constraintEnd_toEndOf="parent"
         tools:text="• Mainboard, linh kiện điện tử cũ" />
 
-    <include layout="@layout/layout_bottom_navigation"/>
-
     </androidx.constraintlayout.widget.ConstraintLayout>
