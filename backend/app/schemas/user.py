@@ -93,6 +93,7 @@ class UserPublic(SQLModel):
     gender: Optional[str] = Field(default=None, max_length=10)
     birth_date: Optional[date] = Field(default=None)
     email: Optional[str] = Field(default=None, max_length=100)
+    avt_url: str
 
 class AddressCreate(SQLModel):
     street: str = Field(min_length=5, max_length=255)
