@@ -67,6 +67,13 @@
                 android:hint="Enter your full name"
                 android:inputType="textPersonName" />
 
+            <EditText
+                android:id="@+id/et_email"
+                style="@style/TextInputStyle"
+                android:hint="Enter your email"
+                android:inputType="textEmailAddress"
+                android:layout_marginTop="16dp" />
+
             <!-- Phone Number Input -->
             <EditText
                 android:id="@+id/et_phone_number"

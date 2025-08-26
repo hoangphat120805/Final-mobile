@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_light"
+    tools:context=".ui.profile.ProfileFragment">
+
+    <!-- Header Background -->
+    <View
+        android:id="@+id/view_profile_header_background"
+        android:layout_width="0dp"
+        android:layout_height="180dp"
+        android:background="@drawable/bg_header"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Profile Picture -->
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/iv_profile_picture"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:padding="2dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/view_profile_header_background"
+        android:layout_marginTop="-50dp"
+        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.CornerSize50Percent"
+        app:strokeColor="@color/white"
+        app:strokeWidth="2dp"
+        android:src="@drawable/bg_image_placeholder"
+        android:scaleType="centerCrop"
+        android:contentDescription="Profile Picture" />
+
+    <!-- Camera Icon for Profile Picture (Edit Mode) -->
+    <ImageView
+        android:id="@+id/iv_camera_icon"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:elevation="4dp"
+        android:src="@drawable/ic_camera"
+        android:background="@drawable/bg_circle_white"
+        android:padding="6dp"
+        app:layout_constraintBottom_toBottomOf="@id/iv_profile_picture"
+        app:layout_constraintEnd_toEndOf="@id/iv_profile_picture"
+        android:contentDescription="Change Profile Picture"
+        android:visibility="gone"
+        app:tint="@color/teal_primary" />
+
+    <!-- Welcome Text (Positioned relative to avatar) -->
+    <TextView
+        android:id="@+id/tv_welcome_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textColor="@color/black"
+        android:textSize="30sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/iv_profile_picture"
+        tools:text="Welcome, hello" />
+
+    <!-- Profile Details Card (Positioned relative to welcome text) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_profile_details"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="24dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_welcome_name">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Profile"
+                android:textColor="@color/text_dark"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <Space android:layout_width="match_parent" android:layout_height="16dp"/>
+
+            <!-- Phone Number (Read-only, cannot be changed via PATCH) -->
+            <LinearLayout style="@style/ProfileDetailRow">
+                <TextView style="@style/ProfileDetailLabel" android:text="Phone number"/>
+                <TextView
+                    android:id="@+id/tv_phone_number"
+                    style="@style/ProfileDetailValue"
+                    tools:text="0338391647" />
+            </LinearLayout>
+
+            <View style="@style/ProfileDetailDivider" />
+
+            <!-- Full Name -->
+            <LinearLayout style="@style/ProfileDetailRow">
+                <TextView style="@style/ProfileDetailLabel" android:text="Full name"/>
+                <TextView
+                    android:id="@+id/tv_full_name_view"
+                    style="@style/ProfileDetailValue"
+                    tools:text="hello" />
+                <EditText
+                    android:id="@+id/et_full_name_edit"
+                    style="@style/ProfileDetailValueEdit"
+                    android:inputType="textPersonName"
+                    android:visibility="gone"
+                    tools:text="hello" />
+            </LinearLayout>
+
+            <View style="@style/ProfileDetailDivider" />
+
+            <!-- Email -->
+            <LinearLayout style="@style/ProfileDetailRow">
+                <TextView style="@style/ProfileDetailLabel" android:text="Email"/>
+                <TextView
+                    android:id="@+id/tv_email_view"
+                    style="@style/ProfileDetailValue"
+                    tools:text="N/A" />
+                <EditText
+                    android:id="@+id/et_email_edit"
+                    style="@style/ProfileDetailValueEdit"
+                    android:inputType="textEmailAddress"
+                    android:visibility="gone"
+                    tools:text="N/A" />
+            </LinearLayout>
+
+            <View style="@style/ProfileDetailDivider" />
+
+            <!-- Gender -->
+            <LinearLayout style="@style/ProfileDetailRow">
+                <TextView style="@style/ProfileDetailLabel" android:text="Gender"/>
+                <TextView
+                    android:id="@+id/tv_gender_view"
+                    style="@style/ProfileDetailValue"
+                    tools:text="Unknown" />
+                <EditText
+                    android:id="@+id/et_gender_edit"
+                    style="@style/ProfileDetailValueEdit"
+                    android:inputType="textCapWords"
+                    android:visibility="gone"
+                    tools:text="Female" />
+            </LinearLayout>
+
+            <View style="@style/ProfileDetailDivider" />
+
+            <!-- Date of birth -->
+            <LinearLayout style="@style/ProfileDetailRow">
+                <TextView style="@style/ProfileDetailLabel" android:text="Date of birth"/>
+                <TextView
+                    android:id="@+id/tv_birth_date_view"
+                    style="@style/ProfileDetailValue"
+                    tools:text="N/A" />
+                <EditText
+                    android:id="@+id/et_birth_date_edit"
+                    style="@style/ProfileDetailValueEdit"
+                    android:inputType="date"
+                    android:focusable="false"
+                    android:clickable="true"
+                    android:visibility="gone"
+                    tools:text="08/05/2005" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Buttons for View Mode -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_edit_profile"
+        style="@style/ProfileActionButton"
+        android:layout_marginTop="24dp"
+        android:text="Edit profile"
+        app:layout_constraintTop_toBottomOf="@id/card_profile_details"
+        app:layout_constraintStart_toStartOf="@id/card_profile_details"
+        app:layout_constraintEnd_toEndOf="@id/card_profile_details" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_reset_password"
+        style="@style/ProfileActionButton"
+        android:layout_marginTop="12dp"
+        android:text="Reset password"
+        app:layout_constraintTop_toBottomOf="@id/btn_edit_profile"
+        app:layout_constraintStart_toStartOf="@id/card_profile_details"
+        app:layout_constraintEnd_toEndOf="@id/card_profile_details" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_logout"
+        style="@style/ProfileActionButton"
+        android:layout_marginTop="12dp"
+        android:text="Logout"
+        android:backgroundTint="@color/black"
+        app:layout_constraintTop_toBottomOf="@id/btn_reset_password"
+        app:layout_constraintStart_toStartOf="@id/card_profile_details"
+        app:layout_constraintEnd_toEndOf="@id/card_profile_details" />
+
+    <!-- Button for Edit Mode -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_save_profile"
+        style="@style/ProfileActionButton"
+        android:layout_marginTop="24dp"
+        android:text="Save"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/card_profile_details"
+        app:layout_constraintStart_toStartOf="@id/card_profile_details"
+        app:layout_constraintEnd_toEndOf="@id/card_profile_details" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
