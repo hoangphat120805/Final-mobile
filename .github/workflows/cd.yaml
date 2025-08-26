@@ -28,6 +28,7 @@ jobs:
             - name: Deploy to VPS
               run: |
                   ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_IP }} << 'EOF'
+                    set -e
                     # Đi đến thư mục dự án trên VPS
                     cd Final-mobile
                     
