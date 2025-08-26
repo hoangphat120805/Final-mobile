@@ -14,12 +14,13 @@ class UserRole(str, Enum):
 
 class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    full_name: str | None = Field(default=None, max_length=100, nullable=True)
-    phone_number: str = Field(unique=True, nullable=False, index=True, max_length=15)
-    hashed_password: str = Field(nullable=False)
+    full_name: str = Field(max_length=100)
+    phone_number: str = Field(unique=True, index=True, max_length=15)
+    hashed_password: str = Field(unique=True, nullable=False)
     gender: Optional[str] = Field(default=None, max_length=10, nullable=True)
     birth_date: Optional[date] = Field(default=None, nullable=True)
-    email: Optional[str] = Field(default=None, max_length=100, nullable=True, index=True)
+    avt_url: str = Field(nullable=False)
+    email: str = Field(unique=True, max_length=100, index=True)
     role: UserRole = Field(default=UserRole.USER)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
@@ -36,11 +37,13 @@ class User(SQLModel, table=True):
     reviews: List["Review"] = Relationship(back_populates="user")
     categories_created: List["ScrapCategory"] = Relationship(
         back_populates="created_by_user",
-        sa_relationship_kwargs={"foreign_keys": "ScrapCategory.created_by"}
+        sa_relationship_kwargs={"foreign_keys": "ScrapCategory.created_by"},
+        cascade_delete=True
     )
     categories_updated: List["ScrapCategory"] = Relationship(
         back_populates="last_updated_by_user",
-        sa_relationship_kwargs={"foreign_keys": "ScrapCategory.last_updated_by"}
+        sa_relationship_kwargs={"foreign_keys": "ScrapCategory.last_updated_by"},
+        cascade_delete=True
     )
     addresses: List["Address"] = Relationship(back_populates="user")
 
@@ -69,8 +72,8 @@ class ScrapCategory(SQLModel, table=True):
     unit: str = Field(default="kg")
     icon_url: str | None = Field(default=None, max_length=255, nullable=True)
     estimated_price_per_unit: float = Field(ge=0)
-    created_by: uuid.UUID = Field(foreign_key="user.id")
-    last_updated_by: uuid.UUID = Field(foreign_key="user.id")
+    created_by: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
+    last_updated_by: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 

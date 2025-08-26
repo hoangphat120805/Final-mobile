@@ -39,6 +39,8 @@ def validate_password_strength(password: str, field_name: str = "Password") -> s
 class UserCreate(SQLModel):
     phone_number: str = Field(max_length=100)
     password: str = Field(max_length=100)
+    full_name: str = Field(max_length=100)
+    email: str = Field(max_length=100)
 
     @validator("phone_number")
     def validate_phone_number(cls, v):

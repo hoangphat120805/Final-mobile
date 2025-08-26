@@ -28,6 +28,15 @@ target_metadata = SQLModel.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+def include_object(object, name, type_, reflected, compare_to):
+    # Bỏ qua PostGIS system table
+    if type_ == "table" and name in {"spatial_ref_sys"}:
+        return False
+    # Bỏ qua bảng alembic_version (nếu muốn)
+    # if type_ == "table" and name == "alembic_version":
+    #     return False
+    return True
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -45,6 +54,7 @@ def run_migrations_offline() -> None:
         url=settings.POSTGRES_URL,
         target_metadata=target_metadata,
         literal_binds=True,
+        include_object=include_object,
         dialect_opts={"paramstyle": "named"},
     )
 
@@ -69,7 +79,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, 
+            target_metadata=target_metadata,
+            include_object=include_object,
         )
 
         with context.begin_transaction():
