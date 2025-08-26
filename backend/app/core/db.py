@@ -29,7 +29,6 @@ def init_db(session: Session) -> None:
         )
         crud.create_user(session, admin_in)
     
-    # Khởi tạo scrapcategory "Nước khoáng" nếu chưa tồn tại
     admin_user = crud.get_user_by_phone_number(session=session, phone_number="0123456789")
     category_slug = "nuoc-khoang"
     category = crud.get_category_by_slug(session=session, slug=category_slug)
@@ -45,5 +44,3 @@ def init_db(session: Session) -> None:
         from app.schemas.user import UserPublic
         admin_public = UserPublic.model_validate(admin_user)
         crud.create_category(session, category_in, admin_public)
-    
-
