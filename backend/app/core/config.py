@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "database"
     POSTGRES_URL: str = "postgresql://user:password@localhost:5432/database"
+    MAPBOX_API_KEY: str = "your_mapbox_api_key"
 
     PROJECT_NAME: str = "My Project"
     API_STR: str = "/api"
