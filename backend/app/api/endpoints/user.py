@@ -1,14 +1,16 @@
 import uuid
+import requests
 from typing import Annotated, Any
-from app.models import User
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, File, UploadFile
 
+from app import crud
+from app.models import User
 from app.schemas.user import UserPublic 
 from app.schemas.auth import Message
 from app.api.deps import CurrentUser, SessionDep
 from app.schemas.user import UserCreate, UserUpdate, UserUpdatePassword
-from app import crud
 from app.core.security import verify_password, get_password_hash
+from app.core.config import settings
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -73,3 +75,33 @@ def update_password(session: SessionDep, current_user: CurrentUser, password_upd
     session.commit()
     session.refresh(current_user)
     return Message(message="Password updated successfully")
+
+@router.post("/upload/avatar", response_model=Message)
+def upload_avatar(session: SessionDep, current_user: CurrentUser, file: UploadFile = File(...)) -> Any:
+    """
+    Upload a new avatar image for the current authenticated user.
+    """
+    # Validate and process the uploaded file
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file type. Please upload an image.",
+        )
+    
+    response = requests.post(
+        "https://api.imgbb.com/1/upload",
+        params={
+            "key": settings.IMGBB_API_KEY,
+        },
+        files={
+            "image": file.file.read()
+        }
+    )
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to upload image"
+        )
+    image_url = response.json().get("data", {}).get("url")
+    crud.update_user(session, current_user, UserUpdate(avt_url=image_url))
+    return Message(message="Avatar uploaded successfully")
