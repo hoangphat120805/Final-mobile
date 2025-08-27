@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.api.deps import SessionDep, CurrentUser, CurrentCollector
 
 from app.schemas.order import OrderCreate, OrderItemCreate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
+from app.schemas.route import RoutePublic
 
 from app.models import User, Order, OrderStatus
 from app import crud, services
@@ -192,7 +193,7 @@ def complete_order_and_pay(
     return transaction
 
 
-@router.get("/{order_id}/route")
+@router.get("/{order_id}/route", response_model=RoutePublic)
 async def get_route_for_order(order_id: uuid.UUID, current_collector: CurrentCollector, session: SessionDep):
     """
     Get route information from collector's current location to the order's pickup location.
