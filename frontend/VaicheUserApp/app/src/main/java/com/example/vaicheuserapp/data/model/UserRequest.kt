@@ -11,8 +11,8 @@ data class UserUpdateRequest(
     val gender: String?,
     @SerializedName("birth_date")
     val birthDate: String?, // "YYYY-MM-DD" format
-    @SerializedName("avt_url") // <-- ADDED: Avatar URL
-    val avtUrl: String?
+    @SerializedName("avt_url") // <-- RE-ADDED: Avatar URL, as required by API spec
+    val avtUrl: String
 )
 
 data class UserUpdatePasswordRequest(

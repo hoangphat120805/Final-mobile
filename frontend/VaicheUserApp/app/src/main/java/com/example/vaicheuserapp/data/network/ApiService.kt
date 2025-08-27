@@ -14,6 +14,10 @@ import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import com.example.vaicheuserapp.data.model.UploadResponse
+import okhttp3.MultipartBody
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 
 interface ApiService {
 
@@ -39,4 +43,8 @@ interface ApiService {
 
     @PATCH("/api/user/me/password")
     suspend fun updatePassword(@Body userUpdatePasswordRequest: UserUpdatePasswordRequest): Response<Message>
+
+    @Multipart
+    @POST("/api/user/upload/avatar") // <--- CORRECTED PATH HERE!
+    suspend fun uploadAvatar(@Part file: MultipartBody.Part): Response<Message>
 }

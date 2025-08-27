@@ -24,5 +24,5 @@ data class UserPublic(
     val birthDate: String?, // Representing date as String "YYYY-MM-DD"
     val email: String?,
     @SerializedName("avt_url")
-    val avtUrl: String?
+    val avtUrl: String
 ) : Parcelable
