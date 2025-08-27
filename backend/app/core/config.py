@@ -21,4 +21,6 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60*24
     SECRET_KEY: str = "mysecretkey"
 
+    IMGBB_API_KEY: str = "imgbb_api_key"
+
 settings = Settings()

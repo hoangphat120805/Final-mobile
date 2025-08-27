@@ -2,11 +2,11 @@ name: Deploy to VPS with Docker
 
 on:
     push:
+        branches:
+            - main
         paths:
             - "backend/**"
-    pull_request:
-        paths:
-            - "backend/**"
+    workflow_dispatch:
 
 jobs:
     deploy:
@@ -28,21 +28,10 @@ jobs:
             # Bước 3: Build và triển khai với Docker Compose trên VPS
             - name: Deploy to VPS
               run: |
-                  ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_IP }} << 'EOF'
-                    # Đi đến thư mục dự án trên VPS
-                    cd /path/to/your/project
-                    
-                    # Kéo code mới nhất từ nhánh main
+                  ssh -vvv ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_IP }} << 'EOF'
+                    cd /home/dev/Final-mobile
                     git pull origin main
-                    
-                    # Sử dụng Docker Compose để build lại image và khởi động container
-                    # --build: Bắt buộc build lại image nếu Dockerfile có thay đổi
-                    # -d: Chạy ở chế độ nền (detached mode)
-                    docker-compose up -d --build
-                    
-                    # (Khuyến khích) Dọn dẹp các image cũ không còn được sử dụng
+                    cd backend
+                    docker compose up -d --build
                     docker image prune -f
-
-                    echo "Deployment successful!"
-                    
                   EOF
