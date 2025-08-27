@@ -23,6 +23,6 @@ jobs:
                       cd /home/dev/Final-mobile
                       git pull origin main
                       cd backend
-                      docker compose down
-                      docker compose up -d --build
+                      docker compose up -d --build migrate
+                      docker compose up -d --build backend
                       docker image prune -f
