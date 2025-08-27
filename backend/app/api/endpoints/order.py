@@ -57,6 +57,26 @@ def create_order(order: OrderCreate, current_user: CurrentUser, session: Session
         items=[]
     )
 
+@router.post("/{order_id}/items", response_model=OrderPublic)
+def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_user: CurrentUser, session: SessionDep) -> OrderPublic:
+    """
+    Add items to an order.
+    """
+    # Verify order exists and belongs to current user
+    order = crud.get_order_by_id(session=session, order_id=order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # Add items to order
+    for item in items:
+        crud.add_order_item(session=session, order_id=order_id, item=item)
+    
+    # Return updated order with items
+    updated_order = crud.get_order_by_id(session=session, order_id=order_id)
+    return updated_order
+
 @router.get("/nearby", response_model=list[NearbyOrderPublic])
 def list_nearby_orders(
     lat: float,
