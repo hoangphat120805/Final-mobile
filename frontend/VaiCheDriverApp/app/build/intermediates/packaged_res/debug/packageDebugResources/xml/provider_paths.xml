@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+        Quy tắc này cho phép FileProvider chia sẻ BẤT KỲ file nào
+        được tạo trong thư mục cache nội bộ của ứng dụng.
+        path="." có nghĩa là toàn bộ thư mục cache.
+    -->
+    <cache-path name="images" path="." />
+</paths>

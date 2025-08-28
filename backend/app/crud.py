@@ -9,6 +9,11 @@ from app.schemas.notification import NotificationCreate
 from app.models import Noti_User, Notification, OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction
 from app.core.security import get_password_hash, verify_password
 from math import radians, sin, cos, asin, sqrt
+from geoalchemy2.functions import ST_DWithin, ST_Distance
+from app import services
+from shapely.geometry import Point
+from app.core.config import settings
+
 
 def authenticate(session: Session, phone_number: str, password: str) -> User | None:
     db_user = get_user_by_phone_number(session=session, phone_number=phone_number)
@@ -30,6 +35,16 @@ def create_user(session: Session, user_create: UserCreate) -> User:
     db_user = User.model_validate(
         user_create,
         update={"hashed_password": get_password_hash(user_create.password)}
+    )
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
+    return db_user
+
+def create_user_collector(session: Session, user_create: UserCreate) -> User:
+    db_user = User.model_validate(
+        user_create,
+        update={"hashed_password": get_password_hash(user_create.password), "role": UserRole.COLLECTOR} 
     )
     session.add(db_user)
     session.commit()
@@ -87,11 +102,40 @@ def get_order_by_id(session: Session, order_id: uuid.UUID) -> Order:
     statement = select(Order).where(Order.id == order_id).join(Order.items)
     return session.exec(statement).first()
 
-def create_order(session: Session, order_create: OrderCreate, owner_id: uuid.UUID) -> Order:
-    db_order = Order.model_validate(
-        order_create,
-        update={"owner_id": owner_id, "status": OrderStatus.PENDING}
-    )
+
+import httpx
+import os
+
+async def create_order(session: Session, order_create: OrderCreate, owner_id: uuid.UUID) -> Order:
+    # Get Mapbox token from environment variable or settings
+    MAPBOX_TOKEN = settings.MAPBOX_ACCESS_TOKEN
+    if not MAPBOX_TOKEN:
+        from app.core.config import settings
+        MAPBOX_TOKEN = getattr(settings, "MAPBOX_ACCESS_TOKEN", None)
+    if not MAPBOX_TOKEN:
+        raise ValueError("Mapbox access token not found in environment or settings.")
+
+    address = order_create.pickup_address
+    geocode_url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{address}.json?access_token={MAPBOX_TOKEN}&limit=1"
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(geocode_url)
+        data = resp.json()
+        if not data["features"]:
+            raise ValueError(f"Could not find coordinates for address: {address}")
+        coords = data["features"][0]["geometry"]["coordinates"]  # [lng, lat]
+
+    # Convert coordinates to WKT for PostGIS
+    point = Point(coords[0], coords[1])
+    location_wkt = f'SRID=4326;{point.wkt}'
+
+    order_data_to_create = {
+        **order_create.model_dump(),
+        "owner_id": owner_id,
+        "status": OrderStatus.PENDING,
+        "location": location_wkt,
+    }
+
+    db_order = Order.model_validate(order_data_to_create)
     session.add(db_order)
     session.commit()
     session.refresh(db_order)
@@ -124,40 +168,34 @@ def accept_order_service(db: Session, order_id: uuid.UUID, collector: User, note
     db.refresh(order)
     return order
 
-def get_nearby_orders(db: Session, latitude: float, longitude: float, radius_km: float, limit: int = 50):
-    """Return pending, unassigned orders within radius_km of given point sorted by distance."""
-    from math import radians, sin, cos, asin, sqrt
-    # Fetch candidate orders (simple filter first)
-    from geoalchemy2.shape import to_shape
-    statement = select(Order).where(
+def get_nearby_pending_orders_candidates(
+    db: Session, 
+    latitude: float, 
+    longitude: float, 
+    radius_km: float = 5.0, 
+    limit: int = 10
+) -> list[tuple[Order, float]]:
+    """
+    Lấy ra một danh sách các ứng cử viên đơn hàng gần nhất.
+    Chỉ dùng PostGIS, không gọi API bên ngoài.
+    Trả về một tuple (Order, distance_in_km).
+    """
+    collector_location_wkt = f'SRID=4326;POINT({longitude} {latitude})'
+    radius_meters = radius_km * 1000
+
+    # Tính khoảng cách đường chim bay bằng ST_Distance và chia cho 1000 để ra km
+    distance_expression = (func.ST_Distance(
+        Order.location,
+        collector_location_wkt
+    ) / 1000).label("distance_km")
+
+    query = db.query(Order, distance_expression).filter(
         Order.status == OrderStatus.PENDING,
-        Order.collector_id.is_(None),
-        Order.location.is_not(None)
-    )
-    candidates = db.exec(statement).all()
-    results = []
-    for o in candidates:
-        # Extract coordinates from geometry
-        coords = None
-        try:
-            coords = to_shape(o.location).coords[0]
-        except Exception:
-            continue
-        lat2, lon2 = coords[1], coords[0]
-       
-        lat1, lon1 = latitude, longitude
-        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-        dlat = lat2 - lat1
-        dlon = lon2 - lon1
-        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-        c = 2 * asin(sqrt(a))
-        earth_radius_km = 6371.0
-        distance = earth_radius_km * c
-        if distance <= radius_km:
-            results.append((o, distance))
-    # sort and trim
-    results.sort(key=lambda x: x[1])
-    return results[:limit]
+        Order.collector_id == None, # Chỉ lấy đơn hàng chưa được gán
+        ST_DWithin(Order.location, collector_location_wkt, radius_meters)
+    ).order_by("distance_km").limit(limit)
+    
+    return query.all()
 
 
 
@@ -237,7 +275,7 @@ def complete_order_payment_service(
         # This ensures the database remains in a consistent state.
         db.rollback()
         raise e
-    
+
 def create_notification(session: Session, notification_create: NotificationCreate, user_ids: list[uuid.UUID]) -> Notification:
     db_notification = Notification.model_validate(notification_create)
     session.add(db_notification)
@@ -267,4 +305,6 @@ def mark_notification_as_read(session: Session, notification_id: uuid.UUID, user
     session.add(noti_user)
     session.commit()
     return True
+
+
 

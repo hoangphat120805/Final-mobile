@@ -8,12 +8,20 @@ from app.core.config import settings
 from app.api.deps import SessionDep, CurrentUser, CurrentCollector
 
 from app.schemas.order import OrderCreate, OrderItemCreate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
+from app.schemas.route import RoutePublic
 
 from app.models import User, Order, OrderStatus
-from app import crud
+from app import crud, services
 from app.api.deps import get_db, get_current_active_collector
 from app.schemas.transaction import OrderCompletionRequest, TransactionReadResponse
 import uuid
+from typing import List, Tuple
+from shapely.geometry import Point
+# Accept GeoJSON for location, convert to PostGIS geometry
+from shapely.geometry import shape,mapping
+from geoalchemy2.shape import from_shape,to_shape 
+
+import asyncio
 
 
 router = APIRouter(
@@ -21,29 +29,15 @@ router = APIRouter(
 )
 
 
-from shapely.geometry import Point
-# Accept GeoJSON for location, convert to PostGIS geometry
-from shapely.geometry import shape,mapping
-from geoalchemy2.shape import from_shape,to_shape
+
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=OrderPublic)
 def create_order(order: OrderCreate, current_user: CurrentUser, session: SessionDep) -> OrderPublic:
     """
-    Create a new order.
+    Create a new order. Backend will geocode pickup_address using Mapbox.
     """
-    
-    # Convert GeoJSON dict to Shapely geometry
-    location_geom = from_shape(shape(order.location), srid=4326)
-    db_order = Order(
-        owner_id=current_user.id,
-        pickup_address=order.pickup_address,
-        location=location_geom,
-        status=OrderStatus.PENDING
-    )
-    session.add(db_order)
-    session.commit()
-    session.refresh(db_order)
-    
+    # Gọi hàm async create_order sử dụng Mapbox geocoding
+    db_order = asyncio.run(crud.create_order(session=session, order_create=order, owner_id=current_user.id))
     location_geojson = None
     if db_order.location:
         location_geojson = mapping(to_shape(db_order.location))
@@ -77,33 +71,52 @@ def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_u
     updated_order = crud.get_order_by_id(session=session, order_id=order_id)
     return updated_order
 
-@router.get("/nearby", response_model=list[NearbyOrderPublic])
-def list_nearby_orders(
+@router.get("/nearby", response_model=List[NearbyOrderPublic])
+async def list_nearby_orders(
     lat: float,
     lng: float,
     current_collector: CurrentCollector,
     session: SessionDep,
     radius_km: float = 5.0,
-    limit: int = 50
+    limit: int = 10
 ):
-    """List pending, unassigned orders near the collector's current location within given radius (km)."""
-    # current_collector is accessed here to ensure dependency is triggered
-    _ = current_collector.id
-    pairs = crud.get_nearby_orders(db=session, latitude=lat, longitude=lng, radius_km=radius_km, limit=limit)
-    response = []
-    for order, distance in pairs:
-        location_geojson = mapping(to_shape(order.location)) if order.location else None
-        response.append(NearbyOrderPublic(
-            id=order.id,
-            owner_id=order.owner_id,
-            collector_id=order.collector_id,
-            status=order.status,
-            pickup_address=order.pickup_address,
-            location=location_geojson,
-            items=order.items,
-            distance_km=distance
-        ))
-    return response
+    """
+    List pending orders, enriched with bird-fly distance and real travel info.
+    """
+    # 1. LẤY ỨNG CỬ VIÊN VÀ KHOẢNG CÁCH ĐƯỜNG CHIM BAY TỪ POSTGIS
+    candidate_pairs: List[Tuple[Order, float]] = crud.get_nearby_pending_orders_candidates(
+        db=session, latitude=lat, longitude=lng, radius_km=radius_km, limit=limit
+    )
+
+    if not candidate_pairs:
+        return []
+
+    # 2. CHUẨN BỊ DỮ LIỆU VÀ GỌI MAPBOX
+    orders_only = [pair[0] for pair in candidate_pairs] # Chỉ lấy list các object Order
+    origin_coords = (lng, lat)
+    destination_coords = [(order.location.x, order.location.y) for order in orders_only if order.location]
+
+    travel_info_list = await services.get_travel_info_from_mapbox(
+        origin=origin_coords, destinations=destination_coords
+    )
+
+    # 3. KẾT HỢP DỮ LIỆU VÀ TẠO RESPONSE OBJECTS
+    response_objects = []
+    for i, (order_model, distance) in enumerate(candidate_pairs):
+        # Tạo một dictionary từ model object
+        order_data = order_model.__dict__
+        
+        # Thêm các trường đã tính toán vào dictionary
+        order_data['distance_km'] = distance
+        if travel_info_list and i < len(travel_info_list):
+            order_data['travel_time_seconds'] = travel_info_list[i]["duration"]
+            order_data['travel_distance_meters'] = travel_info_list[i]["distance"]
+            
+        # Tạo đối tượng schema từ dictionary đã hoàn chỉnh
+        # Pydantic sẽ tự động xác thực và chuyển đổi kiểu dữ liệu
+        response_objects.append(NearbyOrderPublic(**order_data))
+
+    return response_objects
 
 @router.get("/{order_id}", response_model=OrderPublic)
 def get_order(order_id: uuid.UUID, session: SessionDep) -> OrderPublic:
@@ -173,3 +186,30 @@ def complete_order_and_pay(
     # FastAPI automatically serializes the returned 'transaction' object
     # using the `TransactionReadResponse` schema.
     return transaction
+
+
+@router.get("/{order_id}/route", response_model=RoutePublic)
+async def get_route_for_order(order_id: uuid.UUID, current_collector: CurrentCollector, session: SessionDep):
+    """
+    Get route information from collector's current location to the order's pickup location.
+    """
+    order = crud.get_order_by_id(session=session, order_id=order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if not order.location:
+        raise HTTPException(status_code=400, detail="Order does not have a valid location")
+    
+    if not current_collector.location:
+        raise HTTPException(status_code=400, detail="Collector does not have a valid location")
+    
+    route_info = await services.get_route_from_mapbox(
+        start_lon=current_collector.location.x,
+        start_lat=current_collector.location.y,
+        end_lon=order.location.x,
+        end_lat=order.location.y
+    )
+    
+    if not route_info:
+        raise HTTPException(status_code=500, detail="Failed to retrieve route information")
+    
+    return route_info

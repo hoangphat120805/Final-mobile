@@ -61,3 +61,14 @@ def signup(session: SessionDep, user_in: UserRegister):
 @router.get("/keep-alive", response_model=Message)
 def keep_alive():
     return {"message": "I'm alive!"}
+
+@router.post("/collector/signup", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
+def signup(session: SessionDep, user_create: UserCreate):
+    existing_user = crud.get_user_by_phone_number(session=session, phone_number=user_create.phone_number)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Phone number already exists",
+        )
+    user = crud.create_user_collector(session=session, user_create=user_create)
+    return user

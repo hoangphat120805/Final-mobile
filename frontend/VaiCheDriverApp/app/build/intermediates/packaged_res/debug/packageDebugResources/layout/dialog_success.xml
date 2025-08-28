@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="32dp"
+    android:background="@drawable/dialog_background"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:padding="32dp">
+
+    <!-- Bạn có thể dùng ProgressBar thay cho ImageView để có hiệu ứng xoay -->
+    <ProgressBar
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:indeterminateTint="#48C5B8"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Plan Confirmed!"
+        android:textColor="@android:color/black"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="Waiting for a new order..."
+        android:textColor="@android:color/darker_gray"
+        android:textSize="16sp" />
+
+</LinearLayout>

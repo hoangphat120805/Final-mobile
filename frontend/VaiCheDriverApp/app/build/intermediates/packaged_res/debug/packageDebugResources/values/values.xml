@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="blue_text_color">#1E88E5</color>
+    <color name="bottom_nav_active">#FFFFFFFF</color>
+    <color name="bottom_nav_inactive">#A0A0A0</color>
+    <color name="green_text_color">#36B37E</color>
+    <color name="status_delivering_text">#FFA000</color>
+    <color name="status_done_text">#1E88E5</color>
+    <color name="white">#FFFFFFFF</color>
+    <string name="app_name">VaiChe_Driver</string>
+    <style name="Base.Theme.VaiChe_Driver" parent="Theme.Material3.DayNight.NoActionBar">
+        
+        
+    </style>
+    <style name="SectionTitle" parent="Widget.AppCompat.TextView">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">32dp</item>
+        <item name="android:layout_marginBottom">12dp</item>
+        <item name="android:textColor">@android:color/black</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="Theme.VaiChe_Driver" parent="Base.Theme.VaiChe_Driver"/>
+    <style name="TransparentDialogTheme" parent="Theme.MaterialComponents.DayNight.Dialog">
+        
+        <item name="android:windowIsFloating">false</item>
+
+        
+        <item name="android:windowBackground">@android:color/transparent</item>
+
+        
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>

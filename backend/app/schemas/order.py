@@ -8,7 +8,6 @@ import re
 
 class OrderCreate(SQLModel):
     pickup_address: str = Field(min_length=10, max_length=500)
-    location: dict
 
 class OrderPublic(SQLModel):
     id: uuid.UUID
@@ -62,6 +61,8 @@ class OrderAcceptResponse(SQLModel):
 
 class NearbyOrderPublic(OrderPublic):
     distance_km: float
+    travel_time_seconds: Optional[float] = None 
+    travel_distance_meters: Optional[float] = None 
 
 
 
