@@ -25,8 +25,8 @@ def init_db(session: Session) -> None:
             phone_number="0123456789",
             password="Admin@123",
             email="admin@example.com",
-        role=UserRole.ADMIN
-        )
+            role=UserRole.ADMIN
+        )   
         crud.create_user(session, admin_in)
     
     admin_user = crud.get_user_by_phone_number(session=session, phone_number="0123456789")

@@ -1,18 +1,37 @@
 import uuid
 import requests
-from typing import Annotated, Any
-from fastapi import APIRouter, HTTPException, status, File, UploadFile
+from typing import Any
+from sqlmodel import select, func
+from fastapi import APIRouter, HTTPException, status, File, UploadFile, Depends
 
 from app import crud
 from app.models import User
-from app.schemas.user import UserPublic 
-from app.schemas.auth import Message
-from app.api.deps import CurrentUser, SessionDep
-from app.schemas.user import UserCreate, UserUpdate, UserUpdatePassword
-from app.core.security import verify_password, get_password_hash
 from app.core.config import settings
+from app.core.security import verify_password, get_password_hash
+from app.api.deps import CurrentUser, SessionDep, get_current_admin
+from app.schemas.user import UserUpdateMe, UpdatePassword, UserPublic, UsersPublic
+from app.schemas.auth import Message
+from app.schemas.notification import NotificationPublic
 
 router = APIRouter(prefix="/user", tags=["user"])
+
+@router.get(
+    "/",
+    dependencies=[Depends(get_current_admin)],
+    response_model=UsersPublic,
+)
+def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any: # type: ignore
+    """
+    Retrieve users.
+    """
+
+    count_statement = select(func.count()).select_from(User)
+    count = session.exec(count_statement).one()
+
+    statement = select(User).offset(skip).limit(limit)
+    users = session.exec(statement).all()
+
+    return UsersPublic(data=users, count=count)
 
 @router.get("/me", response_model=UserPublic)
 def get_me(current_user: CurrentUser) -> Any:
@@ -22,7 +41,7 @@ def get_me(current_user: CurrentUser) -> Any:
     return current_user
 
 @router.patch("/me", response_model=UserPublic)
-def update_me(session: SessionDep, current_user: CurrentUser, user_update: UserUpdate) -> Any:
+def update_me(session: SessionDep, current_user: CurrentUser, user_update: UserUpdateMe) -> Any: # type: ignore
     """
     Update the current authenticated user.
     """
@@ -53,7 +72,7 @@ def delete_me(session: SessionDep, current_user: CurrentUser) -> Any:
     return Message(message="User deleted successfully")
 
 @router.patch("/me/password", response_model=Message)
-def update_password(session: SessionDep, current_user: CurrentUser, password_update: UserUpdatePassword) -> Any:
+def update_password(session: SessionDep, current_user: CurrentUser, password_update: UpdatePassword) -> Any:
     """
     Update the password of the current authenticated user.
     """
@@ -103,5 +122,24 @@ def upload_avatar(session: SessionDep, current_user: CurrentUser, file: UploadFi
             detail="Failed to upload image"
         )
     image_url = response.json().get("data", {}).get("url")
-    crud.update_user(session, current_user, UserUpdate(avt_url=image_url))
+    crud.update_user(session, current_user, UserUpdateMe(avt_url=image_url))
     return Message(message="Avatar uploaded successfully")
+
+@router.get("/me/notifications", response_model=list[NotificationPublic])
+def get_notifications(
+    session: SessionDep,
+    current_user: CurrentUser   
+):
+    notifications = crud.get_user_notifications(session, current_user.id)
+    return notifications
+
+@router.post("/read/{notification_id}")
+def mark_as_read(
+    notification_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser
+):
+    success = crud.mark_notification_as_read(session, notification_id, current_user.id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return {"msg": "Notification marked as read"}
