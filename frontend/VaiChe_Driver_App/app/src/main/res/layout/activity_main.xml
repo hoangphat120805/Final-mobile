@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Khung chứa các Fragment, nằm phía trên thanh điều hướng -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragment_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/bottom_nav_include" />
+
+    <!-- Thanh điều hướng dưới cùng, được include vào đây -->
+    <include
+        android:id="@+id/bottom_nav_include"
+    layout="@layout/include_bottom_nav"
+    android:layout_width="match_parent"
+    android:layout_height="60dp"
+    android:layout_alignParentBottom="true" />
+
+</RelativeLayout>
