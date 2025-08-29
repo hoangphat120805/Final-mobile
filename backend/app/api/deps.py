@@ -43,6 +43,28 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
         )
     return user
 
+def get_current_user_ws(session: SessionDep, websocket: WebSocket) -> User:
+    try: 
+        auth_header = websocket.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=403, detail="Invalid authorization header")
+        token = auth_header.split(" ")[1]  
+
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[security.ALGORITHM])
+        token_data = TokenPayLoad(**payload)
+    except (InvalidTokenError, ValidationError):
+        raise HTTPException(
+            status_code = status.HTTP_403_FORBIDDEN,
+            detail = "Could not validate credentials"
+        )
+    user = session.get(User, token_data.sub)
+    if not user:
+        raise HTTPException(
+            status_code = status.HTTP_404_NOT_FOUND,
+            detail = "User not found"
+        )
+    return user
+
 CurrentUser = Annotated[UserPublic, Depends(get_current_user)]
 
 def get_current_admin(

@@ -14,8 +14,6 @@ class NotificationPublic(NotificationBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
 
 class NotiUserBase(BaseModel):
     notification_id: UUID
@@ -24,8 +22,7 @@ class NotiUserBase(BaseModel):
     created_at: datetime
 
 class NotiUserPublic(NotiUserBase):
-    class Config:
-        orm_mode = True
+    pass
 
 class NotificationWithUsers(NotificationPublic):
     recipients: List[NotiUserPublic] = []

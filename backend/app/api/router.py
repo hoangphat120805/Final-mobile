@@ -20,5 +20,5 @@ api_router.include_router(transaction.router, prefix="/transactions", tags=["tra
 api_router.include_router(tracking.router, prefix="/ws", tags=["websocket-tracking"])
 api_router.include_router(notification.router)
 
-api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
+api_router.include_router(chat.router)
 

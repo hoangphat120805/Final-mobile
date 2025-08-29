@@ -318,5 +318,20 @@ def create_message(session: Session, message: MessageCreate) -> Message:
     session.refresh(db_message)
     return db_message
 
+def get_chat_history(session: Session, user_id: uuid.UUID, receiver_id: uuid.UUID):
+    stmt = select(Message).where(
+        ((Message.sender_id == user_id) & (Message.receiver_id == receiver_id)) |
+        ((Message.sender_id == receiver_id) & (Message.receiver_id == user_id))
+    ).order_by(Message.timestamp)
+    return list(session.exec(stmt))
 
+def get_user_chats(session: Session, user_id: uuid.UUID):
+    stmt = select(Message).where(
+        ((Message.sender_id == user_id) | (Message.receiver_id == user_id)) &
+        (Message.timestamp == select(Message.timestamp).where(
+            ((Message.sender_id == user_id) & (Message.receiver_id == Message.receiver_id)) |
+            ((Message.sender_id == Message.receiver_id) & (Message.receiver_id == user_id))
+        ).order_by(Message.timestamp.desc()).limit(1))
+    )
+    return list(session.exec(stmt))
 
