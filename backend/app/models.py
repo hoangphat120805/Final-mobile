@@ -167,3 +167,14 @@ class Noti_User(SQLModel, table=True):
 
     notification: "Notification" = Relationship(back_populates="recipients")
     recipient: "User" = Relationship(back_populates="notifications")
+
+    # Chat Message model
+class Message(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    sender_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    receiver_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    content: str = Field(max_length=1000)
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+    sender: Optional["User"] = Relationship(sa_relationship_kwargs={"foreign_keys": "Message.sender_id"})
+    receiver: Optional["User"] = Relationship(sa_relationship_kwargs={"foreign_keys": "Message.receiver_id"})

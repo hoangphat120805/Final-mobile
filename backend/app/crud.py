@@ -6,7 +6,8 @@ from app.schemas.user import UserCreate, UserPublic, UserUpdate
 from app.schemas.category import CategoryCreate
 from app.schemas.order import OrderItemCreate, OrderCreate
 from app.schemas.notification import NotificationCreate
-from app.models import Noti_User, Notification, OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction
+from app.schemas.message import MessageCreate
+from app.models import Message, Noti_User, Notification, OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction
 from app.core.security import get_password_hash, verify_password
 from math import radians, sin, cos, asin, sqrt
 from geoalchemy2.functions import ST_DWithin, ST_Distance
@@ -305,6 +306,17 @@ def mark_notification_as_read(session: Session, notification_id: uuid.UUID, user
     session.add(noti_user)
     session.commit()
     return True
+
+def create_message(session: Session, message: MessageCreate) -> Message:
+    db_message = Message(
+        sender_id=message.sender_id,
+        receiver_id=message.receiver_id,
+        content=message.content
+    )
+    session.add(db_message)
+    session.commit()
+    session.refresh(db_message)
+    return db_message
 
 
 
