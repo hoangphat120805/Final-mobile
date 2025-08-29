@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Các màu cơ bản của ứng dụng (thường được tạo tự động) -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Màu xanh ngọc chính (Primary Teal Color) -->
+    <color name="teal_primary">#48C5B8</color>
+
+    <!-- Màu cho các trạng thái (Status) -->
+    <color name="green_text_color">#36B37E</color>
+    <color name="status_delivering_text">#FFA000</color> <!-- Màu cam -->
+    <color name="status_done_text">#757575</color>      <!-- Màu xám -->
+    <color name="blue_text_color">#1E88E5</color>       <!-- Màu xanh dương -->
+
+    <!-- Màu cho thanh điều hướng dưới cùng (Bottom Navigation) -->
+    <color name="bottom_nav_active">#FFFFFFFF</color>   <!-- Màu xanh ngọc khi được chọn -->
+    <color name="bottom_nav_inactive">#A0A0A0</color> <!-- Màu xám khi không được chọn -->
+
+    <!-- Màu cho màn hình Đánh giá (Ratings) -->
+    <color name="grey_button_background">#E0E0E0</color>
+    <color name="grey_button_text">#8A8A8A</color>
+    <color name="star_filled_color">#FFC107</color> <!-- Màu vàng cho sao -->
+
+</resources>
