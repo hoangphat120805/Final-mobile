@@ -1,4 +1,6 @@
 import logging
+import random
+import string
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -121,3 +123,21 @@ def verify_password_reset_token(token: str) -> str | None:
         return str(decoded_token["sub"])
     except InvalidTokenError:
         return None
+
+
+def generate_otp(length=6):
+    return ''.join(random.choices(string.digits, k=length))
+
+
+def send_otp_email(email_to: str, otp: str, purpose: str = "register") -> None:
+    project_name = settings.PROJECT_NAME
+    if purpose == "register":
+        subject = f"{project_name} - Xác thực đăng ký tài khoản"
+        html_content = f"<p>Mã OTP xác thực đăng ký tài khoản của bạn là: <b>{otp}</b></p>"
+    elif purpose == "reset":
+        subject = f"{project_name} - Xác thực đặt lại mật khẩu"
+        html_content = f"<p>Mã OTP xác thực đặt lại mật khẩu của bạn là: <b>{otp}</b></p>"
+    else:
+        subject = f"{project_name} - OTP xác thực"
+        html_content = f"<p>Mã OTP của bạn là: <b>{otp}</b></p>"
+    send_email(email_to=email_to, subject=subject, html_content=html_content)
