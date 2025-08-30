@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
             val tintColor = if (navId == selectedDestinationId) {
                 ContextCompat.getColor(this, R.color.white)
             } else {
-                ContextCompat.getColor(this, R.color.unselected_icon_color)
+                ContextCompat.getColor(this, R.color.gray)
             }
             imageView.setColorFilter(tintColor)
         }

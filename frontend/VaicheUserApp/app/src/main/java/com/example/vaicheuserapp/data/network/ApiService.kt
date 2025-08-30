@@ -7,6 +7,7 @@ import com.example.vaicheuserapp.data.model.CategoryPublic
 import com.example.vaicheuserapp.data.model.UserUpdateRequest
 import com.example.vaicheuserapp.data.model.UserUpdatePasswordRequest
 import com.example.vaicheuserapp.data.model.Message
+import com.example.vaicheuserapp.data.model.NotificationPublic
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Field
@@ -18,6 +19,7 @@ import com.example.vaicheuserapp.data.model.UploadResponse
 import okhttp3.MultipartBody
 import retrofit2.http.Multipart
 import retrofit2.http.Part
+import retrofit2.http.Path
 
 interface ApiService {
 
@@ -47,4 +49,10 @@ interface ApiService {
     @Multipart
     @POST("/api/user/upload/avatar") // <--- CORRECTED PATH HERE!
     suspend fun uploadAvatar(@Part file: MultipartBody.Part): Response<Message>
+
+    @GET("/api/user/me/notifications")
+    suspend fun getNotifications(): Response<List<NotificationPublic>>
+
+    @POST("/api/user/read/{notification_id}")
+    suspend fun markNotificationAsRead(@Path("notification_id") notificationId: String): Response<Message>
 }

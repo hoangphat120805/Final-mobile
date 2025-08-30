@@ -17,11 +17,23 @@
         android:label="Profile"
         tools:layout="@layout/fragment_profile" />
 
+    <!-- Notification List Fragment (used by ViewPager, not directly navigated to by bottom nav) -->
+
+    <!-- Notification Detail Fragment -->
     <fragment
         android:id="@+id/nav_notifications_fragment"
         android:name="com.example.vaicheuserapp.ui.notifications.NotificationsFragment"
         android:label="Notifications"
-        tools:layout="@layout/fragment_notifications" />
+        tools:layout="@layout/fragment_notifications">
+        <!-- The action to NotificationDetailFragment is REMOVED -->
+    </fragment>
+
+    <!-- Notification List Fragment (used by ViewPager, not directly navigated to by bottom nav) -->
+    <fragment
+        android:id="@+id/notificationListFragment"
+        android:name="com.example.vaicheuserapp.ui.notifications.NotificationListFragment"
+        android:label="NotificationListFragment"
+        tools:layout="@layout/fragment_notification_list" />
 
     <fragment
         android:id="@+id/nav_history_fragment"
