@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity() {
         // Set up click listener for the central Sell button (it's not part of the selection logic)
         binding.root.findViewById<TextView>(R.id.fab_sell).setOnClickListener {
             Log.d("MainActivity", "Sell button clicked. Navigating to Set Plan Fragment.")
+            // --- CRITICAL: Navigate to the correct destination ID for SetPlanFragment ---
             navController.navigate(R.id.set_plan_fragment)
         }
 
@@ -68,13 +69,11 @@ class MainActivity : AppCompatActivity() {
     private fun updateBottomNavSelection(selectedDestinationId: Int) {
         navIconMap.forEach { (navId, imageView) ->
             val tintColor = if (navId == selectedDestinationId) {
-                // Selected state: white
                 ContextCompat.getColor(this, R.color.white)
             } else {
-                // Unselected state: muted white
-                ContextCompat.getColor(this, R.color.gray)
+                ContextCompat.getColor(this, R.color.unselected_icon_color)
             }
-            imageView.setColorFilter(tintColor) // Apply the tint
+            imageView.setColorFilter(tintColor)
         }
     }
 }
