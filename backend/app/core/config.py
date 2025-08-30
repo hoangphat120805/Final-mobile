@@ -35,11 +35,6 @@ class Settings(BaseSettings):
     EMAILS_FROM_EMAIL: EmailStr | None = None
     EMAILS_FROM_NAME: EmailStr | None = None
 
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def emails_enabled(self) -> bool:
-        return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
-
     IMGBB_API_KEY: str = "imgbb_api_key"
 
     MAPBOX_ACCESS_TOKEN: str = "mapbox_access_token"
