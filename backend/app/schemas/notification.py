@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 class NotificationBase(BaseModel):
+    title: str
     message: str
 
 class NotificationCreate(NotificationBase):
