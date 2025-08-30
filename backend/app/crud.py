@@ -1,19 +1,19 @@
+import uuid
+import httpx
 from typing import Optional
 from sqlmodel import Session, select
-import uuid
 
+from app.core.config import settings
+from app.core.security import get_password_hash, verify_password
 from app.schemas.user import UserCreate, UserPublic, UserUpdate
 from app.schemas.category import CategoryCreate
 from app.schemas.order import OrderItemCreate, OrderCreate
-from app.schemas.notification import NotificationCreate
+from app.schemas.notification import NotificationCreate, NotificationPublic, UserNotification
 from app.schemas.message import MessageCreate
 from app.models import Message, Noti_User, Notification, OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction
-from app.core.security import get_password_hash, verify_password
 from math import radians, sin, cos, asin, sqrt
 from geoalchemy2.functions import ST_DWithin, ST_Distance
-from app import services
 from shapely.geometry import Point
-from app.core.config import settings
 
 
 def authenticate(session: Session, phone_number: str, password: str) -> User | None:
@@ -103,18 +103,8 @@ def get_order_by_id(session: Session, order_id: uuid.UUID) -> Order:
     statement = select(Order).where(Order.id == order_id).join(Order.items)
     return session.exec(statement).first()
 
-
-import httpx
-import os
-
 async def create_order(session: Session, order_create: OrderCreate, owner_id: uuid.UUID) -> Order:
-    # Get Mapbox token from environment variable or settings
     MAPBOX_TOKEN = settings.MAPBOX_ACCESS_TOKEN
-    if not MAPBOX_TOKEN:
-        from app.core.config import settings
-        MAPBOX_TOKEN = getattr(settings, "MAPBOX_ACCESS_TOKEN", None)
-    if not MAPBOX_TOKEN:
-        raise ValueError("Mapbox access token not found in environment or settings.")
 
     address = order_create.pickup_address
     geocode_url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{address}.json?access_token={MAPBOX_TOKEN}&limit=1"
@@ -288,11 +278,20 @@ def create_notification(session: Session, notification_create: NotificationCreat
     session.commit()
     return db_notification
 
-def get_user_notifications(session: Session, user_id: uuid.UUID) -> list[Notification]:
-    stmt = select(Noti_User).where(Noti_User.user_id == user_id)
-    noti_users = session.exec(stmt).all()
-    notifications = [session.get(Notification, nu.notification_id) for nu in noti_users]
-    return notifications
+def get_all_notifications(session: Session) -> list[Notification]:
+    stmt = select(Notification)
+    return session.exec(stmt).all()
+
+def get_user_notifications(session: Session, user_id: uuid.UUID) -> list[UserNotification]:
+    stmt = select(
+        Notification.id,
+        Notification.title,
+        Notification.message,
+        Noti_User.is_read,
+        Noti_User.created_at
+    ).join(Noti_User).where(Noti_User.user_id == user_id)
+    return session.exec(stmt).all()
+
 
 def mark_notification_as_read(session: Session, notification_id: uuid.UUID, user_id: uuid.UUID) -> bool:
     stmt = select(Noti_User).where(

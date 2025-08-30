@@ -1,6 +1,10 @@
 
 from pydantic_settings import SettingsConfigDict, BaseSettings
 
+from pydantic import (
+    EmailStr
+)
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file="./.env",
@@ -14,7 +18,6 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "database"
     POSTGRES_URL: str = "postgresql://user:password@localhost:5432/database"
-    MAPBOX_API_KEY: str = "your_mapbox_api_key"
 
     PROJECT_NAME: str = "My Project"
     API_STR: str = "/api"
@@ -22,8 +25,17 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60*24
     SECRET_KEY: str = "mysecretkey"
 
+    SMTP_TLS: bool = True
+    SMTP_SSL: bool = False
+    SMTP_PORT: int = 587
+    SMTP_HOST: str | None = None
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    EMAILS_FROM_EMAIL: EmailStr | None = None
+    EMAILS_FROM_NAME: EmailStr | None = None
+
     IMGBB_API_KEY: str = "imgbb_api_key"
 
-    MAPBOX_API_KEY: str = "mapbox_api_key"
+    MAPBOX_ACCESS_TOKEN: str = "mapbox_access_token"
 
 settings = Settings()

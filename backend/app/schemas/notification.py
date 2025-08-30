@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 class NotificationBase(BaseModel):
+    title: str
     message: str
 
 class NotificationCreate(NotificationBase):
@@ -14,6 +15,10 @@ class NotificationPublic(NotificationBase):
     created_at: datetime
     updated_at: datetime
 
+class UserNotification(NotificationBase):
+    id: UUID
+    is_read: bool
+    created_at: datetime
 
 class NotiUserBase(BaseModel):
     notification_id: UUID
