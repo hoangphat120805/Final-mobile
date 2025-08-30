@@ -278,6 +278,10 @@ def create_notification(session: Session, notification_create: NotificationCreat
     session.commit()
     return db_notification
 
+def get_all_notifications(session: Session) -> list[Notification]:
+    stmt = select(Notification)
+    return session.exec(stmt).all()
+
 def get_user_notifications(session: Session, user_id: uuid.UUID) -> list[Notification]:
     stmt = select(Noti_User).where(Noti_User.user_id == user_id)
     noti_users = session.exec(stmt).all()

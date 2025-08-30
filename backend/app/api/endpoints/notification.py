@@ -19,3 +19,11 @@ def send_notification(
 ):
     notification = crud.create_notification(session, notification_in, user_ids)
     return notification
+
+@router.get("/", response_model=List[NotificationPublic])
+def get_notifications(
+    session: SessionDep,
+    current_admin: CurrentAdmin
+):
+    notifications = crud.get_all_notifications(session)
+    return notifications
