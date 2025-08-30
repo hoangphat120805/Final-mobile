@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class NotificationBase(BaseModel):
     title: str
     message: str
+    is_important: bool = False
 
 class NotificationCreate(NotificationBase):
     pass

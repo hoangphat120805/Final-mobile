@@ -21,7 +21,7 @@ class UserRegister(SQLModel):
     phone_number: str = Field(max_length=15)
     password: str
     full_name: str = Field(max_length=100)
-    avt_url: str = Field(default="https://i.ibb.co/5xt2NvW0/453178253-471506465671661-2781666950760530985-n.png")
+    # avt_url: str = Field(default="https://i.ibb.co/5xt2NvW0/453178253-471506465671661-2781666950760530985-n.png")
 
 class UserLogin(SQLModel):
     phone_number: str = Field(max_length=100)

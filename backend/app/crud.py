@@ -38,6 +38,8 @@ def create_user(session: Session, user_create: UserCreate) -> User:
         update={"hashed_password": get_password_hash(user_create.password)}
     )
     session.add(db_user)
+    session.flush()
+    add_noti_to_new_user(session, db_user.id)
     session.commit()
     session.refresh(db_user)
     return db_user
@@ -48,6 +50,8 @@ def create_user_collector(session: Session, user_create: UserCreate) -> User:
         update={"hashed_password": get_password_hash(user_create.password), "role": UserRole.COLLECTOR} 
     )
     session.add(db_user)
+    session.flush()
+    add_noti_to_new_user(session, db_user.id)
     session.commit()
     session.refresh(db_user)
     return db_user
@@ -287,6 +291,7 @@ def get_user_notifications(session: Session, user_id: uuid.UUID) -> list[UserNot
         Notification.id,
         Notification.title,
         Notification.message,
+        Notification.is_important,
         Noti_User.is_read,
         Noti_User.created_at
     ).join(Noti_User).where(Noti_User.user_id == user_id)
@@ -305,6 +310,13 @@ def mark_notification_as_read(session: Session, notification_id: uuid.UUID, user
     session.add(noti_user)
     session.commit()
     return True
+
+def add_noti_to_new_user(session: Session, user_id: uuid.UUID):
+    stmt = select(Notification).where(Notification.is_important == True)
+    important_notifications = session.exec(stmt).all()
+    for notification in important_notifications:
+        noti_user = Noti_User(notification_id=notification.id, user_id=user_id)
+        session.add(noti_user)
 
 def create_message(session: Session, message: MessageCreate) -> Message:
     db_message = Message(
