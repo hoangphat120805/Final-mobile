@@ -8,7 +8,7 @@ from app.core.security import get_password_hash, verify_password
 from app.schemas.user import UserCreate, UserPublic, UserUpdate
 from app.schemas.category import CategoryCreate
 from app.schemas.order import OrderItemCreate, OrderCreate
-from app.schemas.notification import NotificationCreate
+from app.schemas.notification import NotificationCreate, NotificationPublic, UserNotification
 from app.schemas.message import MessageCreate
 from app.models import Message, Noti_User, Notification, OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction
 from math import radians, sin, cos, asin, sqrt
@@ -282,11 +282,16 @@ def get_all_notifications(session: Session) -> list[Notification]:
     stmt = select(Notification)
     return session.exec(stmt).all()
 
-def get_user_notifications(session: Session, user_id: uuid.UUID) -> list[Notification]:
-    stmt = select(Noti_User).where(Noti_User.user_id == user_id)
-    noti_users = session.exec(stmt).all()
-    notifications = [session.get(Notification, nu.notification_id) for nu in noti_users]
-    return notifications
+def get_user_notifications(session: Session, user_id: uuid.UUID) -> list[UserNotification]:
+    stmt = select(
+        Notification.id,
+        Notification.title,
+        Notification.message,
+        Noti_User.is_read,
+        Noti_User.created_at
+    ).join(Noti_User).where(Noti_User.user_id == user_id)
+    return session.exec(stmt).all()
+
 
 def mark_notification_as_read(session: Session, notification_id: uuid.UUID, user_id: uuid.UUID) -> bool:
     stmt = select(Noti_User).where(

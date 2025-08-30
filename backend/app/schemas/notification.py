@@ -15,6 +15,10 @@ class NotificationPublic(NotificationBase):
     created_at: datetime
     updated_at: datetime
 
+class UserNotification(NotificationBase):
+    id: UUID
+    is_read: bool
+    created_at: datetime
 
 class NotiUserBase(BaseModel):
     notification_id: UUID

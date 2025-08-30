@@ -11,7 +11,7 @@ from app.core.security import verify_password, get_password_hash
 from app.api.deps import CurrentUser, SessionDep, get_current_admin
 from app.schemas.user import UserUpdateMe, UpdatePassword, UserPublic, UsersPublic
 from app.schemas.auth import Message
-from app.schemas.notification import NotificationPublic
+from app.schemas.notification import NotificationPublic, UserNotification
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -125,7 +125,7 @@ def upload_avatar(session: SessionDep, current_user: CurrentUser, file: UploadFi
     crud.update_user(session, current_user, UserUpdateMe(avt_url=image_url))
     return Message(message="Avatar uploaded successfully")
 
-@router.get("/me/notifications", response_model=list[NotificationPublic])
+@router.get("/me/notifications", response_model=list[UserNotification])
 def get_notifications(
     session: SessionDep,
     current_user: CurrentUser   
