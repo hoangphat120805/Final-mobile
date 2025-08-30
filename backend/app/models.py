@@ -17,8 +17,8 @@ class User(SQLModel, table=True):
     full_name: str = Field(max_length=100)
     phone_number: str = Field(unique=True, index=True, max_length=15)
     hashed_password: str = Field(unique=True, nullable=False)
-    gender: Optional[str] = Field(default=None, max_length=10, nullable=True)
-    birth_date: Optional[date] = Field(default=None, nullable=True)
+    gender: str | None = Field(default=None, max_length=10, nullable=True)
+    birth_date: str | None = Field(default=None)
     avt_url: str = Field(nullable=False)
     email: str = Field(unique=True, max_length=100, index=True)
     role: UserRole = Field(default=UserRole.USER)
@@ -45,24 +45,7 @@ class User(SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "ScrapCategory.last_updated_by"},
         cascade_delete=True
     )
-    addresses: List["Address"] = Relationship(back_populates="user")
-
-class Address(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
-    is_default: bool = Field(default=False)
-    street: str = Field(max_length=255)
-    city: str = Field(max_length=100)
-    district: str = Field(max_length=100)
-    ward: str = Field(max_length=100)
-    street_address: str = Field(max_length=255)
-    longitude: float = Field(ge=-180, le=180)
-    latitude: float = Field(ge=-90, le=90)
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
-
-    user: User = Relationship(back_populates="addresses")
-
+    notifications: list["Noti_User"] = Relationship(back_populates="recipient", cascade_delete=True)
 
 class ScrapCategory(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -167,3 +150,31 @@ class Transaction(SQLModel, table=True):
     order: "Order" = Relationship(back_populates="transaction")
     payer: "User" = Relationship(sa_relationship_kwargs={"foreign_keys": "Transaction.payer_id"})
     payee: "User" = Relationship(sa_relationship_kwargs={"foreign_keys": "Transaction.payee_id"})
+
+class Notification(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    message: str = Field(max_length=500)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
+
+    recipients: List["Noti_User"] = Relationship(back_populates="notification")
+
+class Noti_User(SQLModel, table=True):
+    notification_id: uuid.UUID = Field(foreign_key="notification.id", primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    is_read: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    notification: "Notification" = Relationship(back_populates="recipients")
+    recipient: "User" = Relationship(back_populates="notifications")
+
+    # Chat Message model
+class Message(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    sender_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    receiver_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    content: str = Field(max_length=1000)
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+    sender: Optional["User"] = Relationship(sa_relationship_kwargs={"foreign_keys": "Message.sender_id"})
+    receiver: Optional["User"] = Relationship(sa_relationship_kwargs={"foreign_keys": "Message.receiver_id"})

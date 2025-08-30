@@ -24,4 +24,6 @@ class Settings(BaseSettings):
 
     IMGBB_API_KEY: str = "imgbb_api_key"
 
+    MAPBOX_API_KEY: str = "mapbox_api_key"
+
 settings = Settings()

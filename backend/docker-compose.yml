@@ -29,6 +29,16 @@ services:
     command: uv run alembic upgrade head
     env_file:
       - .env
+    
+  initial_db:
+    build: .
+    container_name: vechai_initial_db
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uv run python -m app.initial_db
+    env_file:
+      - .env
 
   backend:
     build: .

@@ -5,7 +5,9 @@ import uuid
 from app.schemas.user import UserCreate, UserPublic, UserUpdate
 from app.schemas.category import CategoryCreate
 from app.schemas.order import OrderItemCreate, OrderCreate
-from app.models import OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction
+from app.schemas.notification import NotificationCreate
+from app.schemas.message import MessageCreate
+from app.models import Message, Noti_User, Notification, OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction
 from app.core.security import get_password_hash, verify_password
 from math import radians, sin, cos, asin, sqrt
 from geoalchemy2.functions import ST_DWithin, ST_Distance
@@ -14,7 +16,7 @@ from shapely.geometry import Point
 from app.core.config import settings
 
 
-def authenticate(session: Session, phone_number: str, password: str) -> Optional[User]:
+def authenticate(session: Session, phone_number: str, password: str) -> User | None:
     db_user = get_user_by_phone_number(session=session, phone_number=phone_number)
     if not db_user:
         return None
@@ -22,17 +24,18 @@ def authenticate(session: Session, phone_number: str, password: str) -> Optional
         return None
     return db_user
 
-def get_user_by_phone_number(*, session: Session, phone_number: str) -> Optional[User]:
+def get_user_by_phone_number(*, session: Session, phone_number: str) -> User | None:
     statement = select(User).where(User.phone_number == phone_number)
+    return session.exec(statement).first()
+
+def get_user_by_email(*, session: Session, email: str) -> User | None:
+    statement = select(User).where(User.email == email)
     return session.exec(statement).first()
 
 def create_user(session: Session, user_create: UserCreate) -> User:
     db_user = User.model_validate(
         user_create,
-        update={"hashed_password": get_password_hash(user_create.password), 
-                "role": UserRole.USER,
-                "avt_url": "https://i.ibb.co/5xt2NvW0/453178253-471506465671661-2781666950760530985-n.png"
-                }
+        update={"hashed_password": get_password_hash(user_create.password)}
     )
     session.add(db_user)
     session.commit()
@@ -49,7 +52,7 @@ def create_user_collector(session: Session, user_create: UserCreate) -> User:
     session.refresh(db_user)
     return db_user
 
-def get_user_by_id(session: Session, user_id: uuid.UUID) -> Optional[User]:
+def get_user_by_id(session: Session, user_id: uuid.UUID) -> User | None:
     statement = select(User).where(User.id == user_id)
     return session.exec(statement).first()
 
@@ -75,7 +78,7 @@ def create_category(session: Session, category_create: CategoryCreate, current_u
     session.refresh(db_category)
     return db_category
 
-def get_category_by_slug(session: Session, slug: str) -> Optional[ScrapCategory]:
+def get_category_by_slug(session: Session, slug: str) -> ScrapCategory | None:
     statement = select(ScrapCategory).where(ScrapCategory.slug == slug)
     return session.exec(statement).first()
 
@@ -274,4 +277,61 @@ def complete_order_payment_service(
         db.rollback()
         raise e
 
+def create_notification(session: Session, notification_create: NotificationCreate, user_ids: list[uuid.UUID]) -> Notification:
+    db_notification = Notification.model_validate(notification_create)
+    session.add(db_notification)
+    session.commit()
+    session.refresh(db_notification)
+    for user_id in user_ids:
+        noti_user = Noti_User(notification_id=db_notification.id, user_id=user_id)
+        session.add(noti_user)
+    session.commit()
+    return db_notification
+
+def get_user_notifications(session: Session, user_id: uuid.UUID) -> list[Notification]:
+    stmt = select(Noti_User).where(Noti_User.user_id == user_id)
+    noti_users = session.exec(stmt).all()
+    notifications = [session.get(Notification, nu.notification_id) for nu in noti_users]
+    return notifications
+
+def mark_notification_as_read(session: Session, notification_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    stmt = select(Noti_User).where(
+        Noti_User.notification_id == notification_id,
+        Noti_User.user_id == user_id
+    )
+    noti_user = session.exec(stmt).first()
+    if not noti_user:
+        return False
+    noti_user.is_read = True
+    session.add(noti_user)
+    session.commit()
+    return True
+
+def create_message(session: Session, message: MessageCreate) -> Message:
+    db_message = Message(
+        sender_id=message.sender_id,
+        receiver_id=message.receiver_id,
+        content=message.content
+    )
+    session.add(db_message)
+    session.commit()
+    session.refresh(db_message)
+    return db_message
+
+def get_chat_history(session: Session, user_id: uuid.UUID, receiver_id: uuid.UUID):
+    stmt = select(Message).where(
+        ((Message.sender_id == user_id) & (Message.receiver_id == receiver_id)) |
+        ((Message.sender_id == receiver_id) & (Message.receiver_id == user_id))
+    ).order_by(Message.timestamp)
+    return list(session.exec(stmt))
+
+def get_user_chats(session: Session, user_id: uuid.UUID):
+    stmt = select(Message).where(
+        ((Message.sender_id == user_id) | (Message.receiver_id == user_id)) &
+        (Message.timestamp == select(Message.timestamp).where(
+            ((Message.sender_id == user_id) & (Message.receiver_id == Message.receiver_id)) |
+            ((Message.sender_id == Message.receiver_id) & (Message.receiver_id == user_id))
+        ).order_by(Message.timestamp.desc()).limit(1))
+    )
+    return list(session.exec(stmt))
 

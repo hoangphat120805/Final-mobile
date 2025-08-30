@@ -4,9 +4,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
 
 from app.schemas.auth import Message, Token
-from app.schemas.user import UserCreate, UserLogin, UserPublic, UserUpdate, UserUpdatePassword
+from app.schemas.user import UserLogin, UserPublic, UserRegister, UserCreate
 from app.api.deps import SessionDep
-from app.core.security import get_password_hash, create_access_token
+from app.core.security import create_access_token
 from app.core.config import settings
 from app import crud
 
@@ -41,13 +41,20 @@ def login(session: SessionDep, login: UserLogin):
     )
 
 @router.post("/signup", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
-def signup(session: SessionDep, user_create: UserCreate):
-    existing_user = crud.get_user_by_phone_number(session=session, phone_number=user_create.phone_number)
+def signup(session: SessionDep, user_in: UserRegister):
+    existing_user = crud.get_user_by_phone_number(session=session, phone_number=user_in.phone_number)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Phone number already exists",
         )
+    existing_user = crud.get_user_by_email(session=session, email=user_in.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already exists",
+        )
+    user_create = UserCreate.model_validate(user_in)
     user = crud.create_user(session=session, user_create=user_create)
     return user
 
