@@ -1,57 +1,73 @@
 version: "3.9"
 
 services:
-  db:
-    image: postgis/postgis:15-3.3
-    container_name: vechai_postgre
-    restart: always
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "${POSTGRES_EXTERNAL_PORT}:5432"   # host:container
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    db:
+        image: postgis/postgis:15-3.3
+        container_name: vechai_postgre
+        restart: always
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB}
+        ports:
+            - "${POSTGRES_EXTERNAL_PORT}:5432" # host:container
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+            - ./init:/docker-entrypoint-initdb.d
+        healthcheck:
+            test:
+                [
+                    "CMD-SHELL",
+                    "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
 
-  migrate:
-    build: .
-    container_name: vechai_migrate
-    depends_on:
-      db:
-        condition: service_healthy
-    command: uv run alembic upgrade head
-    env_file:
-      - .env
-    
-  initial_db:
-    build: .
-    container_name: vechai_initial_db
-    depends_on:
-      db:
-        condition: service_healthy
-    command: uv run python -m app.initial_db
-    env_file:
-      - .env
+    migrate:
+        build: .
+        container_name: vechai_migrate
+        depends_on:
+            db:
+                condition: service_healthy
+        command: uv run alembic upgrade head
+        env_file:
+            - .env
 
-  backend:
-    build: .
-    container_name: vechai_backend
-    restart: always
-    env_file:
-      - .env
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy  
-    command: uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+    initial_db:
+        build: .
+        container_name: vechai_initial_db
+        depends_on:
+            db:
+                condition: service_healthy
+        command: uv run python -m app.initial_db
+        env_file:
+            - .env
+
+    backend:
+        build: .
+        container_name: vechai_backend
+        restart: always
+        env_file:
+            - .env
+        ports:
+            - "8000:8000"
+        depends_on:
+            db:
+                condition: service_healthy
+            redis:
+                condition: service_started
+        command: uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+
+    redis:
+        image: redis:7
+        container_name: redis
+        restart: always
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis_data:/data
 
 volumes:
-  postgres_data:
+    postgres_data:
+    redis_data:

@@ -1,15 +1,19 @@
+import hashlib
 import logging
 import random
 import string
+import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+import os
 
 import emails  # type: ignore
 import jwt
 from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
+import redis
 
 from app.core import security
 from app.core.config import settings
@@ -38,12 +42,12 @@ def send_email(
     subject: str = "",
     html_content: str = "",
 ) -> None:
-    assert settings.emails_enabled, "no provided configuration for email variables"
     message = emails.Message(
         subject=subject,
         html=html_content,
         mail_from=(settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL),
     )
+
     smtp_options = {"host": settings.SMTP_HOST, "port": settings.SMTP_PORT}
     if settings.SMTP_TLS:
         smtp_options["tls"] = True
@@ -141,3 +145,55 @@ def send_otp_email(email_to: str, otp: str, purpose: str = "register") -> None:
         subject = f"{project_name} - OTP xác thực"
         html_content = f"<p>Mã OTP của bạn là: <b>{otp}</b></p>"
     send_email(email_to=email_to, subject=subject, html_content=html_content)
+
+
+# Kết nối Redis container
+redis_client = redis.Redis(
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", 6379)),
+    db=0,
+    decode_responses=True
+)
+
+
+def hash_otp(otp: str) -> str:
+    return hashlib.sha256(otp.encode()).hexdigest()
+
+
+def save_otp(email: str, otp: str, purpose: str = "register", expire_minutes: int = 5):
+    key = f"otp:{purpose}:{email}"
+    hashed_otp = hash_otp(otp)
+    redis_client.setex(key, expire_minutes * 60, hashed_otp)
+
+
+def verify_otp(email: str, otp: str, purpose: str = "register") -> bool:
+    key = f"otp:{purpose}:{email}"
+    stored_otp = redis_client.get(key)
+    if stored_otp and stored_otp == hash_otp(otp):
+        redis_client.delete(key)
+        return True
+    return False
+
+
+def send_and_save_otp(email_to: str, purpose: str = "register"):
+    otp = generate_otp()
+    send_otp_email(email_to, otp, purpose)
+    save_otp(email_to, otp, purpose)
+
+
+def generate_reset_token(length=32):
+    return secrets.token_urlsafe(length)
+
+
+def save_reset_token(email: str, token: str, expire_minutes: int = 5):
+    key = f"reset_token:{email}"
+    redis_client.setex(key, expire_minutes * 60, token)
+
+
+def verify_reset_token(email: str, token: str) -> bool:
+    key = f"reset_token:{email}"
+    stored_token = redis_client.get(key)
+    if stored_token and stored_token == token:
+        redis_client.delete(key)
+        return True
+    return False

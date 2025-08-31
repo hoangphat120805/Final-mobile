@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.16.4",
+    "emails>=0.6",
     "fastapi[standard]>=0.116.1",
     "geoalchemy2>=0.18.0",
     "passlib[bcrypt]>=1.7.4",
@@ -13,6 +14,7 @@ dependencies = [
     "pydantic-settings>=2.10.1",
     "pyjwt>=2.10.1",
     "pytest-dotenv>=0.5.2",
+    "redis>=6.4.0",
     "requests>=2.32.5",
     "shapely>=2.1.1",
     "sqlmodel>=0.0.24",

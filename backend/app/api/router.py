@@ -10,6 +10,7 @@ from app.api.endpoints import tracking
 from app.api.endpoints import notification
 
 from app.api.endpoints import chat
+from app.api.endpoints import otp
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
@@ -21,4 +22,5 @@ api_router.include_router(tracking.router, prefix="/ws", tags=["websocket-tracki
 api_router.include_router(notification.router)
 
 api_router.include_router(chat.router)
+api_router.include_router(otp.router)
 

@@ -1,8 +1,10 @@
 import uuid
 import requests
 from typing import Any
+from pydantic import EmailStr
+from app.utils import verify_reset_token
 from sqlmodel import select, func
-from fastapi import APIRouter, HTTPException, status, File, UploadFile, Depends
+from fastapi import APIRouter, HTTPException, status, File, UploadFile, Depends, Body
 
 from app import crud
 from app.models import User
@@ -143,3 +145,20 @@ def mark_as_read(
     if not success:
         raise HTTPException(status_code=404, detail="Notification not found")
     return {"msg": "Notification marked as read"}
+
+@router.post("/reset-password")
+def reset_password(
+    session: SessionDep,
+    email: EmailStr = Body(...),
+    reset_token: str = Body(...),
+    new_password: str = Body(...),
+):
+    if not verify_reset_token(email, reset_token):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+    user = session.exec(select(User).where(User.email == email)).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user.hashed_password = get_password_hash(new_password)
+    session.add(user)
+    session.commit()
+    return {"message": "Password reset successful"}
