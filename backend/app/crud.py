@@ -291,7 +291,6 @@ def get_user_notifications(session: Session, user_id: uuid.UUID) -> list[UserNot
         Notification.id,
         Notification.title,
         Notification.message,
-        Notification.is_important,
         Noti_User.is_read,
         Noti_User.created_at
     ).join(Noti_User).where(Noti_User.user_id == user_id)
