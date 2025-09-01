@@ -160,13 +160,13 @@ def hash_otp(otp: str) -> str:
     return hashlib.sha256(otp.encode()).hexdigest()
 
 
-def save_otp(email: str, otp: str, purpose: str = "register", expire_minutes: int = 5):
+def save_otp(email: str, otp: str, purpose: str, expire_minutes: int = 5):
     key = f"otp:{purpose}:{email}"
     hashed_otp = hash_otp(otp)
     redis_client.setex(key, expire_minutes * 60, hashed_otp)
 
 
-def verify_otp(email: str, otp: str, purpose: str = "register") -> bool:
+def verify_otp(email: str, otp: str, purpose: str) -> bool:
     key = f"otp:{purpose}:{email}"
     stored_otp = redis_client.get(key)
     if stored_otp and stored_otp == hash_otp(otp):
@@ -175,7 +175,7 @@ def verify_otp(email: str, otp: str, purpose: str = "register") -> bool:
     return False
 
 
-def send_and_save_otp(email_to: str, purpose: str = "register"):
+def send_and_save_otp(email_to: str, purpose: str):
     otp = generate_otp()
     send_otp_email(email_to, otp, purpose)
     save_otp(email_to, otp, purpose)
@@ -185,13 +185,13 @@ def generate_reset_token(length=32):
     return secrets.token_urlsafe(length)
 
 
-def save_reset_token(email: str, token: str, expire_minutes: int = 5):
-    key = f"reset_token:{email}"
+def save_token(email: str, token: str, expire_minutes: int, purpose: str):
+    key = f"{purpose}:{email}"
     redis_client.setex(key, expire_minutes * 60, token)
 
 
-def verify_reset_token(email: str, token: str) -> bool:
-    key = f"reset_token:{email}"
+def verify_token(email: str, token: str, purpose: str) -> bool:
+    key = f"{purpose}:{email}"
     stored_token = redis_client.get(key)
     if stored_token and stored_token == token:
         redis_client.delete(key)

@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional, List, Any
-from datetime import datetime, date
+from datetime import datetime
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func

@@ -2,7 +2,7 @@ import uuid
 import requests
 from typing import Any
 from pydantic import EmailStr
-from app.utils import verify_reset_token
+from app.utils import verify_token
 from sqlmodel import select, func
 from fastapi import APIRouter, HTTPException, status, File, UploadFile, Depends, Body
 
@@ -153,7 +153,7 @@ def reset_password(
     reset_token: str = Body(...),
     new_password: str = Body(...),
 ):
-    if not verify_reset_token(email, reset_token):
+    if not verify_token(email, reset_token, purpose="reset"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
     user = session.exec(select(User).where(User.email == email)).first()
     if not user:
