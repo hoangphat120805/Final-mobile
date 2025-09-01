@@ -1,4 +1,5 @@
 from datetime import timedelta
+from app.utils import verify_token
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
@@ -53,6 +54,11 @@ def signup(session: SessionDep, user_in: UserRegister):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already exists",
+        )
+    if verify_token(user_in.email, user_in.register_token, purpose="register") is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired registration token",
         )
     user_create = UserCreate.model_validate(user_in)
     user = crud.create_user(session=session, user_create=user_create)

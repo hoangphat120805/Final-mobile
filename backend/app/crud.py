@@ -28,7 +28,7 @@ def get_user_by_phone_number(*, session: Session, phone_number: str) -> User | N
     statement = select(User).where(User.phone_number == phone_number)
     return session.exec(statement).first()
 
-def get_user_by_email(*, session: Session, email: str) -> User | None:
+def get_user_by_email(session: Session, email: str) -> User | None:
     statement = select(User).where(User.email == email)
     return session.exec(statement).first()
 
@@ -107,6 +107,10 @@ def get_order_by_id(session: Session, order_id: uuid.UUID) -> Order:
     statement = select(Order).where(Order.id == order_id).join(Order.items)
     return session.exec(statement).first()
 
+def get_orders_by_user(session: Session, user_id: uuid.UUID) -> list[Order]:
+    statement = select(Order).where(Order.owner_id == user_id)
+    return session.exec(statement).all()
+
 async def create_order(session: Session, order_create: OrderCreate, owner_id: uuid.UUID) -> Order:
     MAPBOX_TOKEN = settings.MAPBOX_ACCESS_TOKEN
 
@@ -115,6 +119,8 @@ async def create_order(session: Session, order_create: OrderCreate, owner_id: uu
     async with httpx.AsyncClient() as client:
         resp = await client.get(geocode_url)
         data = resp.json()
+        if "features" not in data:
+            raise ValueError(f"Mapbox API error: {data}")   
         if not data["features"]:
             raise ValueError(f"Could not find coordinates for address: {address}")
         coords = data["features"][0]["geometry"]["coordinates"]  # [lng, lat]
@@ -123,14 +129,16 @@ async def create_order(session: Session, order_create: OrderCreate, owner_id: uu
     point = Point(coords[0], coords[1])
     location_wkt = f'SRID=4326;{point.wkt}'
 
-    order_data_to_create = {
-        **order_create.model_dump(),
-        "owner_id": owner_id,
-        "status": OrderStatus.PENDING,
-        "location": location_wkt,
-    }
 
-    db_order = Order.model_validate(order_data_to_create)
+
+    db_order = Order.model_validate(
+        order_create,
+        update={
+            "owner_id": owner_id,
+            "status": OrderStatus.PENDING,
+            "location": location_wkt,
+        }
+    )
     session.add(db_order)
     session.commit()
     session.refresh(db_order)
