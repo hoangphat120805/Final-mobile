@@ -14,9 +14,13 @@ import com.example.vaicheuserapp.databinding.ItemNotificationBinding
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import androidx.core.content.ContextCompat
 import com.example.vaicheuserapp.R
 import android.graphics.Typeface
+import android.util.Log
 import android.widget.LinearLayout
 
 // Click listener interface for the adapter
@@ -28,18 +32,19 @@ class NotificationAdapter(
     private val listener: OnNotificationClickListener
 ) : ListAdapter<NotificationPublic, NotificationAdapter.NotificationViewHolder>(NotificationDiffCallback()) {
 
+    private val VIETNAM_ZONE_ID = ZoneId.of("Asia/Ho_Chi_Minh")
+    private val BACKEND_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
+
     inner class NotificationViewHolder(private val binding: ItemNotificationBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        @RequiresApi(Build.VERSION_CODES.O)
         @SuppressLint("SetTextI18n")
         fun bind(notification: NotificationPublic) {
-            binding.tvNotificationTitle.text = notification.title // Use new 'title' field
+            binding.tvNotificationTitle.text = notification.title
             binding.tvNotificationSubtitle.text = notification.message
-            binding.tvNotificationTime.text = formatTimeAgo(notification.createdAt)
+            binding.tvNotificationTime.text = formatTimeAgo(notification.createdAt) // Calls fixed function
 
-            // --- NEW: Set 'activated' state for background selector and text style ---
-            binding.llNotificationItemBackground.isActivated = notification.isRead // <-- Controls background selector
+            binding.llNotificationItemBackground.isActivated = notification.isRead
             binding.tvNotificationTitle.setTypeface(null, if (notification.isRead) Typeface.NORMAL else Typeface.BOLD)
             binding.tvNotificationSubtitle.setTypeface(null, if (notification.isRead) Typeface.NORMAL else Typeface.BOLD)
 
@@ -48,18 +53,20 @@ class NotificationAdapter(
             }
         }
 
-        @RequiresApi(Build.VERSION_CODES.O)
-        private fun formatTimeAgo(dateTimeString: String): String {
+        // --- formatTimeAgo (CRITICAL FIX: Use LocalDateTime.parse with custom formatter) ---
+        private fun formatTimeAgo(utcDateTimeString: String): String {
             return try {
-                val formatter = DateTimeFormatter.ISO_DATE_TIME
-                val pastTime = LocalDateTime.parse(dateTimeString, formatter)
-                val now = LocalDateTime.now()
+                // 1. Parse the string into LocalDateTime using the custom formatter
+                val localDateTime = LocalDateTime.parse(utcDateTimeString, BACKEND_DATETIME_FORMATTER)
+                // 2. Assume this LocalDateTime is in UTC, then convert to ZonedDateTime in Vietnam's time zone
+                val pastTimeInVietnam = localDateTime.atZone(ZoneId.of("UTC")).withZoneSameInstant(VIETNAM_ZONE_ID)
+                val nowInVietnam = ZonedDateTime.now(VIETNAM_ZONE_ID)
 
-                val minutes = ChronoUnit.MINUTES.between(pastTime, now)
-                val hours = ChronoUnit.HOURS.between(pastTime, now)
-                val days = ChronoUnit.DAYS.between(pastTime, now)
-                val months = ChronoUnit.MONTHS.between(pastTime, now)
-                val years = ChronoUnit.YEARS.between(pastTime, now)
+                val minutes = ChronoUnit.MINUTES.between(pastTimeInVietnam, nowInVietnam)
+                val hours = ChronoUnit.HOURS.between(pastTimeInVietnam, nowInVietnam)
+                val days = ChronoUnit.DAYS.between(pastTimeInVietnam, nowInVietnam)
+                val months = ChronoUnit.MONTHS.between(pastTimeInVietnam, nowInVietnam)
+                val years = ChronoUnit.YEARS.between(pastTimeInVietnam, nowInVietnam)
 
                 when {
                     minutes < 1 -> "just now"
@@ -70,6 +77,7 @@ class NotificationAdapter(
                     else -> "$years years ago"
                 }
             } catch (e: Exception) {
+                Log.e("NotificationAdapter", "Error parsing or formatting time ago: $utcDateTimeString - ${e.message}")
                 "Unknown time"
             }
         }
