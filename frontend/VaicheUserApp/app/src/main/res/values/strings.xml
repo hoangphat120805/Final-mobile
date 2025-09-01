@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">VaicheUserApp</string>
     <string name="title_activity_registration">RegistrationActivity</string>
+    <string name="send_otp">Send OTP</string>
     <string name="large_text">
         "Material is the metaphor.\n\n"
 

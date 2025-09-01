@@ -20,6 +20,9 @@ import okhttp3.MultipartBody
 import retrofit2.http.Multipart
 import retrofit2.http.Part
 import retrofit2.http.Path
+import com.example.vaicheuserapp.data.model.EmailRequest
+import com.example.vaicheuserapp.data.model.VerifyOtpRequest
+import com.example.vaicheuserapp.data.model.ResetPasswordPayload
 
 interface ApiService {
 
@@ -55,4 +58,14 @@ interface ApiService {
 
     @POST("/api/user/read/{notification_id}")
     suspend fun markNotificationAsRead(@Path("notification_id") notificationId: String): Response<Message>
+
+    @POST("/api/otp/send-reset-password-otp")
+    suspend fun sendResetPasswordOtp(@Body emailRequest: EmailRequest): Response<Unit> // API returns {}, so Unit is fine
+
+    @POST("/api/otp/verify-reset-otp")
+    suspend fun verifyResetOtp(@Body verifyOtpRequest: VerifyOtpRequest): Response<Unit> // API returns {}, so Unit is fine
+
+    // --- NEW: Reset Password Endpoint (using the verified OTP as reset_token) ---
+    @POST("/api/user/reset-password")
+    suspend fun resetPassword(@Body resetPasswordPayload: ResetPasswordPayload): Response<Unit> // API returns {}, so Unit is fine
 }

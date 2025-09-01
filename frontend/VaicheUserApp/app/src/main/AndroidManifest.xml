@@ -30,6 +30,9 @@
         android:theme="@style/Theme.VaicheUserApp"
         tools:targetApi="31">
         <activity
+            android:name=".ResetPasswordActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.notifications.NotificationDetailActivity"
             android:exported="false" />
 

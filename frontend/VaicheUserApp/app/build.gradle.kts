@@ -45,6 +45,7 @@ android {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    implementation("com.google.code.gson:gson:2.10.1")
     implementation(libs.androidx.lifecycle.common.java8)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
