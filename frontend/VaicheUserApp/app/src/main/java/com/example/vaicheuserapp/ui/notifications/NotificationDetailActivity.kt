@@ -16,6 +16,7 @@ import com.example.vaicheuserapp.data.network.RetrofitClient // <-- New import
 import com.example.vaicheuserapp.databinding.ActivityNotificationDetailBinding
 import kotlinx.coroutines.launch // <-- New import
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
@@ -23,6 +24,8 @@ import java.util.Locale
 class NotificationDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityNotificationDetailBinding
+
+    private val BACKEND_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,16 +69,15 @@ class NotificationDetailActivity : AppCompatActivity() {
         binding.tvDetailNotificationDate.text = formatDateTime(notification.createdAt)
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    private fun formatDateTime(dateTimeString: String): String {
+    private fun formatDateTime(utcDateTimeString: String): String {
         return try {
-            val dateTime = LocalDateTime.parse(dateTimeString, DateTimeFormatter.ISO_DATE_TIME)
-            dateTime.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM,
-                Locale.getDefault() as FormatStyle?
-            ))
+            val localDateTime = LocalDateTime.parse(utcDateTimeString, BACKEND_DATETIME_FORMATTER) // Use custom formatter
+            val dateTimeInVietnam = localDateTime.atZone(ZoneId.of("UTC")).withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"))
+            val dateFormatter = DateTimeFormatter.ofPattern("HH:mm, dd/MM/yyyy", Locale("vi", "VN"))
+            dateTimeInVietnam.format(dateFormatter)
         } catch (e: Exception) {
-            Log.e("NotificationDetail", "Error parsing date: $e")
-            dateTimeString
+            Log.e("NotificationDetail", "Error parsing or formatting date/time: $utcDateTimeString - ${e.message}")
+            utcDateTimeString
         }
     }
 
