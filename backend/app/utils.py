@@ -149,9 +149,9 @@ def send_otp_email(email_to: str, otp: str, purpose: str = "register") -> None:
 
 # Kết nối Redis container
 redis_client = redis.Redis(
-    host=os.getenv("REDIS_HOST", "localhost"),
-    port=int(os.getenv("REDIS_PORT", 6379)),
-    db=0,
+    host=settings.REDIS_HOST,
+    port=settings.REDIS_PORT,
+    db=settings.REDIS_DB,
     decode_responses=True
 )
 
