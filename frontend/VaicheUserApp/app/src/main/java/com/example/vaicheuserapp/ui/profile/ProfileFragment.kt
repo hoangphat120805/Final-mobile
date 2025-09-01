@@ -53,6 +53,7 @@ import java.util.Calendar
 import java.util.Locale
 import coil.request.CachePolicy
 import coil.memory.MemoryCache
+import com.example.vaicheuserapp.ResetPasswordActivity
 
 class ProfileFragment : Fragment() {
 
@@ -400,8 +401,8 @@ class ProfileFragment : Fragment() {
     }
 
     private fun navigateToResetPassword() {
-        // This would be another Activity if it's outside the main bottom nav flow
-        Toast.makeText(requireContext(), "Navigate to Reset Password screen", Toast.LENGTH_SHORT).show()
+        val intent = Intent(requireContext(), ResetPasswordActivity::class.java)
+        startActivity(intent)
     }
 
     private fun logoutUser() {
