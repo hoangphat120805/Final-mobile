@@ -15,7 +15,6 @@ import androidx.lifecycle.lifecycleScope
 import com.example.vaicheuserapp.data.model.OTPRequest
 import com.example.vaicheuserapp.data.model.OTPPurpose
 import com.example.vaicheuserapp.data.model.OTPVerifyRequest
-import com.example.vaicheuserapp.data.model.OTPVerifyResponse // <-- Ensure this is imported
 import com.example.vaicheuserapp.data.model.ResetPasswordRequest
 import com.example.vaicheuserapp.data.network.RetrofitClient
 import com.example.vaicheuserapp.databinding.ActivityResetPasswordBinding
@@ -194,7 +193,7 @@ class ResetPasswordActivity : AppCompatActivity() {
                 if (!otpVerificationAttempted || actualResetToken == null) {
                     val verifyResponse = RetrofitClient.instance.verifyOtp(OTPVerifyRequest(email, otp, OTPPurpose.reset.name))
                     if (verifyResponse.isSuccessful && verifyResponse.body() != null) {
-                        actualResetToken = verifyResponse.body()!!.resetToken // Capture token
+                        actualResetToken = verifyResponse.body()!!.verificationToken // Capture token
                         otpVerificationAttempted = true // Mark as verified for this session
                         Log.d("ResetPassword", "OTP verified. Received reset_token: $actualResetToken")
                         // Continue to the actual reset password call immediately

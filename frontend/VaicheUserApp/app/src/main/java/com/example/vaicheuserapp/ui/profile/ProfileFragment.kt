@@ -65,7 +65,7 @@ class ProfileFragment : Fragment() {
     private var uploadedAvtUrl: String? = null
 
     // Define a default avatar URL - CRITICAL: CHANGE THIS TO YOUR BACKEND'S REAL DEFAULT AVATAR URL
-    private val DEFAULT_AVATAR_URL = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png" // Example default
+    private val DEFAULT_AVATAR_URL = "https://i.ibb.co/5xt2NvW0/453178253-471506465671661-2781666950760530985-n.png" // Example default
 
     // ActivityResultLaunchers for gallery pick and permissions
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
