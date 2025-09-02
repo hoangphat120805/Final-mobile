@@ -35,7 +35,10 @@ def get_user_by_email(session: Session, email: str) -> User | None:
 def create_user(session: Session, user_create: UserCreate) -> User:
     db_user = User.model_validate(
         user_create,
-        update={"hashed_password": get_password_hash(user_create.password)}
+        update={
+            "hashed_password": get_password_hash(user_create.password),
+            "avt_url": settings.DEFAULT_AVATAR_URL,
+            }
     )
     session.add(db_user)
     session.flush()

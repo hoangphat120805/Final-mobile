@@ -135,7 +135,7 @@ def get_orders(current_user: CurrentUser, session: SessionDep) -> list[OrderPubl
     """
     return crud.get_orders_by_user(session=session, user_id=current_user.id)
 
-@router.post("/{order_id}/accept", response_model=OrderAcceptResponse, status_code=status.HTTP_200_OK)
+@router.put("/{order_id}/accept", response_model=OrderAcceptResponse, status_code=status.HTTP_200_OK)
 def accept_order(
     order_id: uuid.UUID,
     payload: OrderAcceptRequest,

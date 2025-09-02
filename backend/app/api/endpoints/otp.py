@@ -21,6 +21,9 @@ class OTPVerifyRequest(BaseModel):
     otp: str
     purpose: OTPPurpose
 
+class OTPResponse(BaseModel):
+    token: str
+
 @router.post("/send-otp")
 def send_otp(session: SessionDep, otp_request: OTPRequest):
     user = crud.get_user_by_email(session, otp_request.email)
@@ -33,17 +36,17 @@ def send_otp(session: SessionDep, otp_request: OTPRequest):
     send_and_save_otp(otp_request.email, purpose=otp_request.purpose)
     return {"message": f"OTP sent to email for {otp_request.purpose}"}
 
-@router.post("/verify-otp")
+@router.post("/verify-otp", response_model=OTPResponse)
 def verify_otp_endpoint(otp_request: OTPVerifyRequest):
     if verify_otp(otp_request.email, otp_request.otp, purpose=otp_request.purpose):
         if otp_request.purpose == OTPPurpose.RESET:
             token = generate_reset_token()
             save_token(otp_request.email, token, 5, purpose="reset")
-            return {"token": token}
+            return OTPResponse(token=token)
         else:
             token = generate_reset_token()
             save_token(otp_request.email, token, 10, purpose="register")
-            return {"token": token}
+            return OTPResponse(token=token)
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired OTP")
 
 
