@@ -1,7 +1,6 @@
 package com.example.vaicheuserapp.data.network
 
 import com.example.vaicheuserapp.data.model.LoginResponse
-import com.example.vaicheuserapp.data.model.UserCreateRequest
 import com.example.vaicheuserapp.data.model.UserPublic
 import com.example.vaicheuserapp.data.model.CategoryPublic
 import com.example.vaicheuserapp.data.model.UserUpdateRequest
@@ -21,14 +20,15 @@ import retrofit2.http.Multipart
 import retrofit2.http.Part
 import retrofit2.http.Path
 import com.example.vaicheuserapp.data.model.OTPRequest // <-- New import
+import com.example.vaicheuserapp.data.model.OTPVerificationTokenResponse
 import com.example.vaicheuserapp.data.model.OTPVerifyRequest // <-- New import
 import com.example.vaicheuserapp.data.model.ResetPasswordRequest // <-- New import
-import com.example.vaicheuserapp.data.model.OTPVerifyResponse
+import com.example.vaicheuserapp.data.model.UserRegisterRequest // <-- NEW: For signup request
 
 interface ApiService {
 
-    @POST("/api/auth/signup")
-    suspend fun signup(@Body userCreateRequest: UserCreateRequest): Response<UserPublic>
+    @POST("/api/auth/signup") // Confirmed endpoint
+    suspend fun signup(@Body userRegisterRequest: UserRegisterRequest): Response<UserPublic> // <-- Changed parameter type
 
     @FormUrlEncoded
     @POST("/api/auth/login/access-token")
@@ -64,8 +64,7 @@ interface ApiService {
     suspend fun sendOtp(@Body otpRequest: OTPRequest): Response<Unit> // Returns 200 OK with empty body
 
     @POST("/api/otp/verify-otp")
-    suspend fun verifyOtp(@Body otpVerifyRequest: OTPVerifyRequest): Response<OTPVerifyResponse>
-
+    suspend fun verifyOtp(@Body otpVerifyRequest: OTPVerifyRequest): Response<OTPVerificationTokenResponse>
     // --- NEW: Reset Password Endpoint ---
     @POST("/api/user/reset-password")
     suspend fun resetPassword(@Body resetPasswordRequest: ResetPasswordRequest): Response<Unit> // Returns 200 OK with empty
