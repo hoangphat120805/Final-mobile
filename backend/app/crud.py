@@ -356,3 +356,16 @@ def get_user_chats(session: Session, user_id: uuid.UUID):
     )
     return list(session.exec(stmt))
 
+def update_order_img(sesion: Session, order_id: uuid.UUID, img_url1: Optional[str] = None, img_url2: Optional[str] = None) -> Order:
+    order = sesion.get(Order, order_id)
+    if not order:
+        raise ValueError("Order not found")
+    if img_url1:
+        order.img_url1 = img_url1
+    if img_url2:
+        order.img_url2 = img_url2
+    sesion.add(order)
+    sesion.commit()
+    sesion.refresh(order)
+    return order
+

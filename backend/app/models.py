@@ -86,6 +86,8 @@ class Order(SQLModel, table=True):
     location: str = Field(sa_column=Column(Geometry(geometry_type="POINT", srid=4326), nullable=True))
     collector_id: uuid.UUID | None = Field(foreign_key="user.id", nullable=True, index=True, default=None)
     status: OrderStatus
+    img_url1: str | None = Field(default=None, nullable=True)
+    img_url2: str | None = Field(default=None, nullable=True)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 

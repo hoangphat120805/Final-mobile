@@ -1,7 +1,7 @@
 import uuid
 from app import crud
 from fastapi import APIRouter
-from fastapi import HTTPException, Depends, status
+from fastapi import HTTPException, Depends, status, UploadFile
 from sqlmodel import Session
 
 from app.core.config import settings
@@ -213,3 +213,64 @@ async def get_route_for_order(order_id: uuid.UUID, current_collector: CurrentCol
         raise HTTPException(status_code=500, detail="Failed to retrieve route information")
     
     return route_info
+
+@router.post("/{order_id}/upload/img", response_model=OrderPublic)
+def upload_order_image(
+    order_id: uuid.UUID,
+    current_collector: CurrentCollector,
+    session: SessionDep,
+    file1: UploadFile,
+    file2: UploadFile,
+):
+    """
+    Upload images for an order.
+    """
+    order = crud.get_order_by_id(session=session, order_id=order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.collector_id != current_collector.id:
+        raise HTTPException(status_code=403, detail="Not authorized to upload image for this order")
+
+    if not file1.content_type.startswith("image/") or not file2.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file type. Please upload an image.",
+        )
+
+    response1 = requests.post(
+        "https://api.imgbb.com/1/upload",
+        params={
+            "key": settings.IMGBB_API_KEY,
+        },
+        files={
+            "image": file1.file.read()
+        }
+    )
+
+    if response1.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to upload image"
+        )
+    image1_url = response1.json().get("data", {}).get("url")
+
+    response2 = requests.post(
+        "https://api.imgbb.com/1/upload",
+        params={
+            "key": settings.IMGBB_API_KEY,
+        },
+        files={
+            "image": file2.file.read()
+        }
+    )
+
+    if response2.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to upload image"
+        )
+
+    image2_url = response2.json().get("data", {}).get("url")
+
+    crud.update_order_images(session, order_id, image1_url=image1_url, image2_url=image2_url)
+    return order    
