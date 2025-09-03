@@ -9,6 +9,7 @@ from app.api.deps import SessionDep, CurrentUser, CurrentCollector
 
 from app.schemas.order import OrderCreate, OrderItemCreate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
 from app.schemas.route import RoutePublic
+from app.schemas.auth import Message
 
 from app.models import User, Order, OrderStatus
 from app import crud, services
@@ -214,7 +215,7 @@ async def get_route_for_order(order_id: uuid.UUID, current_collector: CurrentCol
     
     return route_info
 
-@router.post("/{order_id}/upload/img", response_model=OrderPublic)
+@router.post("/{order_id}/upload/img", response_model=Message)
 def upload_order_image(
     order_id: uuid.UUID,
     current_collector: CurrentCollector,
@@ -273,4 +274,4 @@ def upload_order_image(
     image2_url = response2.json().get("data", {}).get("url")
 
     crud.update_order_images(session, order_id, image1_url=image1_url, image2_url=image2_url)
-    return order    
+    return {"message": "Images uploaded successfully"}
