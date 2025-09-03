@@ -22,4 +22,10 @@
     <color name="grey_button_text">#8A8A8A</color>
     <color name="star_filled_color">#FFC107</color> <!-- Màu vàng cho sao -->
 
+    <color name="splash_bg">#101828</color>
+
+    <!-- Primary colors -->
+    <color name="purple_500">#6200EE</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
 </resources>

@@ -3,47 +3,59 @@ package com.example.vaiche_driver.viewmodel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.vaiche_driver.model.FakeDataSource
+import androidx.lifecycle.viewModelScope
+import com.example.vaiche_driver.data.repository.OrderRepository
 import com.example.vaiche_driver.model.OrderDetail
-import com.example.vaiche_driver.model.OrderStatus
 import com.example.vaiche_driver.model.Schedule
+import com.example.vaiche_driver.model.OrderStatus
+import kotlinx.coroutines.launch
 
 class NewOrderViewModel : ViewModel() {
 
-    // LiveData để giữ chi tiết của đơn hàng đang được hiển thị trong dialog
+    private val orderRepository = OrderRepository()
+
+    // LiveData này giữ OrderDetail (UI Model)
     private val _order = MutableLiveData<OrderDetail?>()
     val order: LiveData<OrderDetail?> = _order
 
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _errorMessage = MutableLiveData<Event<String>>()
+    val errorMessage: LiveData<Event<String>> = _errorMessage
+
     /**
-     * Tải chi tiết của một đơn hàng cụ thể.
-     * TƯƠNG LAI: Sẽ gọi API `GET /api/orders/{orderId}`.
-     * @param orderId ID của đơn hàng cần hiển thị.
+     * Tải chi tiết của một đơn hàng. Repository sẽ trả về đúng kiểu OrderDetail.
      */
     fun loadOrderDetails(orderId: String?) {
-        _order.value = FakeDataSource.getOrderDetailById(orderId)
+        if (orderId == null) {
+            _errorMessage.value = Event("Order ID is missing.")
+            return
+        }
+        _isLoading.value = true
+        viewModelScope.launch {
+            val result = orderRepository.getOrderDetail(orderId)
+            result.onSuccess { orderDetail ->
+                // Gán trực tiếp vì Repository đã trả về đúng kiểu
+                _order.value = orderDetail
+            }.onFailure { error ->
+                _errorMessage.value = Event(error.message ?: "Failed to load order details.")
+            }
+            _isLoading.value = false
+        }
     }
 
     /**
      * Xử lý khi người dùng nhấn "Accept".
-     * TƯƠNG LAI: Sẽ gọi API `POST /api/orders/{orderId}/accept`.
-     * @param onAccepted Callback được gọi khi chấp nhận thành công, dùng để thông báo cho SharedViewModel.
+     * Cung cấp một đối tượng Schedule cho callback.
      */
     fun acceptOrder(onAccepted: (Schedule) -> Unit) {
         val orderToAccept = _order.value ?: return
-
-        // Cập nhật trạng thái trong DataSource
-        FakeDataSource.updateOrderStatus(orderToAccept.id, OrderStatus.scheduled)
-
-        // Gọi callback để thông báo cho "trung tâm điều khiển" (SharedViewModel)
-        // rằng một đơn hàng mới đã được chấp nhận.
         onAccepted(orderToAccept.toSchedule())
     }
 
     /**
      * Xử lý khi người dùng nhấn "Reject".
-     * TƯƠNG LAI: Có thể không cần gọi API, chỉ cần lưu lại ID để bỏ qua.
-     * @param onRejected Callback được gọi khi từ chối thành công,
-     *                   truyền về ID của đơn hàng đã bị từ chối.
      */
     fun rejectOrder(onRejected: (String) -> Unit) {
         val orderToReject = _order.value ?: return
@@ -51,19 +63,14 @@ class NewOrderViewModel : ViewModel() {
     }
 
     /**
-     * Hàm tiện ích để chuyển đổi một đối tượng OrderDetail (nặng) thành một đối tượng Schedule (nhẹ).
-     * `private` vì chỉ ViewModel này cần dùng nó trong hàm `acceptOrder`.
+     * Hàm tiện ích để chuyển đổi một đối tượng OrderDetail (UI model) thành Schedule.
      */
     private fun OrderDetail.toSchedule(): Schedule {
-        val parts = this.pickupTimestamp.split(',', limit = 2)
-        val time = parts.getOrNull(0) ?: ""
-        val date = parts.getOrNull(1)?.trim() ?: ""
-
         return Schedule(
             id = this.id,
-            date = date,
-            time = time,
-            status = OrderStatus.scheduled, // Khi chấp nhận, trạng thái mới sẽ là accepted
+            date = this.pickupTimestamp.split(',', limit = 2).getOrNull(1)?.trim() ?: "",
+            time = this.pickupTimestamp.split(',', limit = 2).getOrNull(0)?.trim() ?: "",
+            status = OrderStatus.scheduled, // Gán trạng thái mới
             startLocationName = this.startLocationName,
             startLocationAddress = this.startLocationAddress,
             endLocationName = this.endLocationName,
