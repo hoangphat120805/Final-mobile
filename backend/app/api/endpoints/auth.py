@@ -1,5 +1,6 @@
 from datetime import timedelta
 from app.utils import verify_token
+from app.models import UserRole
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
@@ -60,7 +61,7 @@ def signup(session: SessionDep, user_in: UserRegister):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired registration token",
         )
-    user_create = UserCreate.model_validate(user_in)
+    user_create = UserCreate.model_validate(user_in, update={"role": UserRole.USER})
     user = crud.create_user(session=session, user_create=user_create)
     return user
 
@@ -76,5 +77,6 @@ def signup(session: SessionDep, user_in: UserRegister):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Phone number already exists",
         )
-    user = crud.create_user_collector(session=session, user_create=user_in)
+    user_create = UserCreate.model_validate(user_in, update={"role": UserRole.USER})
+    user = crud.create_user_collector(session=session, user_create=user_create)
     return user

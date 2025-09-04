@@ -35,8 +35,8 @@ def create_order(order: OrderCreate, current_user: CurrentUser, session: Session
     return db_order
 
 
-@router.post("/{order_id}/items", response_model=OrderPublic)
-def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_user: CurrentUser, session: SessionDep):
+@router.post("/{order_id}/item", response_model=OrderPublic)
+def add_order_items(order_id: uuid.UUID, item: OrderItemCreate, current_user: CurrentUser, session: SessionDep):
     """
     Add items to an order.
     """
@@ -45,7 +45,8 @@ def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_u
         raise HTTPException(status_code=404, detail="Order not found")
     if order.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    crud.add_order_items(session=session, order_id=order_id, items=items)
+    
+    crud.add_order_items(session=session, order_id=order_id, item=item)
     updated_order = crud.get_order_by_id(session=session, order_id=order_id)
     return updated_order
 
@@ -132,10 +133,6 @@ def accept_order(
     """
     order = crud.accept_order_service(db=session, order_id=order_id, collector=current_collector, note=payload.note)
     return order
-
-
-
-
 
 @router.post(
     "/{order_id}/complete",

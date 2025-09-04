@@ -34,6 +34,9 @@ class OrderItemCreate(SQLModel):
     category_id: uuid.UUID
     quantity: float
 
+class OrderItemUpdate(SQLModel):
+    quantity: float
+
 class OrderItemPublic(SQLModel):
     id: uuid.UUID
     order_id: uuid.UUID

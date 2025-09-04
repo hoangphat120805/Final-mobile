@@ -17,15 +17,15 @@ class UserCreate(UserBase):
     password: str
 
 class UserRegister(SQLModel):
-    email: str = Field(max_length=100)
-    phone_number: str = Field(max_length=15)
+    email: str
+    phone_number: str
     password: str
-    full_name: str = Field(max_length=100)
+    full_name: str
     register_token: str
 
 class UserLogin(SQLModel):
-    phone_number: str = Field(max_length=100)
-    password: str = Field(max_length=100)
+    phone_number: str
+    password: str
 
 class UserUpdate(UserBase):
     email: EmailStr | None = Field(default=None)
