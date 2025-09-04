@@ -147,9 +147,9 @@ async def create_order(session: Session, order_create: OrderCreate, owner_id: uu
     session.refresh(db_order)
     return db_order
 
-def add_order_items(session: Session, order_id: uuid.UUID, order_items: list[OrderItemCreate]) -> None:
-    for item in order_items:
-        db_item = OrderItemCreate.model_validate(item, update={"order_id": order_id})
+def add_order_items(session: Session, order_id: uuid.UUID, items: list[OrderItemCreate]) -> None:
+    for item in items:
+        db_item = OrderItem.model_validate(item, update={"order_id": order_id})
         session.add(db_item)
     session.commit()
 

@@ -45,8 +45,7 @@ def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_u
         raise HTTPException(status_code=404, detail="Order not found")
     if order.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    for item in items:
-        crud.add_order_item(session=session, order_id=order_id, item=item)
+    crud.add_order_items(session=session, order_id=order_id, items=items)
     updated_order = crud.get_order_by_id(session=session, order_id=order_id)
     return updated_order
 

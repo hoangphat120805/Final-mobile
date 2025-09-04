@@ -32,8 +32,8 @@ class OrderPublic(SQLModel):
 
 class OrderItemCreate(SQLModel):
     category_id: uuid.UUID
-    quantity: float = Field(gt=0, le=10000)  # Must be positive and reasonable
-    price_per_unit: float = Field(gt=0, le=1000000)  # Must be positive and reasonable
+    quantity: float = Field(gt=0) 
+    price_per_unit: float = Field(gt=0)
 
 class OrderItemPublic(SQLModel):
     id: uuid.UUID
@@ -41,6 +41,8 @@ class OrderItemPublic(SQLModel):
     category_id: uuid.UUID
     quantity: float
     price_per_unit: float
+    created_at: datetime
+    updated_at: datetime
 
 
 class OrderAcceptRequest(SQLModel):
