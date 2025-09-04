@@ -343,7 +343,7 @@ def get_order_collector(order_id: uuid.UUID, current_user:CurrentUser, session:S
 
 
 @router.post("/{order_id}/review", response_model=ReviewPublic)
-def review_collector_for_order(order_id: uuid.UUID, review: ReviewCreate, current_user=Depends(CurrentUser), session=Depends(SessionDep)):
+def review_collector_for_order(order_id: uuid.UUID, review: ReviewCreate, current_user=CurrentUser, session=SessionDep):
     """
     User reviews collector for an order.
     """
