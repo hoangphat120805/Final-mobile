@@ -19,6 +19,8 @@ class OrderPublic(SQLModel):
     img_url1: str | None
     img_url2: str | None
     items: list['OrderItemPublic'] = []
+    create_at: datetime
+    updated_at: datetime
 
 class OrderItemCreate(SQLModel):
     category_id: uuid.UUID
