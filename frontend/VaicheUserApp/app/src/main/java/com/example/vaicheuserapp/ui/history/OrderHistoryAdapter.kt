@@ -44,20 +44,33 @@ class OrderHistoryAdapter(
 
         @SuppressLint("SetTextI18n")
         fun bind(order: OrderPublic) {
+            var totalAmountCalculated = 0.0
+            val sortedItemsByValueWithNames = order.items
+                .mapNotNull { orderItem ->
+                    val category = CategoryCache.getCategoryById(orderItem.categoryId)
+                    if (category != null && category.price != null) {
+                        val value = orderItem.quantity * category.price
+                        totalAmountCalculated += value // Accumulate total amount here
+                        Pair(orderItem, category) // Pair OrderItem with its CategoryPublic
+                    } else {
+                        null // Filter out items for which we can't find category or price
+                    }
+                }
+                .sortedByDescending { it.second.price!! * it.first.quantity } // Sort by actual value
+                .take(2) // Take the top 2 highest value items
+                .map { (_, category) -> category.name } // Extract category names
 
-            val categoryNames = order.items.mapNotNull { orderItem ->
-                CategoryCache.getCategoryById(orderItem.categoryId)?.name
+            var orderTitle = sortedItemsByValueWithNames.joinToString(", ")
+            if (order.items.size > 2) {
+                orderTitle += ", ..."
             }
-            // --- Order Title ---
             // Concatenate names of first few items, or a generic title
-            val orderTitle = categoryNames.distinct().take(2).joinToString(", ").ifEmpty { when (order.status) {
+            binding.tvOrderTitle.text = orderTitle.ifEmpty { when (order.status) {
                 OrderStatus.PENDING -> "Pending Order"
                 OrderStatus.ACCEPTED -> "Accepted Order"
                 OrderStatus.COMPLETED -> "Completed Order"
                 OrderStatus.CANCELLED -> "Cancelled Order"
             } } // Placeholder
-            // TODO: If you have CategoryPublic objects available, you could fetch category names here.
-            binding.tvOrderTitle.text = orderTitle
 
             // --- Order Date ---
             // Assuming order.createdAt is the source for the date
@@ -74,17 +87,15 @@ class OrderHistoryAdapter(
             }
             binding.tvOrderTitle.setTextColor(ContextCompat.getColor(binding.root.context, statusTextColor))
 
-
             // --- Order Amount (Conditional Visibility) ---
             if (order.status == OrderStatus.COMPLETED) {
-                val totalAmount = order.items.sumOf { it.quantity * it.pricePerUnit }
-                val formattedAmount = NumberFormat.getCurrencyInstance(Locale("vi", "VN")).format(totalAmount)
+                // Use the accumulated total amount
+                val formattedAmount = NumberFormat.getCurrencyInstance(Locale("vi", "VN")).format(totalAmountCalculated)
                 binding.tvOrderAmount.text = formattedAmount
                 binding.tvOrderAmount.visibility = View.VISIBLE
             } else {
                 binding.tvOrderAmount.visibility = View.GONE
             }
-
 
             // --- Background Color based on Status ---
             val backgroundColor = when (order.status) {

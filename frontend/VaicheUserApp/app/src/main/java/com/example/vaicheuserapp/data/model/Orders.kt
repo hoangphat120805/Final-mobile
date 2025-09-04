@@ -10,7 +10,6 @@ data class OrderItemPublic(
     @SerializedName("order_id") val orderId: String,
     @SerializedName("category_id") val categoryId: String,
     val quantity: Double,
-    @SerializedName("price_per_unit") val pricePerUnit: Double
 ) : Parcelable
 
 @Parcelize
