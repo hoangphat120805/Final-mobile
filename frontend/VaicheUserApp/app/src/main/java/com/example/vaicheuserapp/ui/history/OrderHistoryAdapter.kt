@@ -23,6 +23,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import android.util.Log // Added for debugging dates
+import com.example.vaicheuserapp.CategoryCache
 
 // Define the Vietnam Time Zone ID (can be moved to a common place later)
 private val VIETNAM_ZONE_ID = ZoneId.of("Asia/Ho_Chi_Minh")
@@ -43,9 +44,13 @@ class OrderHistoryAdapter(
 
         @SuppressLint("SetTextI18n")
         fun bind(order: OrderPublic) {
+
+            val categoryNames = order.items.mapNotNull { orderItem ->
+                CategoryCache.getCategoryById(orderItem.categoryId)?.name
+            }
             // --- Order Title ---
             // Concatenate names of first few items, or a generic title
-            val orderTitle = order.items.take(2).map { "item" }.joinToString(", ").ifEmpty { when (order.status) {
+            val orderTitle = categoryNames.distinct().take(2).joinToString(", ").ifEmpty { when (order.status) {
                 OrderStatus.PENDING -> "Pending Order"
                 OrderStatus.ACCEPTED -> "Accepted Order"
                 OrderStatus.COMPLETED -> "Completed Order"
