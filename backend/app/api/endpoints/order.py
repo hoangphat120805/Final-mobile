@@ -81,7 +81,9 @@ def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_u
         location=location_geojson,
         items=updated_order.items if hasattr(updated_order, "items") else [],
         img_url1=getattr(updated_order, "img_url1", None),
-        img_url2=getattr(updated_order, "img_url2", None)
+        img_url2=getattr(updated_order, "img_url2", None),
+        created_at=updated_order.created_at,
+        updated_at=updated_order.updated_at
     )
 
 @router.get("/nearby", response_model=List[NearbyOrderPublic])
@@ -152,7 +154,9 @@ def get_order(order_id: uuid.UUID, session: SessionDep):
         location=location_geojson,
         items=order.items if hasattr(order, "items") else [],
         img_url1=getattr(order, "img_url1", None),
-        img_url2=getattr(order, "img_url2", None)
+        img_url2=getattr(order, "img_url2", None),
+        created_at=order.created_at,
+        updated_at=order.updated_at
     )
 
 
@@ -176,7 +180,9 @@ def get_orders(current_user: CurrentUser, session: SessionDep):
             location=location_geojson,
             items=order.items if hasattr(order, "items") else [],
             img_url1=getattr(order, "img_url1", None),
-            img_url2=getattr(order, "img_url2", None)
+            img_url2=getattr(order, "img_url2", None),
+            created_at=order.created_at,
+            updated_at=order.updated_at
         ))
     return result
 
