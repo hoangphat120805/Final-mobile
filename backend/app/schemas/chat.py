@@ -6,7 +6,6 @@ import uuid
 
 class MessageBase(BaseModel):
     sender_id: uuid.UUID
-    receiver_id: uuid.UUID
     content: str
 
 
@@ -16,4 +15,4 @@ class MessageCreate(MessageBase):
 
 class Message(MessageBase):
     id: uuid.UUID
-    timestamp: datetime
+    created_at: datetime

@@ -32,15 +32,13 @@ class OrderPublic(SQLModel):
 
 class OrderItemCreate(SQLModel):
     category_id: uuid.UUID
-    quantity: float = Field(gt=0) 
-    price_per_unit: float = Field(gt=0)
+    quantity: float
 
 class OrderItemPublic(SQLModel):
     id: uuid.UUID
     order_id: uuid.UUID
     category_id: uuid.UUID
     quantity: float
-    price_per_unit: float
     created_at: datetime
     updated_at: datetime
 
@@ -53,7 +51,6 @@ class OrderAcceptResponse(SQLModel):
     status: OrderStatus
     owner_id: uuid.UUID
     collector_id: uuid.UUID | None
-    # optional echo of note later if persisted (not stored yet)
 
 class NearbyOrderPublic(OrderPublic):
     distance_km: float
