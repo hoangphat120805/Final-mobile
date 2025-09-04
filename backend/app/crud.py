@@ -154,8 +154,8 @@ def add_order_items(session: Session, order_id: uuid.UUID, items: list[OrderItem
     session.commit()
 
 def get_order_items(session: Session, order_id: uuid.UUID) -> list[OrderItemCreate]:
-    session.refresh(order)
-    return order
+    statement = select(OrderItem).where(OrderItem.order_id == order_id)
+    return session.exec(statement).all()
 
 def accept_order_service(db: Session, order_id: uuid.UUID, collector: User, note: str | None = None):
     from fastapi import HTTPException
