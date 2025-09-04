@@ -22,6 +22,7 @@ import retrofit2.http.Path
 import com.example.vaicheuserapp.data.model.OTPRequest // <-- New import
 import com.example.vaicheuserapp.data.model.OTPVerificationTokenResponse
 import com.example.vaicheuserapp.data.model.OTPVerifyRequest // <-- New import
+import com.example.vaicheuserapp.data.model.OrderPublic
 import com.example.vaicheuserapp.data.model.ResetPasswordRequest // <-- New import
 import com.example.vaicheuserapp.data.model.UserRegisterRequest // <-- NEW: For signup request
 
@@ -68,4 +69,7 @@ interface ApiService {
     // --- NEW: Reset Password Endpoint ---
     @POST("/api/user/reset-password")
     suspend fun resetPassword(@Body resetPasswordRequest: ResetPasswordRequest): Response<Unit> // Returns 200 OK with empty
+
+    @GET("/api/orders/")
+    suspend fun getOrders(): Response<List<OrderPublic>>
 }
