@@ -15,7 +15,7 @@ from app.models import Message, Noti_User, Notification, OrderStatus, User, User
 from math import radians, sin, cos, asin, sqrt
 from geoalchemy2.functions import ST_DWithin, ST_Distance
 from shapely.geometry import Point
-import func
+from sqlalchemy.sql import func
 
 def authenticate(session: Session, phone_number: str, password: str) -> User | None:
     db_user = get_user_by_phone_number(session=session, phone_number=phone_number)
