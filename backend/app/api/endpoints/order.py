@@ -17,10 +17,6 @@ from app.api.deps import get_db, get_current_active_collector
 from app.schemas.transaction import OrderCompletionRequest, TransactionReadResponse
 import uuid
 from typing import List, Tuple
-from shapely.geometry import Point
-# Accept GeoJSON for location, convert to PostGIS geometry
-from shapely.geometry import shape,mapping
-from geoalchemy2.shape import from_shape,to_shape 
 import requests
 
 import asyncio
@@ -30,30 +26,13 @@ router = APIRouter(
     tags=["Orders & Payment"]
 )
 
-
-
-
-
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=OrderPublic)
 def create_order(order: OrderCreate, current_user: CurrentUser, session: SessionDep):
     """
     Create a new order. Backend will geocode pickup_address using Mapbox.
     """
     db_order = asyncio.run(crud.create_order(session=session, order_create=order, owner_id=current_user.id))
-    location_geojson = None
-    if db_order.location:
-        location_geojson = mapping(to_shape(db_order.location))
-    return OrderPublic(
-        id=db_order.id,
-        owner_id=db_order.owner_id,
-        collector_id=db_order.collector_id,
-        status=db_order.status,
-        pickup_address=db_order.pickup_address,
-        location=location_geojson,
-        items=db_order.items if hasattr(db_order, "items") else [],
-        img_url1=getattr(db_order, "img_url1", None),
-        img_url2=getattr(db_order, "img_url2", None)
-    )
+    return db_order
 
 
 @router.post("/{order_id}/items", response_model=OrderPublic)
@@ -69,22 +48,7 @@ def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_u
     for item in items:
         crud.add_order_item(session=session, order_id=order_id, item=item)
     updated_order = crud.get_order_by_id(session=session, order_id=order_id)
-    location_geojson = None
-    if updated_order.location:
-        location_geojson = mapping(to_shape(updated_order.location))
-    return OrderPublic(
-        id=updated_order.id,
-        owner_id=updated_order.owner_id,
-        collector_id=updated_order.collector_id,
-        status=updated_order.status,
-        pickup_address=updated_order.pickup_address,
-        location=location_geojson,
-        items=updated_order.items if hasattr(updated_order, "items") else [],
-        img_url1=getattr(updated_order, "img_url1", None),
-        img_url2=getattr(updated_order, "img_url2", None),
-        created_at=updated_order.created_at,
-        updated_at=updated_order.updated_at
-    )
+    return updated_order
 
 @router.get("/nearby", response_model=List[NearbyOrderPublic])
 async def list_nearby_orders(
@@ -142,22 +106,7 @@ def get_order(order_id: uuid.UUID, session: SessionDep):
     order = crud.get_order_by_id(session=session, order_id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    location_geojson = None
-    if order.location:
-        location_geojson = mapping(to_shape(order.location))
-    return OrderPublic(
-        id=order.id,
-        owner_id=order.owner_id,
-        collector_id=order.collector_id,
-        status=order.status,
-        pickup_address=order.pickup_address,
-        location=location_geojson,
-        items=order.items if hasattr(order, "items") else [],
-        img_url1=getattr(order, "img_url1", None),
-        img_url2=getattr(order, "img_url2", None),
-        created_at=order.created_at,
-        updated_at=order.updated_at
-    )
+    return order
 
 
 @router.get("/", response_model=list[OrderPublic])
@@ -166,25 +115,7 @@ def get_orders(current_user: CurrentUser, session: SessionDep):
     Get all orders for the current user.
     """
     orders = crud.get_orders_by_user(session=session, user_id=current_user.id)
-    result = []
-    for order in orders:
-        location_geojson = None
-        if order.location:
-            location_geojson = mapping(to_shape(order.location))
-        result.append(OrderPublic(
-            id=order.id,
-            owner_id=order.owner_id,
-            collector_id=order.collector_id,
-            status=order.status,
-            pickup_address=order.pickup_address,
-            location=location_geojson,
-            items=order.items if hasattr(order, "items") else [],
-            img_url1=getattr(order, "img_url1", None),
-            img_url2=getattr(order, "img_url2", None),
-            created_at=order.created_at,
-            updated_at=order.updated_at
-        ))
-    return result
+    return orders
 
 @router.post("/{order_id}/accept", response_model=OrderAcceptResponse, status_code=status.HTTP_200_OK)
 def accept_order(
