@@ -32,12 +32,12 @@ router = APIRouter(
 
 
 
+
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=OrderPublic)
-def create_order(order: OrderCreate, current_user: CurrentUser, session: SessionDep) -> OrderPublic:
+def create_order(order: OrderCreate, current_user: CurrentUser, session: SessionDep):
     """
     Create a new order. Backend will geocode pickup_address using Mapbox.
     """
-    # Gọi hàm async create_order sử dụng Mapbox geocoding
     db_order = asyncio.run(crud.create_order(session=session, order_create=order, owner_id=current_user.id))
     location_geojson = None
     if db_order.location:
@@ -49,28 +49,35 @@ def create_order(order: OrderCreate, current_user: CurrentUser, session: Session
         status=db_order.status,
         pickup_address=db_order.pickup_address,
         location=location_geojson,
-        items=[]
+        items=db_order.items if hasattr(db_order, "items") else []
     )
 
+
 @router.post("/{order_id}/items", response_model=OrderPublic)
-def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_user: CurrentUser, session: SessionDep) -> OrderPublic:
+def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_user: CurrentUser, session: SessionDep):
     """
     Add items to an order.
     """
-    # Verify order exists and belongs to current user
     order = crud.get_order_by_id(session=session, order_id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     if order.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    # Add items to order
     for item in items:
         crud.add_order_item(session=session, order_id=order_id, item=item)
-    
-    # Return updated order with items
     updated_order = crud.get_order_by_id(session=session, order_id=order_id)
-    return updated_order
+    location_geojson = None
+    if updated_order.location:
+        location_geojson = mapping(to_shape(updated_order.location))
+    return OrderPublic(
+        id=updated_order.id,
+        owner_id=updated_order.owner_id,
+        collector_id=updated_order.collector_id,
+        status=updated_order.status,
+        pickup_address=updated_order.pickup_address,
+        location=location_geojson,
+        items=updated_order.items if hasattr(updated_order, "items") else []
+    )
 
 @router.get("/nearby", response_model=List[NearbyOrderPublic])
 async def list_nearby_orders(
@@ -119,22 +126,50 @@ async def list_nearby_orders(
 
     return response_objects
 
+
 @router.get("/{order_id}", response_model=OrderPublic)
-def get_order(order_id: uuid.UUID, session: SessionDep) -> OrderPublic:
+def get_order(order_id: uuid.UUID, session: SessionDep):
     """
     Get order details by ID.
     """
     order = crud.get_order_by_id(session=session, order_id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    return order
+    location_geojson = None
+    if order.location:
+        location_geojson = mapping(to_shape(order.location))
+    return OrderPublic(
+        id=order.id,
+        owner_id=order.owner_id,
+        collector_id=order.collector_id,
+        status=order.status,
+        pickup_address=order.pickup_address,
+        location=location_geojson,
+        items=order.items if hasattr(order, "items") else []
+    )
+
 
 @router.get("/", response_model=list[OrderPublic])
-def get_orders(current_user: CurrentUser, session: SessionDep) -> list[OrderPublic]:
+def get_orders(current_user: CurrentUser, session: SessionDep):
     """
     Get all orders for the current user.
     """
-    return crud.get_orders_by_user(session=session, user_id=current_user.id)
+    orders = crud.get_orders_by_user(session=session, user_id=current_user.id)
+    result = []
+    for order in orders:
+        location_geojson = None
+        if order.location:
+            location_geojson = mapping(to_shape(order.location))
+        result.append(OrderPublic(
+            id=order.id,
+            owner_id=order.owner_id,
+            collector_id=order.collector_id,
+            status=order.status,
+            pickup_address=order.pickup_address,
+            location=location_geojson,
+            items=order.items if hasattr(order, "items") else []
+        ))
+    return result
 
 @router.post("/{order_id}/accept", response_model=OrderAcceptResponse, status_code=status.HTTP_200_OK)
 def accept_order(
