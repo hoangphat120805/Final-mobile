@@ -30,6 +30,9 @@
         android:theme="@style/Theme.VaicheUserApp"
         tools:targetApi="31">
         <activity
+            android:name=".ui.history.OrderDetailActivity"
+            android:exported="false" />
+        <activity
             android:name=".ResetPasswordActivity"
             android:exported="false" />
         <activity

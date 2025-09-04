@@ -15,6 +15,14 @@
         <item name="windowNoTitle">true</item>
     </style>
 
+    <style name="RatingStar">
+        <item name="android:layout_width">36dp</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:src">@drawable/ic_star_outline</item> <!-- You'll need outline and filled star icons -->
+        <item name="android:contentDescription">"Rating star"</item>
+        <item name="android:padding">4dp</item>
+    </style>
+
     <style name="TextInputStyle">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">56dp</item>

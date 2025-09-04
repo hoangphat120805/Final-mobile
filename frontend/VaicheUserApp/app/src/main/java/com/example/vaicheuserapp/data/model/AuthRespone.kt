@@ -26,3 +26,10 @@ data class UserPublic(
     @SerializedName("avt_url")
     val avtUrl: String
 ) : Parcelable
+
+@Parcelize
+data class UserReadMinimal(
+    val id: String,
+    @SerializedName("full_name") val fullName: String?,
+    @SerializedName("phone_number") val phoneNumber: String
+) : Parcelable

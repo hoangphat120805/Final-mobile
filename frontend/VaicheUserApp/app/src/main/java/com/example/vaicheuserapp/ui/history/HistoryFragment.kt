@@ -1,5 +1,6 @@
 package com.example.vaicheuserapp.ui.history
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -15,6 +16,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.vaicheuserapp.R
 import com.example.vaicheuserapp.data.model.OrderPublic
+import com.example.vaicheuserapp.data.model.OrderStatus
 import com.example.vaicheuserapp.data.network.RetrofitClient
 import com.example.vaicheuserapp.databinding.FragmentHistoryBinding
 import kotlinx.coroutines.launch
@@ -81,9 +83,16 @@ class HistoryFragment : Fragment(), OnOrderClickListener {
     }
 
     override fun onOrderClick(order: OrderPublic) {
-        Log.d("HistoryFragment", "Clicked order: ${order.id}, Status: ${order.status}")
-        Toast.makeText(requireContext(), "Clicked order ${order.id}", Toast.LENGTH_SHORT).show()
-        // TODO: Navigate to OrderDetailActivity/Fragment if you create one
+        if (order.status == OrderStatus.COMPLETED) {
+            val intent = Intent(requireContext(), OrderDetailActivity::class.java)
+            intent.putExtra("EXTRA_ORDER", order) // Pass the Parcelable OrderPublic object
+            startActivity(intent)
+        } else if (order.status == OrderStatus.ACCEPTED) {
+            //show map of collector
+        }
+        else {
+            Toast.makeText(requireContext(), "Order is not completed or accepted", Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onDestroyView() {
