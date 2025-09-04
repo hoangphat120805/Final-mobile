@@ -9,4 +9,13 @@
     <color name="gray">#363636</color>
     <color name="notification_read_background">#FFFFFF</color>
     <color name="notification_unread_background">#E0F2F1</color>
+    <color name="order_pending_background">#FFF8E1</color> <!-- Light yellow/orange -->
+    <color name="order_accepted_background">#E8F5E9</color> <!-- Light green -->
+    <color name="order_completed_background">#FFFFFF</color> <!-- White -->
+    <color name="order_cancelled_background">#FFEBEE</color> <!-- Light red -->
+
+    <color name="status_pending_text">#FFB300</color> <!-- Orange -->
+    <color name="status_accepted_text">#4CAF50</color> <!-- Green -->
+    <color name="status_completed_text">@color/text_dark</color> <!-- Dark for completed -->
+    <color name="status_cancelled_text">#F44336</color> <!-- Red -->
 </resources>

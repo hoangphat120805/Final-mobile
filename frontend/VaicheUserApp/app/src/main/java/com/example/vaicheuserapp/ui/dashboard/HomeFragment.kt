@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment // Import Fragment
 import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import com.example.vaicheuserapp.CategoryCache
 import com.example.vaicheuserapp.R
 import com.example.vaicheuserapp.normalizeVietnamese // Make sure this is accessible
 import com.example.vaicheuserapp.data.model.CategoryPublic
@@ -87,6 +88,7 @@ class HomeFragment : Fragment() { // Extend Fragment
                 val response = RetrofitClient.instance.getCategories()
                 if (response.isSuccessful && response.body() != null) {
                     allCategories = response.body()!!
+                    CategoryCache.setCategories(allCategories)
                     Log.d("HomeFragment", "Fetched ${allCategories.size} categories.")
                     categoryAdapter.submitList(allCategories)
                     Log.d("HomeFragment", "Submitted all categories to adapter.")
