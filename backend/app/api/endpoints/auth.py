@@ -13,7 +13,7 @@ from app import crud
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-@router.post("/login/access-token")
+@router.post("/login/access-token", response_model=Token)
 def signin_access_token(session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     user = crud.authenticate(session=session, phone_number=form_data.username, password=form_data.password)
     if not user:
@@ -27,7 +27,7 @@ def signin_access_token(session: SessionDep, form_data: Annotated[OAuth2Password
         token_type="bearer",
     )
 
-@router.post("/login")
+@router.post("/login", response_model=Token)
 def login(session: SessionDep, login: UserLogin):
     user = crud.authenticate(session=session, phone_number=login.phone_number, password=login.password)
     if not user:
@@ -69,12 +69,12 @@ def keep_alive():
     return {"message": "I'm alive!"}
 
 @router.post("/collector/signup", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
-def signup(session: SessionDep, user_create: UserCreate):
-    existing_user = crud.get_user_by_phone_number(session=session, phone_number=user_create.phone_number)
+def signup(session: SessionDep, user_in: UserRegister):
+    existing_user = crud.get_user_by_phone_number(session=session, phone_number=user_in.phone_number)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Phone number already exists",
         )
-    user = crud.create_user_collector(session=session, user_create=user_create)
+    user = crud.create_user_collector(session=session, user_create=user_in)
     return user

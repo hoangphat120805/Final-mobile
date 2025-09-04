@@ -1,7 +1,7 @@
 import uuid
 from app import crud
 from fastapi import APIRouter
-from fastapi import HTTPException, Depends, status
+from fastapi import HTTPException, Depends, status, UploadFile
 from sqlmodel import Session
 
 from app.core.config import settings
@@ -9,6 +9,7 @@ from app.api.deps import SessionDep, CurrentUser, CurrentCollector
 
 from app.schemas.order import OrderCreate, OrderItemCreate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
 from app.schemas.route import RoutePublic
+from app.schemas.auth import Message
 
 from app.models import User, Order, OrderStatus
 from app import crud, services
@@ -16,10 +17,7 @@ from app.api.deps import get_db, get_current_active_collector
 from app.schemas.transaction import OrderCompletionRequest, TransactionReadResponse
 import uuid
 from typing import List, Tuple
-from shapely.geometry import Point
-# Accept GeoJSON for location, convert to PostGIS geometry
-from shapely.geometry import shape,mapping
-from geoalchemy2.shape import from_shape,to_shape 
+import requests
 
 import asyncio
 
@@ -28,46 +26,26 @@ router = APIRouter(
     tags=["Orders & Payment"]
 )
 
-
-
-
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=OrderPublic)
-def create_order(order: OrderCreate, current_user: CurrentUser, session: SessionDep) -> OrderPublic:
+def create_order(order: OrderCreate, current_user: CurrentUser, session: SessionDep):
     """
     Create a new order. Backend will geocode pickup_address using Mapbox.
     """
-    # Gọi hàm async create_order sử dụng Mapbox geocoding
     db_order = asyncio.run(crud.create_order(session=session, order_create=order, owner_id=current_user.id))
-    location_geojson = None
-    if db_order.location:
-        location_geojson = mapping(to_shape(db_order.location))
-    return OrderPublic(
-        id=db_order.id,
-        owner_id=db_order.owner_id,
-        collector_id=db_order.collector_id,
-        status=db_order.status,
-        pickup_address=db_order.pickup_address,
-        location=location_geojson,
-        items=[]
-    )
+    return db_order
+
 
 @router.post("/{order_id}/items", response_model=OrderPublic)
-def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_user: CurrentUser, session: SessionDep) -> OrderPublic:
+def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_user: CurrentUser, session: SessionDep):
     """
     Add items to an order.
     """
-    # Verify order exists and belongs to current user
     order = crud.get_order_by_id(session=session, order_id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     if order.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    # Add items to order
-    for item in items:
-        crud.add_order_item(session=session, order_id=order_id, item=item)
-    
-    # Return updated order with items
+    crud.add_order_items(session=session, order_id=order_id, items=items)
     updated_order = crud.get_order_by_id(session=session, order_id=order_id)
     return updated_order
 
@@ -118,8 +96,9 @@ async def list_nearby_orders(
 
     return response_objects
 
+
 @router.get("/{order_id}", response_model=OrderPublic)
-def get_order(order_id: uuid.UUID, session: SessionDep) -> OrderPublic:
+def get_order(order_id: uuid.UUID, session: SessionDep):
     """
     Get order details by ID.
     """
@@ -128,12 +107,14 @@ def get_order(order_id: uuid.UUID, session: SessionDep) -> OrderPublic:
         raise HTTPException(status_code=404, detail="Order not found")
     return order
 
+
 @router.get("/", response_model=list[OrderPublic])
-def get_orders(current_user: CurrentUser, session: SessionDep) -> list[OrderPublic]:
+def get_orders(current_user: CurrentUser, session: SessionDep):
     """
     Get all orders for the current user.
     """
-    return crud.get_orders_by_user(session=session, user_id=current_user.id)
+    orders = crud.get_orders_by_user(session=session, user_id=current_user.id)
+    return orders
 
 @router.post("/{order_id}/accept", response_model=OrderAcceptResponse, status_code=status.HTTP_200_OK)
 def accept_order(
@@ -213,3 +194,64 @@ async def get_route_for_order(order_id: uuid.UUID, current_collector: CurrentCol
         raise HTTPException(status_code=500, detail="Failed to retrieve route information")
     
     return route_info
+
+@router.post("/{order_id}/upload/img", response_model=Message)
+def upload_order_image(
+    order_id: uuid.UUID,
+    current_collector: CurrentCollector,
+    session: SessionDep,
+    file1: UploadFile,
+    file2: UploadFile,
+):
+    """
+    Upload images for an order.
+    """
+    order = crud.get_order_by_id(session=session, order_id=order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.collector_id != current_collector.id:
+        raise HTTPException(status_code=403, detail="Not authorized to upload image for this order")
+
+    if not file1.content_type.startswith("image/") or not file2.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file type. Please upload an image.",
+        )
+
+    response1 = requests.post(
+        "https://api.imgbb.com/1/upload",
+        params={
+            "key": settings.IMGBB_API_KEY,
+        },
+        files={
+            "image": file1.file.read()
+        }
+    )
+
+    if response1.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to upload image"
+        )
+    image1_url = response1.json().get("data", {}).get("url")
+
+    response2 = requests.post(
+        "https://api.imgbb.com/1/upload",
+        params={
+            "key": settings.IMGBB_API_KEY,
+        },
+        files={
+            "image": file2.file.read()
+        }
+    )
+
+    if response2.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to upload image"
+        )
+
+    image2_url = response2.json().get("data", {}).get("url")
+
+    crud.update_order_images(session, order_id, image1_url=image1_url, image2_url=image2_url)
+    return {"message": "Images uploaded successfully"}

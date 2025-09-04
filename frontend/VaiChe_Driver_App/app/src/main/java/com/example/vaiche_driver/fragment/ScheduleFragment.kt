@@ -4,6 +4,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -16,12 +18,13 @@ import com.example.vaiche_driver.viewmodel.ScheduleViewModel
 
 class ScheduleFragment: Fragment() {
 
-    // Sử dụng activityViewModels để ViewModel tồn tại qua các lần replace Fragment
+    // Sử dụng activityViewModels để ViewModel tồn tại qua các lần chuyển đổi Fragment
     private val viewModel: ScheduleViewModel by activityViewModels()
 
     private lateinit var scheduleAdapter: ScheduleAdapter
     private lateinit var recyclerView: RecyclerView
     private lateinit var layoutManager: LinearLayoutManager
+    private var progressBar: ProgressBar? = null // ProgressBar có thể null nếu layout cha không có
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -35,6 +38,14 @@ class ScheduleFragment: Fragment() {
 
         setupViews(view)
         observeViewModel()
+
+        // Setup bottom nav
+        val bottomNav = view.findViewById<View>(R.id.bottom_nav_include)
+        bottomNav?.let {
+            BottomNavHelper.setup(it, BottomNavScreen.SCHEDULE) { fragment ->
+                // Logic điều hướng
+            }
+        }
     }
 
     override fun onResume() {
@@ -45,7 +56,6 @@ class ScheduleFragment: Fragment() {
     override fun onPause() {
         super.onPause()
         if (::recyclerView.isInitialized) {
-            // Lưu lại vị trí chính xác
             viewModel.scrollIndex = layoutManager.findFirstVisibleItemPosition()
             val firstVisibleView = layoutManager.findViewByPosition(viewModel.scrollIndex)
             viewModel.scrollOffset = firstVisibleView?.top ?: 0
@@ -53,6 +63,9 @@ class ScheduleFragment: Fragment() {
     }
 
     private fun setupViews(view: View) {
+        // Tìm ProgressBar trong layout cha (RelativeLayout)
+        progressBar = view.findViewById(R.id.progress_bar) // Thêm ID này vào XML
+
         recyclerView = view.findViewById(R.id.recycler_view_schedule)
         scheduleAdapter = ScheduleAdapter { clickedSchedule ->
             navigateToDetail(clickedSchedule.id)
@@ -63,29 +76,30 @@ class ScheduleFragment: Fragment() {
         recyclerView.adapter = scheduleAdapter
     }
 
-    /**
-     * --- THAY ĐỔI QUAN TRỌNG NHẤT NẰM Ở ĐÂY ---
-     * Sử dụng OnLayoutChangeListener để đảm bảo khôi phục vị trí vào đúng thời điểm.
-     */
     private fun observeViewModel() {
+        // Lắng nghe danh sách tổng hợp
         viewModel.scheduleList.observe(viewLifecycleOwner) { list ->
-            // 1. Gửi danh sách mới cho Adapter
-            scheduleAdapter.submitList(list)
-
-            // 2. Thêm một Listener để đợi cho đến khi RecyclerView đã vẽ xong layout mới
-            val layoutListener = object : View.OnLayoutChangeListener {
-                override fun onLayoutChange(
-                    v: View?, left: Int, top: Int, right: Int, bottom: Int,
-                    oldLeft: Int, oldTop: Int, oldRight: Int, oldBottom: Int
-                ) {
-                    // 3. Sau khi layout đã ổn định, gỡ Listener này đi để nó không chạy lại
-                    recyclerView.removeOnLayoutChangeListener(this)
-
-                    // 4. BÂY GIỜ mới là thời điểm an toàn và chính xác nhất để khôi phục vị trí
-                    layoutManager.scrollToPositionWithOffset(viewModel.scrollIndex, viewModel.scrollOffset)
-                }
+            scheduleAdapter.submitList(list) {
+                layoutManager.scrollToPositionWithOffset(viewModel.scrollIndex, viewModel.scrollOffset)
             }
-            recyclerView.addOnLayoutChangeListener(layoutListener)
+        }
+
+        // Lắng nghe trạng thái loading
+        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            if (isLoading) {
+                progressBar?.visibility = View.VISIBLE
+                recyclerView.visibility = View.INVISIBLE // Dùng INVISIBLE để giữ không gian layout
+            } else {
+                progressBar?.visibility = View.GONE
+                recyclerView.visibility = View.VISIBLE
+            }
+        }
+
+        // Lắng nghe thông báo lỗi
+        viewModel.errorMessage.observe(viewLifecycleOwner) { event ->
+            event.getContentIfNotHandled()?.let { message ->
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
         }
     }
 

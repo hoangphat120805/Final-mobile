@@ -11,7 +11,6 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_above="@id/bottom_nav_include"
         android:orientation="vertical">
 
         <!-- Toolbar tùy chỉnh (chỉ có tiêu đề) -->
@@ -41,5 +40,18 @@
             tools:listitem="@layout/list_item_schedule" />
 
     </LinearLayout>
+
+    <!-- ========================================================== -->
+    <!-- ProgressBar được đặt ở đây, cùng cấp với LinearLayout chính -->
+    <!-- Nó sẽ nằm "đè" lên trên các thành phần khác -->
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:indeterminateTint="@color/teal_primary"
+        android:visibility="gone"
+        tools:visibility="visible" />
+    <!-- ========================================================== -->
 
 </RelativeLayout>

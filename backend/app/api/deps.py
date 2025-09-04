@@ -94,7 +94,7 @@ def get_current_active_collector(
     This dependency calls get_current_user and then performs an
     additional check on the user's role.
     """
-    if current_user.role != UserRole.COLLECTOR:
+    if current_user.role != UserRole.COLLECTOR and current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="The user does not have sufficient privileges. Collector role required.",

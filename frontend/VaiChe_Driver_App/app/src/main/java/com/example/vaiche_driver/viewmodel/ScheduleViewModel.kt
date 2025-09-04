@@ -3,56 +3,72 @@ package com.example.vaiche_driver.viewmodel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.vaiche_driver.model.FakeDataSource
+import androidx.lifecycle.viewModelScope
+import com.example.vaiche_driver.data.repository.OrderRepository
 import com.example.vaiche_driver.model.OrderStatus
 import com.example.vaiche_driver.model.ScheduleListItem
+import kotlinx.coroutines.launch
 
 class ScheduleViewModel : ViewModel() {
 
-    // --- LIVE DATA DUY NHẤT CHO TOÀN BỘ DANH SÁCH ---
-    // Danh sách này chứa cả Header và ScheduleItem
+    // Khởi tạo Repository
+    private val orderRepository = OrderRepository()
+
+    // --- CÁC LIVE DATA CHO GIAO DIỆN ---
     private val _scheduleList = MutableLiveData<List<ScheduleListItem>>()
     val scheduleList: LiveData<List<ScheduleListItem>> = _scheduleList
 
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _errorMessage = MutableLiveData<Event<String>>()
+    val errorMessage: LiveData<Event<String>> = _errorMessage
+
     // --- VỊ TRÍ CUỘN CỦA RECYCLERVIEW ---
-    // Được sử dụng bởi ScheduleFragment để giữ lại trạng thái cuộn
     var scrollIndex = 0
     var scrollOffset = 0
 
     /**
-     * Tải toàn bộ danh sách lịch trình, phân loại, và xây dựng một danh sách tổng hợp
-     * để hiển thị trên RecyclerView.
-     * TƯƠNG LAI: Sẽ gọi API `GET /api/schedules`.
+     * Tải toàn bộ danh sách lịch trình từ Repository (API).
      */
     fun loadSchedules() {
-        // Lấy dữ liệu gốc từ DataSource
-        val allSchedules = FakeDataSource.getSchedules()
+        // Hiển thị ProgressBar trên giao diện
+        _isLoading.value = true
 
-        // Phân loại dữ liệu
-        val upcomingOrder = allSchedules.find {
-            it.status == OrderStatus.scheduled || it.status == OrderStatus.delivering
-        }
-        val completedOrders = allSchedules.filter { it.status == OrderStatus.completed }
+        // Sử dụng viewModelScope để khởi chạy một coroutine an toàn
+        viewModelScope.launch {
+            val result = orderRepository.getSchedules()
 
-        // Xây dựng danh sách tổng hợp để cung cấp cho Adapter
-        val combinedList = mutableListOf<ScheduleListItem>()
+            // Xử lý kết quả trả về từ Repository
+            result.onSuccess { allSchedules ->
+                // Phân loại dữ liệu nhận về từ API
+                val upcomingOrder = allSchedules.find {
+                    it.status == OrderStatus.scheduled || it.status == OrderStatus.delivering
+                }
+                val completedOrders = allSchedules.filter { it.status == OrderStatus.completed }
 
-        // Thêm section "Upcoming" nếu có đơn hàng
-        if (upcomingOrder != null) {
-            combinedList.add(ScheduleListItem.Header("Upcoming"))
-            combinedList.add(ScheduleListItem.ScheduleItem(upcomingOrder))
-        }
+                // Xây dựng danh sách tổng hợp
+                val combinedList = mutableListOf<ScheduleListItem>()
+                if (upcomingOrder != null) {
+                    combinedList.add(ScheduleListItem.Header("Upcoming"))
+                    combinedList.add(ScheduleListItem.ScheduleItem(upcomingOrder))
+                }
+                if (completedOrders.isNotEmpty()) {
+                    combinedList.add(ScheduleListItem.Header("Completed"))
+                    completedOrders.forEach { completedSchedule ->
+                        combinedList.add(ScheduleListItem.ScheduleItem(completedSchedule))
+                    }
+                }
 
-        // Thêm section "Completed" nếu có đơn hàng
-        if (completedOrders.isNotEmpty()) {
-            combinedList.add(ScheduleListItem.Header("Completed"))
-            completedOrders.forEach { completedSchedule ->
-                combinedList.add(ScheduleListItem.ScheduleItem(completedSchedule))
+                // Cập nhật LiveData với danh sách cuối cùng
+                _scheduleList.value = combinedList
+            }.onFailure { error ->
+                // Nếu có lỗi, gửi thông báo lỗi cho giao diện
+                _errorMessage.value = Event(error.message ?: "An unknown error occurred")
             }
-        }
 
-        // Cập nhật LiveData với danh sách tổng hợp cuối cùng.
-        // Bất kỳ Fragment nào đang quan sát LiveData này sẽ nhận được dữ liệu mới.
-        _scheduleList.value = combinedList
+            // Ẩn ProgressBar sau khi đã xử lý xong
+            _isLoading.value = false
+        }
     }
 }

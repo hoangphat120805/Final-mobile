@@ -10,7 +10,9 @@ enum class OrderStatus {
     delivering,
     completed,
     cancelled,
-    pending
+    pending;
+
+    companion object
 }
 
 data class OrderUser(

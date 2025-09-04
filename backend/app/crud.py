@@ -35,7 +35,10 @@ def get_user_by_email(session: Session, email: str) -> User | None:
 def create_user(session: Session, user_create: UserCreate) -> User:
     db_user = User.model_validate(
         user_create,
-        update={"hashed_password": get_password_hash(user_create.password)}
+        update={
+            "hashed_password": get_password_hash(user_create.password),
+            "avt_url": settings.DEFAULT_AVATAR_URL,
+            }
     )
     session.add(db_user)
     session.flush()
@@ -104,7 +107,7 @@ def update_category(session: Session, category: ScrapCategory, category_update: 
     return current_category
 
 def get_order_by_id(session: Session, order_id: uuid.UUID) -> Order:
-    statement = select(Order).where(Order.id == order_id).join(Order.items)
+    statement = select(Order).where(Order.id == order_id).join(OrderItem, isouter=True)
     return session.exec(statement).first()
 
 def get_orders_by_user(session: Session, user_id: uuid.UUID) -> list[Order]:
@@ -144,9 +147,9 @@ async def create_order(session: Session, order_create: OrderCreate, owner_id: uu
     session.refresh(db_order)
     return db_order
 
-def add_order_items(session: Session, order_id: uuid.UUID, order_items: list[OrderItemCreate]) -> None:
-    for item in order_items:
-        db_item = OrderItemCreate.model_validate(item, update={"order_id": order_id})
+def add_order_items(session: Session, order_id: uuid.UUID, items: list[OrderItemCreate]) -> None:
+    for item in items:
+        db_item = OrderItem.model_validate(item, update={"order_id": order_id})
         session.add(db_item)
     session.commit()
 
@@ -352,4 +355,17 @@ def get_user_chats(session: Session, user_id: uuid.UUID):
         ).order_by(Message.timestamp.desc()).limit(1))
     )
     return list(session.exec(stmt))
+
+def update_order_img(sesion: Session, order_id: uuid.UUID, img_url1: Optional[str] = None, img_url2: Optional[str] = None) -> Order:
+    order = sesion.get(Order, order_id)
+    if not order:
+        raise ValueError("Order not found")
+    if img_url1:
+        order.img_url1 = img_url1
+    if img_url2:
+        order.img_url2 = img_url2
+    sesion.add(order)
+    sesion.commit()
+    sesion.refresh(order)
+    return order
 

@@ -42,4 +42,6 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
 
+    DEFAULT_AVATAR_URL: str = "https://i.ibb.co/5xt2NvW0/453178253-471506465671661-2781666950760530985-n.png"
+
 settings = Settings()
