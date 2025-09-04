@@ -9,7 +9,7 @@ from app.schemas.user import UserCreate, UserPublic, UserUpdate
 from app.schemas.category import CategoryCreate
 from app.schemas.order import OrderItemCreate, OrderCreate
 from app.schemas.notification import NotificationCreate, NotificationPublic, UserNotification
-from app.schemas.message import MessageCreate
+from app.schemas.chat import MessageCreate
 from app.models import Message, Noti_User, Notification, OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction
 from math import radians, sin, cos, asin, sqrt
 from geoalchemy2.functions import ST_DWithin, ST_Distance
@@ -331,7 +331,6 @@ def add_noti_to_new_user(session: Session, user_id: uuid.UUID):
 def create_message(session: Session, message: MessageCreate) -> Message:
     db_message = Message(
         sender_id=message.sender_id,
-        receiver_id=message.receiver_id,
         content=message.content
     )
     session.add(db_message)

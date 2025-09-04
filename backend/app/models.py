@@ -106,7 +106,6 @@ class OrderItem(SQLModel, table=True):
     category_id: uuid.UUID = Field(foreign_key="scrapcategory.id", index=True)
 
     quantity: float
-    price_per_unit: float
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
 
@@ -172,13 +171,24 @@ class Noti_User(SQLModel, table=True):
     notification: "Notification" = Relationship(back_populates="recipients")
     recipient: "User" = Relationship(back_populates="notifications")
 
-    # Chat Message model
+class Conversation(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    user1_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    user2_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
+
+    messages: List["Message"] = Relationship(back_populates="conversation", cascade_delete=True)
+    user1: "User" = Relationship(sa_relationship_kwargs={"foreign_keys": "Conversation.user1_id"})
+    user2: "User" = Relationship(sa_relationship_kwargs={"foreign_keys": "Conversation.user2_id"})
+
 class Message(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    conversation_id: uuid.UUID = Field(foreign_key="conversation.id", index=True)
     sender_id: uuid.UUID = Field(foreign_key="user.id", index=True)
-    receiver_id: uuid.UUID = Field(foreign_key="user.id", index=True)
     content: str = Field(max_length=1000)
-    timestamp: datetime = Field(default_factory=datetime.now)
+    is_read: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.now)
 
+    conversation: "Conversation" = Relationship(back_populates="messages")
     sender: Optional["User"] = Relationship(sa_relationship_kwargs={"foreign_keys": "Message.sender_id"})
-    receiver: Optional["User"] = Relationship(sa_relationship_kwargs={"foreign_keys": "Message.receiver_id"})
