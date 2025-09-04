@@ -1,3 +1,4 @@
+from app.models import Review
 import uuid
 import httpx
 from typing import Optional
@@ -14,7 +15,7 @@ from app.models import Message, Noti_User, Notification, OrderStatus, User, User
 from math import radians, sin, cos, asin, sqrt
 from geoalchemy2.functions import ST_DWithin, ST_Distance
 from shapely.geometry import Point
-
+from sqlalchemy.sql import func
 
 def authenticate(session: Session, phone_number: str, password: str) -> User | None:
     db_user = get_user_by_phone_number(session=session, phone_number=phone_number)
@@ -387,4 +388,14 @@ def update_order_img(sesion: Session, order_id: uuid.UUID, img_url1: Optional[st
     sesion.commit()
     sesion.refresh(order)
     return order
+
+
+def get_user_reviews(session: Session, user_id: uuid.UUID):
+    return session.exec(select(Review).where(Review.user_id == user_id)).all()
+
+def get_user_average_rating(session: Session, user_id: uuid.UUID):
+    reviews = get_user_reviews(session, user_id)
+    if reviews:
+        return sum(r.rating for r in reviews) / len(reviews)
+    return None
 

@@ -24,6 +24,7 @@ import com.example.vaicheuserapp.data.model.OTPVerificationTokenResponse
 import com.example.vaicheuserapp.data.model.OTPVerifyRequest // <-- New import
 import com.example.vaicheuserapp.data.model.OrderPublic
 import com.example.vaicheuserapp.data.model.ResetPasswordRequest // <-- New import
+import com.example.vaicheuserapp.data.model.TransactionReadResponse
 import com.example.vaicheuserapp.data.model.UserRegisterRequest // <-- NEW: For signup request
 
 interface ApiService {
@@ -72,4 +73,7 @@ interface ApiService {
 
     @GET("/api/orders/")
     suspend fun getOrders(): Response<List<OrderPublic>>
+
+    @GET("/api/transactions/order/{order_id}")
+    suspend fun getTransactionsByOrderId(@Path("order_id") orderId: String): Response<List<TransactionReadResponse>>
 }
