@@ -21,6 +21,7 @@ from shapely.geometry import Point
 # Accept GeoJSON for location, convert to PostGIS geometry
 from shapely.geometry import shape,mapping
 from geoalchemy2.shape import from_shape,to_shape 
+import requests
 
 import asyncio
 
@@ -49,7 +50,9 @@ def create_order(order: OrderCreate, current_user: CurrentUser, session: Session
         status=db_order.status,
         pickup_address=db_order.pickup_address,
         location=location_geojson,
-        items=db_order.items if hasattr(db_order, "items") else []
+        items=db_order.items if hasattr(db_order, "items") else [],
+        img_url1=getattr(db_order, "img_url1", None),
+        img_url2=getattr(db_order, "img_url2", None)
     )
 
 
@@ -76,7 +79,9 @@ def add_order_items(order_id: uuid.UUID, items: list[OrderItemCreate], current_u
         status=updated_order.status,
         pickup_address=updated_order.pickup_address,
         location=location_geojson,
-        items=updated_order.items if hasattr(updated_order, "items") else []
+        items=updated_order.items if hasattr(updated_order, "items") else [],
+        img_url1=getattr(updated_order, "img_url1", None),
+        img_url2=getattr(updated_order, "img_url2", None)
     )
 
 @router.get("/nearby", response_model=List[NearbyOrderPublic])
@@ -145,7 +150,9 @@ def get_order(order_id: uuid.UUID, session: SessionDep):
         status=order.status,
         pickup_address=order.pickup_address,
         location=location_geojson,
-        items=order.items if hasattr(order, "items") else []
+        items=order.items if hasattr(order, "items") else [],
+        img_url1=getattr(order, "img_url1", None),
+        img_url2=getattr(order, "img_url2", None)
     )
 
 
@@ -167,7 +174,9 @@ def get_orders(current_user: CurrentUser, session: SessionDep):
             status=order.status,
             pickup_address=order.pickup_address,
             location=location_geojson,
-            items=order.items if hasattr(order, "items") else []
+            items=order.items if hasattr(order, "items") else [],
+            img_url1=getattr(order, "img_url1", None),
+            img_url2=getattr(order, "img_url2", None)
         ))
     return result
 
