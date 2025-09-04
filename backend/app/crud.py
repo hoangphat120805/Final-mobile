@@ -152,6 +152,31 @@ def add_order_item(session: Session, order_id: uuid.UUID, item: OrderItemCreate)
     session.add(db_item)
     session.commit()
 
+def get_order_items(session: Session, order_id: uuid.UUID) -> list[OrderItem]:
+    statement = select(OrderItem).where(OrderItem.order_id == order_id)
+    return session.exec(statement).all()
+
+def update_order_item(session: Session, order_item_id: uuid.UUID, item_update: OrderItemCreate) -> OrderItem:
+    order_item = session.get(OrderItem, order_item_id)
+    if not order_item:
+        raise ValueError("Order item not found")
+    item_data = item_update.dict(exclude_unset=True)
+    current_item = order_item.sqlmodel_update(item_data)
+    session.add(current_item)
+    session.commit()
+    session.refresh(current_item)
+    return current_item
+
+def delete_order_item(session: Session, order_item_id: uuid.UUID) -> None:
+    order_item = session.get(OrderItem, order_item_id)
+    if not order_item:
+        raise ValueError("Order item not found")
+    session.delete(order_item)
+    session.commit()
+
+def get_order_item_by_id(session: Session, order_item_id: uuid.UUID) -> OrderItem | None:
+    return session.get(OrderItem, order_item_id)
+
 def accept_order_service(db: Session, order_id: uuid.UUID, collector: User, note: str | None = None):
     from fastapi import HTTPException
     from fastapi import status as fas

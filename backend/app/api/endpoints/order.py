@@ -7,7 +7,7 @@ from sqlmodel import Session
 from app.core.config import settings
 from app.api.deps import SessionDep, CurrentUser, CurrentCollector
 
-from app.schemas.order import OrderCreate, OrderItemCreate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
+from app.schemas.order import OrderCreate, OrderItemCreate, OrderItemUpdate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
 from app.schemas.route import RoutePublic
 from app.schemas.auth import Message
 
@@ -36,7 +36,9 @@ def create_order(order: OrderCreate, current_user: CurrentUser, session: Session
 
 
 @router.post("/{order_id}/item", response_model=OrderPublic)
-def add_order_items(order_id: uuid.UUID, item: OrderItemCreate, current_user: CurrentUser, session: SessionDep):
+def add_order_items(
+    order_id: uuid.UUID, item: OrderItemCreate, current_user: CurrentUser, session: SessionDep
+):
     """
     Add items to an order.
     """
@@ -46,7 +48,60 @@ def add_order_items(order_id: uuid.UUID, item: OrderItemCreate, current_user: Cu
     if order.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
-    crud.add_order_items(session=session, order_id=order_id, item=item)
+    order_items = crud.get_order_items(session=session, order_id=order_id)
+    for existing_item in order_items:
+        if existing_item.category_id == item.category_id:
+            raise HTTPException(status_code=400, detail="Item already exists in order")
+    
+    
+    crud.add_order_item(session=session, order_id=order_id, item=item)
+    updated_order = crud.get_order_by_id(session=session, order_id=order_id)
+    return updated_order
+
+@router.patch("/{order_id}/item/{order_item_id}", response_model=OrderPublic)
+def update_order_item(
+    session: SessionDep,
+    current_user: CurrentUser, 
+    order_id: uuid.UUID, 
+    order_item_id: uuid.UUID, 
+    item: OrderItemUpdate, 
+):
+    """
+    Update an item in an order.
+    """
+    order = crud.get_order_by_id(session=session, order_id=order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    order_item = crud.get_order_item_by_id(session=session, order_item_id=order_item_id)
+    if not order_item or order_item.order_id != order_id:
+        raise HTTPException(status_code=404, detail="Order item not found in this order")
+
+    crud.update_order_item(session=session, order_item_id=order_item_id, item_update=item)
+    updated_item = crud.get_order_by_id(session=session, order_id=order_id)
+    return updated_item
+
+@router.delete("/{order_id}/item/{order_item_id}", response_model=OrderPublic)
+def delete_order_item(
+    session: SessionDep,
+    current_user: CurrentUser, 
+    order_id: uuid.UUID, 
+    order_item_id: uuid.UUID
+):
+    """
+    Delete an item from an order.
+    """
+    order = crud.get_order_by_id(session=session, order_id=order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    order_item = crud.get_order_item_by_id(session=session, order_item_id=order_item_id)
+    if not order_item or order_item.order_id != order_id:
+        raise HTTPException(status_code=404, detail="Order item not found in this order")
+
+    crud.delete_order_item(session=session, order_item_id=order_item_id)
     updated_order = crud.get_order_by_id(session=session, order_id=order_id)
     return updated_order
 
