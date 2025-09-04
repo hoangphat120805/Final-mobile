@@ -1,16 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.vaiche_driver"
     android:versionCode="1"
     android:versionName="1.0" >
-
-    <uses-sdk
-        android:minSdkVersion="24"
-        android:targetSdkVersion="36" />
-
-    <!-- Quyền truy cập Internet (cho Glide) -->
-    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Quyền chụp ảnh (tùy chọn, nhưng nên có) -->
     <uses-feature
@@ -22,13 +14,15 @@
         android:protectionLevel="signature" />
 
     <uses-permission android:name="com.example.vaiche_driver.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:debuggable="true"
-        android:extractNativeLibs="false"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="VaiCheDriver"
@@ -49,7 +43,6 @@
         </activity>
 
         <!-- =============================================== -->
-        <!-- SỬA LỖI NẰM Ở ĐÂY -->
         <!-- Cấu hình FileProvider để chia sẻ file ảnh an toàn -->
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -57,7 +50,6 @@
             android:exported="false"
             android:grantUriPermissions="true" >
 
-            <!-- DÒNG META-DATA BỊ THIẾU -->
             <!-- Dòng này chỉ cho FileProvider biết file quy tắc nằm ở đâu -->
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"

@@ -22,16 +22,14 @@ import java.util.Locale
 
 class NewOrderDialogFragment : DialogFragment() {
 
-    // ViewModel riêng cho dialog này để quản lý dữ liệu chi tiết
     private val viewModel: NewOrderViewModel by viewModels()
-    // ViewModel chung của toàn bộ ứng dụng để báo cáo kết quả
     private val sharedViewModel: SharedViewModel by activityViewModels()
 
     private var orderId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setStyle(STYLE_NO_TITLE, R.style.TransparentDialogTheme) // Dùng style tùy chỉnh
+        setStyle(STYLE_NO_TITLE, R.style.TransparentDialogTheme)
         arguments?.let {
             orderId = it.getString(ARG_ORDER_ID)
         }
@@ -52,13 +50,13 @@ class NewOrderDialogFragment : DialogFragment() {
         val acceptButton = view.findViewById<Button>(R.id.btn_accept)
         val closeButton = view.findViewById<ImageView>(R.id.iv_close)
 
-        // Lắng nghe dữ liệu đơn hàng từ ViewModel riêng
+        // Lắng nghe dữ liệu đơn hàng từ ViewModel
         viewModel.order.observe(viewLifecycleOwner) { order ->
             if (order != null) {
                 bindDataToViews(view, order)
                 acceptButton.isEnabled = true
             } else {
-                Toast.makeText(context, "Order details could not be loaded.", Toast.LENGTH_SHORT).show()
+                // Có thể hiển thị trạng thái loading hoặc lỗi ở đây nếu cần
                 acceptButton.isEnabled = false
             }
         }
@@ -68,13 +66,12 @@ class NewOrderDialogFragment : DialogFragment() {
             viewModel.loadOrderDetails(orderId)
         }
 
-        // Accept → báo cáo, mở MySchedule, và đóng dialog
+        // Accept → báo cáo cho SharedViewModel và đóng dialog
         acceptButton.setOnClickListener {
-            viewModel.acceptOrder { acceptedSchedule ->
-                // 1. Báo cáo cho SharedViewModel để cập nhật trạng thái chung
-                sharedViewModel.onOrderAccepted(acceptedSchedule)
-
-                // 2. Đóng chính nó lại
+            // `acceptedOrder` bây giờ sẽ có kiểu là OrderPublic
+            viewModel.acceptOrder { acceptedOrder ->
+                // Dòng này sẽ không còn lỗi nữa vì kiểu dữ liệu đã khớp
+                sharedViewModel.onOrderAccepted(acceptedOrder)
                 dismiss()
             }
         }
@@ -122,9 +119,6 @@ class NewOrderDialogFragment : DialogFragment() {
     companion object {
         private const val ARG_ORDER_ID = "order_id"
 
-        /**
-         * "Cửa" để tạo dialog và truyền orderId vào một cách an toàn.
-         */
         fun newInstance(orderId: String) = NewOrderDialogFragment().apply {
             arguments = Bundle().apply {
                 putString(ARG_ORDER_ID, orderId)

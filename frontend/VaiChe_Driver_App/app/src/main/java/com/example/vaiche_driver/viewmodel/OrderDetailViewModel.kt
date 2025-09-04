@@ -4,76 +4,109 @@ import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.vaiche_driver.model.FakeDataSource
-import com.example.vaiche_driver.model.OrderDetail
-import com.example.vaiche_driver.model.OrderStatus
-
+import androidx.lifecycle.viewModelScope
+import com.example.vaiche_driver.data.repository.OrderRepository
 import com.example.vaiche_driver.fragment.OrderDetailFragment
+import com.example.vaiche_driver.model.OrderDetail
+import com.example.vaiche_driver.model.OrderCompletionRequest
+import kotlinx.coroutines.launch
 
-
-/**
- * ViewModel này là "bộ não" quản lý dữ liệu và logic cho màn hình OrderDetailFragment.
- * Nó tương tác với nguồn dữ liệu (FakeDataSource) và cung cấp dữ liệu đã được xử lý
- * cho Fragment thông qua LiveData.
- */
 class OrderDetailViewModel : ViewModel() {
 
-    // LiveData để giữ chi tiết đơn hàng. Giao diện sẽ "lắng nghe" sự thay đổi của nó.
-    // `private` _orderDetail để chỉ có ViewModel mới có thể thay đổi giá trị.
+    // Khởi tạo Repository để tương tác với nguồn dữ liệu
+    private val orderRepository = OrderRepository()
+
+    // --- CÁC LIVE DATA CHO GIAO DIỆN ---
     private val _orderDetail = MutableLiveData<OrderDetail?>()
-    // `public` orderDetail để Fragment có thể quan sát (observe) mà không thể thay đổi.
     val orderDetail: LiveData<OrderDetail?> = _orderDetail
 
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _errorMessage = MutableLiveData<Event<String>>()
+    val errorMessage: LiveData<Event<String>> = _errorMessage
+
+    // LiveData dạng Event để thông báo cho Fragment khi đơn hàng đã hoàn thành
+    private val _orderCompletedEvent = MutableLiveData<Event<Boolean>>()
+    val orderCompletedEvent: LiveData<Event<Boolean>> = _orderCompletedEvent
+
     /**
-     * Lấy dữ liệu chi tiết đơn hàng lần đầu từ DataSource.
-     * @param orderId ID của đơn hàng cần tải.
+     * Tải dữ liệu chi tiết của đơn hàng từ Repository.
      */
     fun loadOrder(orderId: String?) {
-        // Lấy dữ liệu và cập nhật giá trị của LiveData.
-        // Thao tác này sẽ kích hoạt observer trong Fragment.
-        _orderDetail.value = FakeDataSource.getOrderDetailById(orderId)
+        if (orderId == null) {
+            _errorMessage.value = Event("Order ID is missing.")
+            return
+        }
+        _isLoading.value = true
+        viewModelScope.launch {
+            val result = orderRepository.getOrderDetail(orderId)
+            result.onSuccess { orderDetail ->
+                _orderDetail.value = orderDetail
+            }.onFailure { error ->
+                _errorMessage.value = Event(error.message ?: "Failed to load order details.")
+            }
+            _isLoading.value = false
+        }
     }
 
     /**
-     * Xử lý logic sau khi chụp ảnh thành công.
-     * @param uri URI của file ảnh đã chụp.
-     * @param target Xác định đây là ảnh cho Pick-up hay Drop-off.
+     * Xử lý sau khi chụp ảnh thành công.
+     * TƯƠNG LAI: Sẽ gọi API upload ảnh.
      */
     fun onPhotoTaken(uri: Uri, target: OrderDetailFragment.PhotoTarget) {
-        val currentOrder = _orderDetail.value ?: return // Lấy giá trị hiện tại, nếu null thì thoát.
+        val currentOrder = _orderDetail.value ?: return
 
-        // Cập nhật dữ liệu trong FakeDataSource
-        FakeDataSource.updatePhotoUrl(currentOrder.id, uri.toString(), target)
-
-        // Tải lại dữ liệu mới nhất từ DataSource để làm mới LiveData
-        // Thao tác này sẽ tự động kích hoạt observer trong Fragment và vẽ lại giao diện.
-        _orderDetail.value = FakeDataSource.getOrderDetailById(currentOrder.id)
+        _isLoading.value = true
+        viewModelScope.launch {
+            // TODO: Gọi repository.uploadPhoto(currentOrder.id, uri, target)
+            // Sau khi upload thành công, API sẽ trả về Order mới đã có URL ảnh
+            // Hiện tại, chúng ta chỉ cần tải lại dữ liệu để giả lập
+            loadOrder(currentOrder.id)
+            _isLoading.value = false
+        }
     }
 
     /**
-     * Xử lý logic khi người dùng xác nhận đã Pick-Up.
+     * Xử lý khi người dùng xác nhận đã Pick-Up.
+     * Chỉ cập nhật trạng thái ở client thành "delivering".
      */
     fun onPickupConfirmed() {
         val currentOrder = _orderDetail.value ?: return
-
-        // Cập nhật trạng thái thành "delivering"
-        FakeDataSource.updateOrderStatus(currentOrder.id, OrderStatus.delivering)
-
-        // Tải lại dữ liệu mới nhất để làm mới LiveData
-        _orderDetail.value = FakeDataSource.getOrderDetailById(currentOrder.id)
+        _isLoading.value = true
+        viewModelScope.launch {
+            val result = orderRepository.markAsDelivering(currentOrder.id)
+            result.onSuccess {
+                // Tải lại dữ liệu để giao diện được cập nhật với trạng thái "delivering" mới
+                loadOrder(currentOrder.id)
+            }.onFailure { error ->
+                _errorMessage.value = Event(error.message ?: "Failed to update status.")
+            }
+            // Không cần ẩn isLoading ở đây vì loadOrder đã xử lý
+        }
     }
 
     /**
-     * Xử lý logic khi người dùng xác nhận đã Drop-Off.
-     * Hàm này được gọi TRƯỚC KHI chuyển sang màn hình Rating.
+     * Xử lý khi người dùng xác nhận đã Drop-Off và hoàn thành đơn.
+     * Sẽ gọi API để cập nhật trạng thái "completed" trên backend.
      */
     fun onDeliveryCompleted() {
         val currentOrder = _orderDetail.value ?: return
 
-        // Cập nhật trạng thái cuối cùng thành "completed"
-        FakeDataSource.updateOrderStatus(currentOrder.id, OrderStatus.completed)
+        _isLoading.value = true
+        viewModelScope.launch {
+            // TODO: Xây dựng request body thực tế từ dữ liệu đơn hàng (các item đã được cân lại)
+            val requestBody = OrderCompletionRequest(items = emptyList())
 
-        // Không cần tải lại LiveData ở đây vì chúng ta sắp chuyển sang màn hình khác.
-        // Màn hình Schedule sau khi quay về sẽ tự động tải lại danh sách mới nhất.
+            val result = orderRepository.completeOrder(currentOrder.id, requestBody)
+
+            result.onSuccess {
+                // Gửi tín hiệu cho Fragment biết rằng đã hoàn thành thành công
+                _orderCompletedEvent.value = Event(true)
+            }.onFailure { error ->
+                _errorMessage.value = Event(error.message ?: "Failed to complete order.")
+            }
+            _isLoading.value = false
+        }
     }
 }

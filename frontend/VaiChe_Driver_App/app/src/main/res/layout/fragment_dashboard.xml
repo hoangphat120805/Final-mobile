@@ -1,22 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".fragment.DashboardFragment">
 
-    <!-- Google Map Placeholder -->
-    <!-- Đây có thể là một FragmentContainerView để chứa Google Map thật -->
-    <FrameLayout
-        android:id="@+id/map_container"
+    <!-- MAPBOX MAP VIEW -->
+    <!-- Đây là thành phần chính để hiển thị bản đồ -->
+
+    <com.mapbox.maps.MapView
+        android:id="@+id/mapView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        tools:background="#E0E0E0">
-        <!-- Google Map Fragment sẽ được thêm vào đây từ code -->
-    </FrameLayout>
+        app:mapbox_cameraTargetLat="10.76"
+        app:mapbox_cameraTargetLng="106.66"
+        app:mapbox_cameraZoom="12.0" />
 
 
-    <!-- Top bar: Earnings - Online/Offline - Notifications -->
+
+
     <LinearLayout
         android:id="@+id/top_bar"
         android:layout_width="match_parent"
@@ -55,6 +58,8 @@
             android:layout_marginHorizontal="16dp"
             android:background="@drawable/bg_top_button"
             android:elevation="4dp"
+            android:clickable="true"
+            android:focusable="true"
             android:gravity="center"
             android:text="Offline"
             android:textColor="@android:color/white"
@@ -81,7 +86,5 @@
         </FrameLayout>
 
     </LinearLayout>
-
-
 
 </RelativeLayout>
