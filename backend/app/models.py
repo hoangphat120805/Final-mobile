@@ -214,7 +214,6 @@ class Message(SQLModel, table=True):
     conversation_id: uuid.UUID = Field(foreign_key="conversation.id", index=True)
     sender_id: uuid.UUID = Field(foreign_key="user.id", index=True)
     content: str
-    is_read: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.now, index=True)
 
     is_deleted: bool = Field(default=False)

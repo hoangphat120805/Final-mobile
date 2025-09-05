@@ -27,5 +27,7 @@ class MessageCreate(MessageBase):
 class MessagePublic(MessageBase):
     id: uuid.UUID
     sender_id: uuid.UUID
-    is_read: bool
     created_at: datetime
+
+class ConversationWithLastMessage(ConversationPublic):
+    last_message: MessagePublic | None = None

@@ -10,7 +10,7 @@ from app.schemas.user import UserCreate, UserPublic, UserUpdate
 from app.schemas.category import CategoryCreate
 from app.schemas.order import OrderItemCreate, OrderCreate
 from app.schemas.notification import NotificationCreate, NotificationPublic, UserNotification
-from app.schemas.chat import ConversationCreate, MessageCreate
+from app.schemas.chat import ConversationCreate, ConversationWithLastMessage, MessageCreate, MessagePublic
 from app.models import Message, Noti_User, Notification, OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction, ConversationMember
 from math import radians, sin, cos, asin, sqrt
 from geoalchemy2.functions import ST_DWithin, ST_Distance
@@ -392,6 +392,10 @@ def create_conversation(session: Session, conversation_create: ConversationCreat
 def create_message(*, session: Session, message_create: MessageCreate, sender_id: uuid.UUID) -> Message:
     db_message = Message.model_validate(message_create, update={"sender_id": sender_id})
     session.add(db_message)
+    db_conversation = session.get(Conversation, message_create.conversation_id)
+    if db_conversation:
+        db_conversation.last_message_id = db_message.id
+        session.add(db_conversation)
     session.commit()
     session.refresh(db_message)
     return db_message
@@ -414,14 +418,28 @@ def get_messages_by_conversation(session: Session, conversation_id: uuid.UUID) -
 def mark_messages_as_read(session: Session, conversation_id: uuid.UUID, user_id: uuid.UUID) -> None:
     statement = select(Message).where(
         Message.conversation_id == conversation_id,
-        Message.sender_id != user_id,
-        Message.is_read == False
+        Message.sender_id != user_id
     )
     messages = session.exec(statement).all()
     for message in messages:
         message.is_read = True
         session.add(message)
     session.commit()
+
+def get_user_conversations_and_last_message(session: Session, user_id: uuid.UUID) -> list[ConversationWithLastMessage]:
+    statement = select(Conversation).join(ConversationMember).where(ConversationMember.user_id == user_id)
+    conversations = session.exec(statement).all()
+    result = []
+    for convo in conversations:
+        last_message = None
+        if convo.last_message_id:
+            last_message = session.get(Message, convo.last_message_id)
+            convo = ConversationWithLastMessage.model_validate(
+                    {**convo.model_dump(), "last_message": last_message},
+                    from_attributes=True
+                )
+        result.append(convo)
+    return result
 
 # ============================== End Chat CRUD ====================================================
 

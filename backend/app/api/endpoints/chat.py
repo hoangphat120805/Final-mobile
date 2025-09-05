@@ -1,8 +1,9 @@
+from http.client import HTTPException
 import time
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 
 from app import crud
-from app.schemas.chat import ConversationCreate, MessageCreate, ConversationPublic, MessagePublic
+from app.schemas.chat import ConversationCreate, ConversationWithLastMessage, MessageCreate, ConversationPublic, MessagePublic
 from app.schemas.user import UserPublic
 from app.api.deps import SessionDep, CurrentUser, get_current_user_ws
 from typing import Dict, Annotated
@@ -58,10 +59,22 @@ async def create_conversation(
     conversation = crud.create_conversation(session = session, conversation_create = conversation_create, user_id = current_user.id)
     return conversation
 
-@router.get("/conversations/", response_model=list[ConversationPublic])
+@router.get("/conversations/", response_model=list[ConversationWithLastMessage])
 async def get_conversations(
     session: SessionDep,
     current_user: CurrentUser,
 ):
-    conversations = crud.get_user_conversations(session=session, user_id=current_user.id)
+    conversations = crud.get_user_conversations_and_last_message(session=session, user_id=current_user.id)
     return conversations
+
+@router.get("/conversations/{conversation_id}/messages/", response_model=list[MessagePublic])
+async def get_messages(
+    conversation_id: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
+    members = crud.get_conversation_members(session, conversation_id)
+    if current_user.id not in [member.user_id for member in members]:
+        raise HTTPException(status_code=403, detail="Not a member of this conversation")
+    messages = crud.get_messages_by_conversation(session=session, conversation_id=conversation_id)
+    return messages
