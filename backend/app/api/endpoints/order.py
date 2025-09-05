@@ -358,6 +358,8 @@ def review_collector_for_order(order_id: uuid.UUID, review: ReviewCreate, curren
         raise HTTPException(status_code=403, detail="You can only review orders you created")
     if not order.collector_id:
         raise HTTPException(status_code=400, detail="Order has no collector assigned")
+    if order.status != OrderStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="Can only review completed orders")
     # Only allow one review per order
     if order.review:
         raise HTTPException(status_code=400, detail="Order already reviewed")
