@@ -2,16 +2,10 @@ import time
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 
 from app import crud
-from app.schemas.chat import MessageCreate
+from app.schemas.chat import ConversationCreate, MessageCreate, ConversationPublic, MessagePublic
 from app.schemas.user import UserPublic
 from app.api.deps import SessionDep, CurrentUser, get_current_user_ws
 from typing import Dict, Annotated
-from sqlmodel import Session
-import asyncio
-
-from uuid import UUID
-from fastapi import Depends
-from app.schemas.chat import Message
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -26,25 +20,40 @@ async def chat_websocket(
     await websocket.accept()
     active_connections[current_user.id] = websocket
 
-    # asyncio.create_task(ping_loop(websocket, current_user.id))
-
     try:
         while True:
-            data = await websocket.receive_json()
-            
-            if data.get("type") == "ping":
-                await websocket.send_json({"type": "pong"})
-                continue
+            msg = await websocket.receive_json()
+            type = msg.get("type")
+            match type:
+                case "message":
+                    message_in = MessageCreate(**msg.get("data"))
+                    message = crud.create_message(session=session, message_create=message_in, sender_id=current_user.id)
 
-            receiver_id = data["receiver_id"]
-            content = data["content"]
+                    members = crud.get_conversation_members(session, message_in.conversation_id)
+                    for member in members:
+                        if member.user_id in active_connections and member.user_id != current_user.id:
+                            await active_connections[member.user_id].send_json({
+                                "type": "message",
+                                "data": {
+                                    "id": str(message.id),
+                                    "conversation_id": str(message.conversation_id),
+                                    "sender_id": str(message.sender_id),
+                                    "content": message.content,
+                                    "is_read": message.is_read,
+                                    "created_at": message.created_at.isoformat()
+                                }
+                            })
+                case _:
+                    await websocket.send_json({"error": "Unknown message type"})
 
-            message_in = MessageCreate(sender_id=current_user.id, receiver_id=receiver_id, content=content)
-            crud.create_message(session, message_in)
-            
-            if receiver_id in active_connections:
-                await active_connections[receiver_id].send_json({"sender_id": current_user.id, "content": content})
     except WebSocketDisconnect:
         del active_connections[current_user.id]
 
-
+@router.post("/conversations/", response_model=ConversationPublic)
+async def create_conversation(
+    session: SessionDep,
+    conversation_create: ConversationCreate,
+    current_user: CurrentUser,
+):
+    conversation = crud.create_conversation(session = session, conversation_create = conversation_create, user_id = current_user.id)
+    return conversation

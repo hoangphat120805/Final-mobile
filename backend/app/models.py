@@ -46,6 +46,9 @@ class User(SQLModel, table=True):
         cascade_delete=True
     )
     notifications: list["Noti_User"] = Relationship(back_populates="recipient", cascade_delete=True)
+    conversations: List["ConversationMember"] = Relationship(back_populates="user", cascade_delete=True)
+
+
 
 class ScrapCategory(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -171,24 +174,54 @@ class Noti_User(SQLModel, table=True):
     notification: "Notification" = Relationship(back_populates="recipients")
     recipient: "User" = Relationship(back_populates="notifications")
 
+class ConversationType(str, Enum):
+    PRIVATE = "private"
+    GROUP = "group"
+
 class Conversation(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
-    user1_id: uuid.UUID = Field(foreign_key="user.id", index=True)
-    user2_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    name: str | None = Field(default=None, max_length=100, nullable=True)
+    type: ConversationType = Field(default=ConversationType.PRIVATE, max_length=20)
+    last_message_id: uuid.UUID | None = Field(default=None, foreign_key="message.id", index=True)
     created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()})
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column_kwargs={"onupdate": func.now()}, index=True)
 
-    messages: List["Message"] = Relationship(back_populates="conversation", cascade_delete=True)
-    user1: "User" = Relationship(sa_relationship_kwargs={"foreign_keys": "Conversation.user1_id"})
-    user2: "User" = Relationship(sa_relationship_kwargs={"foreign_keys": "Conversation.user2_id"})
+    messages: List["Message"] = Relationship(
+        back_populates="conversation", 
+        cascade_delete=True,
+        sa_relationship_kwargs={"foreign_keys": "Message.conversation_id"}
+    )
+    members: List["ConversationMember"] = Relationship(back_populates="conversation", cascade_delete=True)
+    last_message: "Message" = Relationship(sa_relationship_kwargs={"foreign_keys": "Conversation.last_message_id"})
+
+class ConversationMember(SQLModel, table=True):
+    conversation_id: uuid.UUID = Field(foreign_key="conversation.id", primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    unread_count: int = Field(default=0)
+
+    conversation: "Conversation" = Relationship(
+        back_populates="members",
+        sa_relationship_kwargs={"foreign_keys": "ConversationMember.conversation_id"}
+    )
+    user: "User" = Relationship(
+        back_populates="conversations",
+        sa_relationship_kwargs={"foreign_keys": "ConversationMember.user_id"}
+    )
+
 
 class Message(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
     conversation_id: uuid.UUID = Field(foreign_key="conversation.id", index=True)
     sender_id: uuid.UUID = Field(foreign_key="user.id", index=True)
-    content: str = Field(max_length=1000)
+    content: str
     is_read: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
 
-    conversation: "Conversation" = Relationship(back_populates="messages")
-    sender: Optional["User"] = Relationship(sa_relationship_kwargs={"foreign_keys": "Message.sender_id"})
+    is_deleted: bool = Field(default=False)
+    deleted_at: datetime | None = Field(default=None)
+
+    conversation: "Conversation" = Relationship(
+        back_populates="messages",
+        sa_relationship_kwargs={"foreign_keys": "Message.conversation_id"}
+    )
+    sender: "User" = Relationship(sa_relationship_kwargs={"foreign_keys": "Message.sender_id"})

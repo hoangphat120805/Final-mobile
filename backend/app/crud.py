@@ -1,4 +1,4 @@
-from app.models import Review
+from app.models import Conversation, Review
 import uuid
 import httpx
 from typing import Optional
@@ -10,8 +10,8 @@ from app.schemas.user import UserCreate, UserPublic, UserUpdate
 from app.schemas.category import CategoryCreate
 from app.schemas.order import OrderItemCreate, OrderCreate
 from app.schemas.notification import NotificationCreate, NotificationPublic, UserNotification
-from app.schemas.chat import MessageCreate
-from app.models import Message, Noti_User, Notification, OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction
+from app.schemas.chat import ConversationCreate, MessageCreate
+from app.models import Message, Noti_User, Notification, OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction, ConversationMember
 from math import radians, sin, cos, asin, sqrt
 from geoalchemy2.functions import ST_DWithin, ST_Distance
 from shapely.geometry import Point
@@ -349,33 +349,6 @@ def add_noti_to_new_user(session: Session, user_id: uuid.UUID):
         noti_user = Noti_User(notification_id=notification.id, user_id=user_id)
         session.add(noti_user)
 
-def create_message(session: Session, message: MessageCreate) -> Message:
-    db_message = Message(
-        sender_id=message.sender_id,
-        content=message.content
-    )
-    session.add(db_message)
-    session.commit()
-    session.refresh(db_message)
-    return db_message
-
-def get_chat_history(session: Session, user_id: uuid.UUID, receiver_id: uuid.UUID):
-    stmt = select(Message).where(
-        ((Message.sender_id == user_id) & (Message.receiver_id == receiver_id)) |
-        ((Message.sender_id == receiver_id) & (Message.receiver_id == user_id))
-    ).order_by(Message.timestamp)
-    return list(session.exec(stmt))
-
-def get_user_chats(session: Session, user_id: uuid.UUID):
-    stmt = select(Message).where(
-        ((Message.sender_id == user_id) | (Message.receiver_id == user_id)) &
-        (Message.timestamp == select(Message.timestamp).where(
-            ((Message.sender_id == user_id) & (Message.receiver_id == Message.receiver_id)) |
-            ((Message.sender_id == Message.receiver_id) & (Message.receiver_id == user_id))
-        ).order_by(Message.timestamp.desc()).limit(1))
-    )
-    return list(session.exec(stmt))
-
 def update_order_img(sesion: Session, order_id: uuid.UUID, img_url1: Optional[str] = None, img_url2: Optional[str] = None) -> Order:
     order = sesion.get(Order, order_id)
     if not order:
@@ -398,4 +371,37 @@ def get_user_average_rating(session: Session, user_id: uuid.UUID):
     if reviews:
         return sum(r.rating for r in reviews) / len(reviews)
     return None
+
+
+# ============================== Chat CRUD ====================================================
+
+def create_conversation(session: Session, conversation_create: ConversationCreate, user_id: uuid.UUID) -> Conversation:
+    conversation_in = conversation_create.dict(exclude={"member_ids"})
+    new_convo = Conversation.model_validate(conversation_in)
+    session.add(new_convo)
+
+    member_ids = set(conversation_create.member_ids)
+    member_ids.add(user_id)
+    for member_id in member_ids:
+        conversation_member = ConversationMember(conversation_id=new_convo.id, user_id=member_id)
+        session.add(conversation_member)
+    session.commit()
+    session.refresh(new_convo)
+    return new_convo
+
+def create_message(*, session: Session, message_create: MessageCreate, sender_id: uuid.UUID) -> Message:
+    db_message = Message.model_validate(message_create, update={"sender_id": sender_id})
+    session.add(db_message)
+    session.commit()
+    session.refresh(db_message)
+    return db_message
+
+def get_conversation_by_id(session: Session, conversation_id: uuid.UUID) -> Conversation | None:
+    return session.get(Conversation, conversation_id)
+
+def get_conversation_members(session: Session, conversation_id: uuid.UUID) -> list[ConversationMember]:
+    statement = select(ConversationMember).where(ConversationMember.conversation_id == conversation_id)
+    return session.exec(statement).all()
+
+# ============================== End Chat CRUD ====================================================
 
