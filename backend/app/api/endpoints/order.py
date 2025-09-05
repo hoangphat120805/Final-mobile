@@ -1,4 +1,5 @@
 
+
 import uuid
 from app import crud
 from fastapi import APIRouter
@@ -12,6 +13,7 @@ from app.schemas.order import OrderCreate, OrderItemCreate, OrderItemUpdate, Ord
 from app.schemas.route import RoutePublic
 from app.schemas.auth import Message
 from app.schemas.user import UserPublic
+from app.schemas.user import CollectorPublic
 from app.schemas.review import ReviewCreate, ReviewPublic
 from app.models import User, Order, OrderStatus
 from app import crud, services
@@ -316,6 +318,8 @@ def get_order_owner(order_id: uuid.UUID, current_collector:CurrentCollector, ses
     Collector can view info of the user who created the order.
     """
     order = crud.get_order_by_id(session=session, order_id=order_id)
+    if order.collector_id != current_collector.id:
+        raise HTTPException(status_code=403, detail="You can only view owners of your own orders")
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     owner = crud.get_user_by_id(session=session, user_id=order.owner_id)
@@ -323,12 +327,14 @@ def get_order_owner(order_id: uuid.UUID, current_collector:CurrentCollector, ses
         raise HTTPException(status_code=404, detail="Owner not found")
     return owner
 
-@router.get("/{order_id}/collector", response_model=UserPublic)
+@router.get("/{order_id}/collector", response_model=CollectorPublic)
 def get_order_collector(order_id: uuid.UUID, current_user:CurrentUser, session:SessionDep):
     """
     User can view info of the collector assigned to the order.
     """
     order = crud.get_order_by_id(session=session, order_id=order_id)
+    if order.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only view collectors for your own orders")
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     if not order.collector_id:
@@ -337,9 +343,7 @@ def get_order_collector(order_id: uuid.UUID, current_user:CurrentUser, session:S
     if not collector:
         raise HTTPException(status_code=404, detail="Collector not found")
     avg_rating = crud.get_user_average_rating(session, collector.id)
-    collector_data = collector.dict() if hasattr(collector, 'dict') else dict(collector)
-    collector_data['average_rating'] = avg_rating
-    return collector_data
+    return CollectorPublic(**collector.dict(), average_rating=avg_rating)
 
 
 @router.post("/{order_id}/review", response_model=ReviewPublic)
@@ -368,3 +372,17 @@ def review_collector_for_order(order_id: uuid.UUID, review: ReviewCreate, curren
     session.commit()
     session.refresh(db_review)
     return db_review
+
+@router.get("/{order_id}/review", response_model=ReviewPublic)
+def get_order_review(order_id: uuid.UUID, session:SessionDep, current_user:CurrentUser):
+    """
+    Get review for a specific order.
+    """
+    order = crud.get_order_by_id(session=session, order_id=order_id)
+    if order.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only view reviews for your own orders")
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if not order.review:
+        raise HTTPException(status_code=404, detail="No review for this order")
+    return order.review
