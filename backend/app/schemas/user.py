@@ -1,3 +1,4 @@
+
 from datetime import datetime, date
 from app.models import UserRole
 from sqlmodel import SQLModel, Field 
@@ -49,4 +50,7 @@ class UserPublic(UserBase):
 class UsersPublic(SQLModel):
     data: list[UserPublic]
     count: int
+
+class CollectorPublic(UserPublic):
+    average_rating: float | None = None
 

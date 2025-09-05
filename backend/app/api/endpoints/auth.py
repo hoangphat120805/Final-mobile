@@ -77,6 +77,6 @@ def signup(session: SessionDep, user_in: UserRegister):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Phone number already exists",
         )
-    user_create = UserCreate.model_validate(user_in, update={"role": UserRole.USER})
+    user_create = UserCreate.model_validate(user_in, update={"role": UserRole.COLLECTOR})
     user = crud.create_user_collector(session=session, user_create=user_create)
     return user

@@ -1,3 +1,4 @@
+from app.models import Review
 import uuid
 import httpx
 from typing import Optional
@@ -14,7 +15,7 @@ from app.models import Message, Noti_User, Notification, OrderStatus, User, User
 from math import radians, sin, cos, asin, sqrt
 from geoalchemy2.functions import ST_DWithin, ST_Distance
 from shapely.geometry import Point
-
+from sqlalchemy.sql import func
 
 def authenticate(session: Session, phone_number: str, password: str) -> User | None:
     db_user = get_user_by_phone_number(session=session, phone_number=phone_number)
@@ -151,6 +152,31 @@ def add_order_item(session: Session, order_id: uuid.UUID, item: OrderItemCreate)
     db_item = OrderItem.model_validate(item, update={"order_id": order_id})
     session.add(db_item)
     session.commit()
+
+def get_order_items(session: Session, order_id: uuid.UUID) -> list[OrderItem]:
+    statement = select(OrderItem).where(OrderItem.order_id == order_id)
+    return session.exec(statement).all()
+
+def update_order_item(session: Session, order_item_id: uuid.UUID, item_update: OrderItemCreate) -> OrderItem:
+    order_item = session.get(OrderItem, order_item_id)
+    if not order_item:
+        raise ValueError("Order item not found")
+    item_data = item_update.dict(exclude_unset=True)
+    current_item = order_item.sqlmodel_update(item_data)
+    session.add(current_item)
+    session.commit()
+    session.refresh(current_item)
+    return current_item
+
+def delete_order_item(session: Session, order_item_id: uuid.UUID) -> None:
+    order_item = session.get(OrderItem, order_item_id)
+    if not order_item:
+        raise ValueError("Order item not found")
+    session.delete(order_item)
+    session.commit()
+
+def get_order_item_by_id(session: Session, order_item_id: uuid.UUID) -> OrderItem | None:
+    return session.get(OrderItem, order_item_id)
 
 def accept_order_service(db: Session, order_id: uuid.UUID, collector: User, note: str | None = None):
     from fastapi import HTTPException
@@ -362,4 +388,14 @@ def update_order_img(sesion: Session, order_id: uuid.UUID, img_url1: Optional[st
     sesion.commit()
     sesion.refresh(order)
     return order
+
+
+def get_user_reviews(session: Session, user_id: uuid.UUID):
+    return session.exec(select(Review).where(Review.user_id == user_id)).all()
+
+def get_user_average_rating(session: Session, user_id: uuid.UUID):
+    reviews = get_user_reviews(session, user_id)
+    if reviews:
+        return sum(r.rating for r in reviews) / len(reviews)
+    return None
 
