@@ -57,3 +57,11 @@ async def create_conversation(
 ):
     conversation = crud.create_conversation(session = session, conversation_create = conversation_create, user_id = current_user.id)
     return conversation
+
+@router.get("/conversations/", response_model=list[ConversationPublic])
+async def get_conversations(
+    session: SessionDep,
+    current_user: CurrentUser,
+):
+    conversations = crud.get_user_conversations(session=session, user_id=current_user.id)
+    return conversations

@@ -403,5 +403,25 @@ def get_conversation_members(session: Session, conversation_id: uuid.UUID) -> li
     statement = select(ConversationMember).where(ConversationMember.conversation_id == conversation_id)
     return session.exec(statement).all()
 
+def get_user_conversations(session: Session, user_id: uuid.UUID) -> list[Conversation]:
+    statement = select(Conversation).join(ConversationMember).where(ConversationMember.user_id == user_id).order_by(Conversation.updated_at.desc())
+    return session.exec(statement).all()
+
+def get_messages_by_conversation(session: Session, conversation_id: uuid.UUID) -> list[Message]:
+    statement = select(Message).where(Message.conversation_id == conversation_id).order_by(Message.created_at.asc())
+    return session.exec(statement).all()
+
+def mark_messages_as_read(session: Session, conversation_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    statement = select(Message).where(
+        Message.conversation_id == conversation_id,
+        Message.sender_id != user_id,
+        Message.is_read == False
+    )
+    messages = session.exec(statement).all()
+    for message in messages:
+        message.is_read = True
+        session.add(message)
+    session.commit()
+
 # ============================== End Chat CRUD ====================================================
 
