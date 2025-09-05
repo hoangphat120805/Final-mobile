@@ -26,6 +26,9 @@ import com.example.vaicheuserapp.data.model.OrderPublic
 import com.example.vaicheuserapp.data.model.ResetPasswordRequest // <-- New import
 import com.example.vaicheuserapp.data.model.TransactionReadResponse
 import com.example.vaicheuserapp.data.model.UserRegisterRequest // <-- NEW: For signup request
+import com.example.vaicheuserapp.data.model.CollectorPublic // <-- New import
+import com.example.vaicheuserapp.data.model.ReviewCreate // <-- New import
+import com.example.vaicheuserapp.data.model.ReviewPublic // <-- New import
 
 interface ApiService {
 
@@ -76,4 +79,13 @@ interface ApiService {
 
     @GET("/api/transactions/order/{order_id}")
     suspend fun getTransactionsByOrderId(@Path("order_id") orderId: String): Response<List<TransactionReadResponse>>
+
+    @GET("/api/orders/{order_id}/collector") // <-- NEW: Get collector info
+    suspend fun getOrderCollector(@Path("order_id") orderId: String): Response<CollectorPublic>
+
+    @GET("/api/orders/{order_id}/review") // <-- NEW: Get existing review
+    suspend fun getOrderReview(@Path("order_id") orderId: String): Response<ReviewPublic>
+
+    @POST("/api/orders/{order_id}/review") // <-- NEW: Submit review
+    suspend fun reviewCollectorForOrder(@Path("order_id") orderId: String, @Body review: ReviewCreate): Response<ReviewPublic>
 }

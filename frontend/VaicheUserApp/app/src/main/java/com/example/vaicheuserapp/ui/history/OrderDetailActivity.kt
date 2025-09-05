@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -19,12 +20,15 @@ import coil.load
 import coil.transform.CircleCropTransformation
 import com.example.vaicheuserapp.CategoryCache
 import com.example.vaicheuserapp.R
+import com.example.vaicheuserapp.data.model.CollectorPublic // <-- NEW IMPORT
 import com.example.vaicheuserapp.data.model.OrderPublic
 import com.example.vaicheuserapp.data.model.OrderStatus
+import com.example.vaicheuserapp.data.model.ReviewCreate // <-- NEW IMPORT
+import com.example.vaicheuserapp.data.model.ReviewPublic // <-- NEW IMPORT
 import com.example.vaicheuserapp.data.model.TransactionMethod
 import com.example.vaicheuserapp.data.network.RetrofitClient
 import com.example.vaicheuserapp.databinding.ActivityOrderDetailBinding
-import com.example.vaicheuserapp.databinding.ItemOrderDetailItemBinding // New Binding
+import com.example.vaicheuserapp.databinding.ItemOrderDetailItemBinding
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.time.LocalDateTime
@@ -36,11 +40,11 @@ class OrderDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityOrderDetailBinding
     private var currentOrder: OrderPublic? = null
+    private var currentCollector: CollectorPublic? = null // To store collector data
+    private var existingReview: ReviewPublic? = null // To store existing review data
     private var selectedRating: Int = 0
 
-    // Define the Vietnam Time Zone ID (can be moved to a common place later)
     private val VIETNAM_ZONE_ID = ZoneId.of("Asia/Ho_Chi_Minh")
-    // Define the backend date-time formatter (assuming it's consistent)
     private val BACKEND_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,15 +55,16 @@ class OrderDetailActivity : AppCompatActivity() {
         setupToolbar()
         setupListeners()
 
-        // Retrieve the OrderPublic object from the Intent
         val order = getOrderFromIntent()
 
         order?.let {
             currentOrder = it
             displayOrderDetails(it)
+            fetchCollectorDetails(it.id) // Fetch collector info
+            fetchExistingReview(it.id) // Fetch review info
         } ?: run {
             Toast.makeText(this, "Order details not found.", Toast.LENGTH_SHORT).show()
-            finish() // Close if no data
+            finish()
         }
     }
 
@@ -73,10 +78,7 @@ class OrderDetailActivity : AppCompatActivity() {
     }
 
     private fun setupToolbar() {
-        binding.ivBackButton.setOnClickListener {
-            finish() // Closes the current activity and goes back to HistoryFragment
-        }
-        // Title will be dynamically set by displayOrderDetails
+        binding.ivBackButton.setOnClickListener { finish() }
     }
 
     private fun setupListeners() {
@@ -108,27 +110,15 @@ class OrderDetailActivity : AppCompatActivity() {
     @SuppressLint("SetTextI18n")
     private fun displayOrderDetails(order: OrderPublic) {
         // --- Toolbar Title ---
-        binding.tvToolbarTitle.text = formatDateTimeShort(order.createdAt) // Short date for toolbar
-
-        // --- Collector Info (TEMPORARY) ---
-        // TODO: Replace with real API call to get collector details (UserPublic)
-        binding.ivCollectorAvatar.load(R.drawable.default_avatar) { // Generic avatar
-            transformations(CircleCropTransformation())
-            placeholder(R.drawable.default_avatar)
-            error(R.drawable.bg_image_error)
-        }
-        binding.tvCollectorName.text = "BKSky" // Placeholder name
-        binding.tvCollectorVehicle.text = "SH 150 83F1-2102" // Placeholder vehicle
-        binding.tvCollectorRating.text = "4.96" // Placeholder rating
+        binding.tvToolbarTitle.text = formatDateTimeShort(order.createdAt)
 
         // --- Order Items Detail ---
-        binding.llOrderItemsContainer.removeAllViews() // Clear any old views
+        binding.llOrderItemsContainer.removeAllViews()
         var totalAmountCalculated = 0.0
         order.items.forEach { orderItem ->
             val itemBinding = ItemOrderDetailItemBinding.inflate(layoutInflater, binding.llOrderItemsContainer, false)
             val category = CategoryCache.getCategoryById(orderItem.categoryId)
 
-            // Get price per unit from cache
             val pricePerUnit = category?.price ?: 0.0
             val itemName = category?.name ?: "Unknown Item"
             val unit = category?.unit ?: "unit"
@@ -145,41 +135,172 @@ class OrderDetailActivity : AppCompatActivity() {
         // --- Total Amount ---
         binding.tvOrderTotalAmount.text = NumberFormat.getCurrencyInstance(Locale("vi", "VN")).format(totalAmountCalculated)
 
-        // --- Payment Method ---
-        // TODO: Get real transaction details, including payment method, from /api/transactions/order/{order_id}
-        // For now, let's hardcode a common method or try to guess from order status
-        // A better approach would be to make an API call to get the transaction.
-        // For now, simulating based on data we would get from TransactionReadResponse
-        val paymentMethod = TransactionMethod.WALLET // Simulate Wallet
-        binding.tvPaymentMethod.text = paymentMethod.name.capitalize(Locale.ROOT) // "Momo", "Cash"
-        val paymentIconRes = when (paymentMethod) {
-            TransactionMethod.WALLET -> R.drawable.ic_wallet // You'll need this icon
-            TransactionMethod.CASH -> R.drawable.ic_cash // You'll need this icon
+        // --- Payment Method (Placeholder for now, will fetch from transaction API) ---
+        // TODO: This should come from TransactionReadResponse, for now using a default or simplified logic
+        // We need the transaction for this.
+        fetchTransactionDetails(order.id)
+
+
+        // --- Rating Section Visibility (Managed by fetchExistingReview later) ---
+        binding.llRatingSection.visibility = View.GONE // Initially hidden
+        binding.llAlreadyRatedSection.visibility = View.GONE // Initially hidden
+    }
+
+    private fun fetchCollectorDetails(orderId: String) {
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.instance.getOrderCollector(orderId)
+                if (response.isSuccessful && response.body() != null) {
+                    currentCollector = response.body()
+                    updateCollectorUI(currentCollector!!)
+                } else {
+                    Log.e("OrderDetail", "Failed to fetch collector details: ${response.code()} - ${response.errorBody()?.string()}")
+                    Toast.makeText(this@OrderDetailActivity, "Failed to load collector info.", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e("OrderDetail", "Error fetching collector details: ${e.message}", e)
+                Toast.makeText(this@OrderDetailActivity, "Error loading collector info.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun updateCollectorUI(collector: CollectorPublic) {
+        binding.ivCollectorAvatar.load(collector.avtUrl, RetrofitClient.imageLoader) {
+            crossfade(true)
+            transformations(CircleCropTransformation())
+            placeholder(R.drawable.default_avatar)
+            error(R.drawable.bg_image_error)
+        }
+        binding.tvCollectorName.text = "${collector.fullName}"
+        // REMOVED: Vehicle display
+        binding.tvCollectorRating.text = collector.averageRating?.let { String.format(Locale.ROOT, "%.2f", it) } ?: "N/A"
+        binding.tvRatingHeader.text = "Rate your experience with ${collector.fullName}"
+    }
+
+    private fun fetchTransactionDetails(orderId: String) {
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.instance.getTransactionsByOrderId(orderId)
+                if (response.isSuccessful && response.body() != null && response.body()!!.isNotEmpty()) {
+                    val transaction = response.body()!!.first() // Assuming one transaction per order
+                    updatePaymentUI(transaction.method)
+                } else {
+                    Log.e("OrderDetail", "Failed to fetch transaction details: ${response.code()} - ${response.errorBody()?.string()}")
+                    Toast.makeText(this@OrderDetailActivity, "Failed to load payment info.", Toast.LENGTH_SHORT).show()
+                    updatePaymentUI(TransactionMethod.CASH) // Fallback
+                }
+            } catch (e: Exception) {
+                Log.e("OrderDetail", "Error fetching transaction details: ${e.message}", e)
+                Toast.makeText(this@OrderDetailActivity, "Error loading payment info.", Toast.LENGTH_SHORT).show()
+                updatePaymentUI(TransactionMethod.CASH) // Fallback
+            }
+        }
+    }
+
+    private fun updatePaymentUI(method: TransactionMethod) {
+        binding.tvPaymentMethod.text = method.name.capitalize(Locale.ROOT)
+        val paymentIconRes = when (method) {
+            TransactionMethod.WALLET -> R.drawable.ic_wallet
+            TransactionMethod.CASH -> R.drawable.ic_cash
         }
         binding.ivPaymentIcon.setImageResource(paymentIconRes)
+    }
 
+    private fun fetchExistingReview(orderId: String) {
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.instance.getOrderReview(orderId)
+                if (response.isSuccessful && response.body() != null) {
+                    existingReview = response.body()
+                    displayExistingReview(existingReview!!)
+                } else if (response.code() == 404) { // 404 Not Found usually means no review yet
+                    Log.d("OrderDetail", "No existing review found for order $orderId.")
+                    showRatingSection() // Show the rating input if no existing review
+                } else {
+                    Log.e("OrderDetail", "Failed to fetch existing review: ${response.code()} - ${response.errorBody()?.string()}")
+                    Toast.makeText(this@OrderDetailActivity, "Failed to load review status.", Toast.LENGTH_SHORT).show()
+                    showRatingSection() // Default to showing rating section on error
+                }
+            } catch (e: Exception) {
+                Log.e("OrderDetail", "Error fetching existing review: ${e.message}", e)
+                Toast.makeText(this@OrderDetailActivity, "Error loading review status.", Toast.LENGTH_SHORT).show()
+                showRatingSection() // Default to showing rating section on error
+            }
+        }
+    }
 
-        // --- Rating Section Visibility (Conditional) ---
-        // Only show rating if order is completed and not yet rated (need API for "not yet rated")
-        if (order.status == OrderStatus.COMPLETED) { // && !order.isRated (need this field from API)
+    private fun showRatingSection() {
+        // Only show rating input if order is completed and no existing review
+        if (currentOrder?.status == OrderStatus.COMPLETED && existingReview == null) {
             binding.llRatingSection.visibility = View.VISIBLE
-            // TODO: If order is already rated, pre-fill stars and disable send button
+            binding.llAlreadyRatedSection.visibility = View.GONE
         } else {
             binding.llRatingSection.visibility = View.GONE
         }
     }
+
+    @SuppressLint("SetTextI18n")
+    private fun displayExistingReview(review: ReviewPublic) {
+        binding.llAlreadyRatedSection.visibility = View.VISIBLE
+        binding.llRatingSection.visibility = View.GONE
+
+        binding.tvRatedComment.text = review.comment ?: "No comment provided."
+
+        // Dynamically add stars for existing rating
+        binding.llRatedStarsDisplay.removeAllViews()
+        for (i in 1..5) {
+            val starImageView = ImageView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    resources.getDimensionPixelSize(R.dimen.rating_star_size), // Define in dimens.xml
+                    resources.getDimensionPixelSize(R.dimen.rating_star_size)
+                ).apply {
+                    marginStart = resources.getDimensionPixelSize(R.dimen.rating_star_spacing) // Define in dimens.xml
+                }
+                setImageResource(if (i <= review.rating) R.drawable.ic_star else R.drawable.ic_star_outline)
+                contentDescription = "$i stars"
+            }
+            binding.llRatedStarsDisplay.addView(starImageView)
+        }
+        // Also update the header text
+        binding.tvRatingHeader.text = "Your rating for ${currentCollector?.fullName ?: "collector"}"
+    }
+
 
     private fun sendRating() {
         if (selectedRating == 0) {
             Toast.makeText(this, "Please select a star rating.", Toast.LENGTH_SHORT).show()
             return
         }
-        // TODO: Implement API call to send rating (e.g., PATCH /api/orders/{order_id}/rate)
-        Toast.makeText(this, "Rating $selectedRating stars sent! (Simulated)", Toast.LENGTH_SHORT).show()
-        binding.btnSendRating.visibility = View.GONE // Hide the button after sending
-        // Optionally update UI to show "rated" state
-        binding.llRatingSection.visibility = View.GONE // Hide rating section
+        val comment = binding.etRatingComment.text.toString().trim()
+        val orderId = currentOrder?.id
 
+        if (orderId == null) {
+            Toast.makeText(this, "Order ID missing for rating.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val reviewCreate = ReviewCreate(rating = selectedRating, comment = comment.ifEmpty { null })
+
+        lifecycleScope.launch {
+            try {
+                binding.btnSendRating.isEnabled = false // Disable button during API call
+                val response = RetrofitClient.instance.reviewCollectorForOrder(orderId, reviewCreate)
+                if (response.isSuccessful && response.body() != null) {
+                    Toast.makeText(this@OrderDetailActivity, "Rating sent successfully!", Toast.LENGTH_SHORT).show()
+                    existingReview = response.body() // Update with the newly created review
+                    displayExistingReview(existingReview!!) // Show the "Already Rated" section
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    Toast.makeText(this@OrderDetailActivity, "Failed to send rating: ${response.code()} - ${errorBody ?: "Unknown error"}", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Log.e("OrderDetail", "Error sending rating: ${e.message}", e)
+                Toast.makeText(this@OrderDetailActivity, "Error sending rating: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                binding.btnSendRating.isEnabled = true
+            }
+        }
     }
 
 
