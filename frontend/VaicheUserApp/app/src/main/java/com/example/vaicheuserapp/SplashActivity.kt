@@ -5,15 +5,19 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.example.vaicheuserapp.LoginActivity
 import com.example.vaicheuserapp.MainActivity
 import com.example.vaicheuserapp.R
+import com.example.vaicheuserapp.data.network.RetrofitClient
+import kotlinx.coroutines.launch
 
 @SuppressLint("CustomSplashScreen")
 class SplashActivity : AppCompatActivity() {
 
-    private val SPLASH_DELAY: Long = 2500 // 2.5 seconds
+    private val SPLASH_DELAY: Long = 2000 // 2.0 seconds
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,19 +32,24 @@ class SplashActivity : AppCompatActivity() {
     private fun checkUserStatusAndNavigate() {
         // This is a placeholder for your real login check logic.
         // For now, we'll assume the user is not logged in.
-        val isUserLoggedIn = false // TODO: Replace with actual logic later
-
-        if (isUserLoggedIn) {
-            // If user is logged in, go to the main dashboard
-            val intent = Intent(this, MainActivity::class.java)
-            startActivity(intent)
-        } else {
-            // If user is not logged in, go to the Login screen
-            val intent = Intent(this, LoginActivity::class.java)
-            startActivity(intent)
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.instance.getUserMe()
+                if (response.isSuccessful && response.body() != null) {
+                    val intent = Intent(this@SplashActivity, MainActivity::class.java)
+                    startActivity(intent)
+                } else {
+                    val intent = Intent(this@SplashActivity, LoginActivity::class.java)
+                    startActivity(intent)
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@SplashActivity, "An error occurred: ${e.message}", Toast.LENGTH_LONG).show()
+                val intent = Intent(this@SplashActivity, LoginActivity::class.java)
+                startActivity(intent)
+            } finally {
+                // Finish this activity so the user can't go back to it
+                finish()
+            }
         }
-
-        // Finish this activity so the user can't go back to it
-        finish()
     }
 }
