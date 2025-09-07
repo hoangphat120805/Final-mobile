@@ -77,6 +77,17 @@ def signup(session: SessionDep, user_in: UserRegister):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Phone number already exists",
         )
+    existing_user = crud.get_user_by_email(session=session, email=user_in.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already exists",
+        )
+    if verify_token(user_in.email, user_in.register_token, purpose="register") is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired registration token",
+        )
     user_create = UserCreate.model_validate(user_in, update={"role": UserRole.COLLECTOR})
     user = crud.create_user_collector(session=session, user_create=user_create)
     return user

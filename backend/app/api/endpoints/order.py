@@ -22,6 +22,7 @@ from app.schemas.transaction import OrderCompletionRequest, TransactionReadRespo
 import uuid
 from typing import List, Tuple
 import requests
+from geoalchemy2.shape import to_shape
 
 import asyncio
 
@@ -132,8 +133,11 @@ async def list_nearby_orders(
     # 2. CHUẨN BỊ DỮ LIỆU VÀ GỌI MAPBOX
     orders_only = [pair[0] for pair in candidate_pairs] # Chỉ lấy list các object Order
     origin_coords = (lng, lat)
-    destination_coords = [(order.location.x, order.location.y) for order in orders_only if order.location]
-
+    destination_coords = []
+    for order in orders_only:
+        if order.location:
+            point = to_shape(order.location)   
+            destination_coords.append((point.x, point.y))
     travel_info_list = await services.get_travel_info_from_mapbox(
         origin=origin_coords, destinations=destination_coords
     )

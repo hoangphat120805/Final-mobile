@@ -1,6 +1,7 @@
 
 from datetime import datetime, date
 from app.models import UserRole
+from app.core.config import settings
 from sqlmodel import SQLModel, Field 
 from pydantic import EmailStr
 import uuid
@@ -11,7 +12,7 @@ class UserBase(SQLModel):
     full_name: str
     gender: str | None = Field(default=None)
     birth_date: str | None = Field(default=None)
-    avt_url: str | None = Field(default=None)
+    avt_url: str  = Field(default=settings.DEFAULT_AVATAR_URL)
 
 class UserCreate(UserBase):
     role: UserRole
@@ -33,6 +34,7 @@ class UserUpdate(UserBase):
     phone_number: str | None = Field(default=None)
     full_name: str | None = Field(default=None)
     role: UserRole | None = Field(default=None)
+    avt_url: str | None = Field(default=None)
 
 class UserUpdateMe(UserBase):
     email: EmailStr | None = Field(default=None)
