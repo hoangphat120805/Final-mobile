@@ -1,18 +1,20 @@
 package com.example.vaicheuserapp.ui.sell
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController // <-- New import
+import androidx.navigation.fragment.findNavController
 import com.example.vaicheuserapp.R
 import com.example.vaicheuserapp.databinding.FragmentSetPlanBinding
+import com.example.vaicheuserapp.ui.sell.LocationPickerDialog
 
-class SetPlanFragment : Fragment() {
+// Implement the listener interface
+class SetPlanFragment : Fragment(), LocationPickerDialog.OnLocationSelectedListener {
 
     private var _binding: FragmentSetPlanBinding? = null
     private val binding get() = _binding!!
@@ -33,13 +35,6 @@ class SetPlanFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        // Set up insets for the custom toolbar
-        // The root layout of the fragment handles its own insets relative to its parent (NavHostFragment)
-        // No need for complex ViewCompat.setOnApplyWindowInsetsListener here if MainActivity already sets WindowCompat.setDecorFitsSystemWindows(window, false)
-        // and handles padding for the NavHostFragment.
-        // For a simple toolbar like this, just ensuring it's constrained from the top is usually enough.
-
         setupToolbar()
         setupListeners()
         updateUI() // Initial UI update
@@ -54,13 +49,13 @@ class SetPlanFragment : Fragment() {
 
     private fun setupListeners() {
         binding.btnSelectLocation.setOnClickListener {
-            showLocationSelectionDialog()
+            showLocationSelectionDialog() // Launches the Mapbox dialog
         }
 
-        binding.cardPaymentSelection.setOnClickListener { // Clicking the whole card can also open it
+        binding.cardPaymentSelection.setOnClickListener {
             showPaymentMethodSelectionDialog()
         }
-        binding.btnViewAllPayments.setOnClickListener { // Or clicking the "View all" button
+        binding.btnViewAllPayments.setOnClickListener {
             showPaymentMethodSelectionDialog()
         }
 
@@ -75,34 +70,20 @@ class SetPlanFragment : Fragment() {
     }
 
     private fun showLocationSelectionDialog() {
-        // TODO: This will become complex with Google Maps and Places API
-        // For now, let's use a simple AlertDialog as a placeholder
-        AlertDialog.Builder(requireContext())
-            .setTitle("Select Location")
-            .setMessage("Location selection feature coming soon!\n\n(Simulating selection for now)")
-            .setPositiveButton("Set Sample Location") { dialog, _ ->
-                selectedAddress = "123 Sample St, Sample City, Sample Province"
-                selectedLatitude = 10.762622
-                selectedLongitude = 106.660172
-                updateUI()
-                dialog.dismiss()
-            }
-            .setNegativeButton("Cancel") { dialog, _ ->
-                dialog.cancel()
-            }
-            .show()
+        val dlg = LocationPickerDialog()
+        dlg.show(childFragmentManager, "locPicker")
     }
 
     private fun showPaymentMethodSelectionDialog() {
-        val paymentMethods = arrayOf("Cash", "Wallet")
-        val checkedItem = paymentMethods.indexOf(selectedPaymentMethod) // Pre-select current method
+        val paymentMethods = arrayOf("Cash", "MoMo", "Bank Transfer")
+        val checkedItem = paymentMethods.indexOf(selectedPaymentMethod)
 
         AlertDialog.Builder(requireContext())
             .setTitle("Select Payment Method")
             .setSingleChoiceItems(paymentMethods, checkedItem) { dialog, which ->
                 selectedPaymentMethod = paymentMethods[which]
                 updateUI()
-                dialog.dismiss() // Dismiss after selection
+                dialog.dismiss()
             }
             .setNegativeButton("Cancel") { dialog, _ ->
                 dialog.cancel()
@@ -126,5 +107,17 @@ class SetPlanFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    override fun onLocationSelected(
+        address: String,
+        latitude: Double,
+        longitude: Double
+    ) {
+        this.selectedAddress = address
+        this.selectedLatitude = latitude
+        this.selectedLongitude = longitude
+        updateUI() // Refresh the UI on SetPlanFragment
+        Log.d("SetPlanFragment", "Location received: $address ($latitude, $longitude)")
     }
 }

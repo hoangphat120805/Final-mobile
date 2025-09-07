@@ -23,6 +23,13 @@
         <item name="android:padding">4dp</item>
     </style>
 
+    <style name="Theme.VaicheUserApp_FullScreenDialog" parent="Theme.Material3.DayNight.Dialog">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+
     <style name="TextInputStyle">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">56dp</item>
