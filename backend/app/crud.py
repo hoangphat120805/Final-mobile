@@ -314,6 +314,19 @@ def create_notification(session: Session, notification_create: NotificationCreat
     session.commit()
     return db_notification
 
+def create_notification_to_all(session: Session, notification_create: NotificationCreate) -> Notification:
+    db_notification = Notification.model_validate(notification_create)
+    session.add(db_notification)
+    session.commit()
+    session.refresh(db_notification)
+    stmt = select(User.id)
+    user_ids = [user_id for (user_id,) in session.exec(stmt).all()]
+    for user_id in user_ids:
+        noti_user = Noti_User(notification_id=db_notification.id, user_id=user_id)
+        session.add(noti_user)
+    session.commit()
+    return db_notification
+
 def get_all_notifications(session: Session) -> list[Notification]:
     stmt = select(Notification)
     return session.exec(stmt).all()
