@@ -8,10 +8,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.vaicheuserapp.R
+import com.example.vaicheuserapp.data.model.OrderCreate
+import com.example.vaicheuserapp.data.network.RetrofitClient
 import com.example.vaicheuserapp.databinding.FragmentSetPlanBinding
 import com.example.vaicheuserapp.ui.sell.LocationPickerDialog
+import kotlinx.coroutines.launch
 
 // Implement the listener interface
 class SetPlanFragment : Fragment(), LocationPickerDialog.OnLocationSelectedListener {
@@ -51,10 +55,6 @@ class SetPlanFragment : Fragment(), LocationPickerDialog.OnLocationSelectedListe
         binding.btnSelectLocation.setOnClickListener {
             showLocationSelectionDialog() // Launches the Mapbox dialog
         }
-
-        binding.cardPaymentSelection.setOnClickListener {
-            showPaymentMethodSelectionDialog()
-        }
         binding.btnViewAllPayments.setOnClickListener {
             showPaymentMethodSelectionDialog()
         }
@@ -75,7 +75,7 @@ class SetPlanFragment : Fragment(), LocationPickerDialog.OnLocationSelectedListe
     }
 
     private fun showPaymentMethodSelectionDialog() {
-        val paymentMethods = arrayOf("Cash", "MoMo", "Bank Transfer")
+        val paymentMethods = arrayOf("Cash", "Wallet")
         val checkedItem = paymentMethods.indexOf(selectedPaymentMethod)
 
         AlertDialog.Builder(requireContext())
@@ -92,16 +92,41 @@ class SetPlanFragment : Fragment(), LocationPickerDialog.OnLocationSelectedListe
     }
 
     private fun attemptSchedulePickup() {
-        if (selectedAddress == null || selectedLatitude == null || selectedLongitude == null) {
+        if (selectedAddress == null) { // Only address is required by API
             Toast.makeText(requireContext(), "Please select a pickup location.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        Log.d("SetPlanFragment", "Scheduling pickup for: $selectedAddress, Payment: $selectedPaymentMethod")
-        Toast.makeText(requireContext(), "Pickup scheduled (simulated)", Toast.LENGTH_SHORT).show()
-        // TODO: In a real app, this would make an API call to create an order
-        // For now, let's just navigate to the next screen or back to home
-        findNavController().navigate(R.id.nav_home_fragment) // Example: Go back to home
+        // Disable button to prevent multiple clicks
+        binding.btnSchedulePickup.isEnabled = false
+
+        lifecycleScope.launch {
+            try {
+                // Construct the OrderCreate request
+                val orderCreateRequest = OrderCreate(
+                    pickupAddress = selectedAddress!!
+                    // latitude and longitude are NOT sent in OrderCreate as per current API spec
+                )
+
+                val response = RetrofitClient.instance.createOrder(orderCreateRequest)
+                if (response.isSuccessful && response.body() != null) {
+                    val createdOrder = response.body()
+                    Log.d("SetPlanFragment", "Order created: ${createdOrder?.id}")
+                    Toast.makeText(requireContext(), "Order scheduled successfully! Order ID: ${createdOrder?.id}", Toast.LENGTH_LONG).show()
+                    // Navigate back to home or a confirmation screen
+                    findNavController().navigate(R.id.nav_home_fragment)
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    Log.e("SetPlanFragment", "Failed to create order: ${response.code()} - ${errorBody}")
+                    Toast.makeText(requireContext(), "Failed to schedule order: ${errorBody ?: "Unknown error"}", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Log.e("SetPlanFragment", "Error scheduling order: ${e.message}", e)
+                Toast.makeText(requireContext(), "Error scheduling order: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                binding.btnSchedulePickup.isEnabled = true // Re-enable button
+            }
+        }
     }
 
     override fun onDestroyView() {

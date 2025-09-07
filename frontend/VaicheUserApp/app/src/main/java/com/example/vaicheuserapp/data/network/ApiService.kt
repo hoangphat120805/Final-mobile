@@ -27,6 +27,7 @@ import com.example.vaicheuserapp.data.model.ResetPasswordRequest // <-- New impo
 import com.example.vaicheuserapp.data.model.TransactionReadResponse
 import com.example.vaicheuserapp.data.model.UserRegisterRequest // <-- NEW: For signup request
 import com.example.vaicheuserapp.data.model.CollectorPublic // <-- New import
+import com.example.vaicheuserapp.data.model.OrderCreate
 import com.example.vaicheuserapp.data.model.ReviewCreate // <-- New import
 import com.example.vaicheuserapp.data.model.ReviewPublic // <-- New import
 
@@ -88,4 +89,7 @@ interface ApiService {
 
     @POST("/api/orders/{order_id}/review") // <-- NEW: Submit review
     suspend fun reviewCollectorForOrder(@Path("order_id") orderId: String, @Body review: ReviewCreate): Response<ReviewPublic>
+
+    @POST("/api/orders/") // <-- NEW: Create Order
+    suspend fun createOrder(@Body orderCreate: OrderCreate): Response<OrderPublic>
 }
