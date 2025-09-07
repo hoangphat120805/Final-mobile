@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialog_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white">
+
+    <!-- Map fills the screen -->
+    <com.mapbox.maps.MapView
+        android:id="@+id/map_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Top bar container (search + suggestions overlay) -->
+    <LinearLayout
+        android:id="@+id/top_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:layout_marginTop="16dp">
+
+        <EditText
+            android:id="@+id/search_bar"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@color/white"
+            android:hint="Search location"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:imeOptions="actionSearch"
+            android:inputType="textCapWords|textAutoCorrect|text" />
+
+        <!-- Search results view overlays map but constrained to top area -->
+        <com.mapbox.search.ui.view.SearchResultsView
+            android:id="@+id/search_results_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"/>
+    </LinearLayout>
+
+    <!-- Confirm button anchored to the bottom -->
+    <Button
+        android:id="@+id/btnConfirm"
+        android:layout_width="180dp"
+        android:layout_height="48dp"
+        android:text="Confirm"
+        android:layout_gravity="center_horizontal|bottom"
+        android:layout_marginBottom="24dp"
+        android:backgroundTint="@color/teal_primary"
+        android:textColor="@android:color/white"
+        android:elevation="6dp"/>
+
+</FrameLayout>

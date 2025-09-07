@@ -6,6 +6,16 @@ plugins {
 }
 
 android {
+    packagingOptions {
+        resources {
+            excludes += setOf(
+                // To compile the current version of UX Framework you need to add only these two lines:
+                "META-INF/DEPENDENCIES",
+                "META-INF/INDEX.LIST",
+            )
+        }
+    }
+
     namespace = "com.example.vaicheuserapp"
     compileSdk = 36
 
@@ -43,6 +53,11 @@ android {
     }
 }
 
+// build.gradle.kts
+configurations.all {
+    exclude(group = "com.mapbox.common", module = "common")
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     implementation(libs.androidx.lifecycle.common.java8)
@@ -72,4 +87,14 @@ dependencies {
 
     implementation(libs.androidx.navigation.fragment.ktx.v293)
     implementation(libs.androidx.navigation.ui.ktx.v293)
+
+// Mapbox Maps SDK (use latest version; -ndk27 variant if needed)
+    implementation("com.mapbox.maps:android-ndk27:11.14.4")
+    // Mapbox Search (Place Autocomplete) SDK
+    implementation("com.mapbox.search:autofill:2.14.0")
+    implementation("com.mapbox.search:discover:2.14.0")
+    implementation("com.mapbox.search:place-autocomplete:2.14.0")
+    implementation("com.mapbox.search:offline:2.14.0")
+    implementation("com.mapbox.search:mapbox-search-android:2.14.0")
+    implementation("com.mapbox.search:mapbox-search-android-ui:2.14.0")
 }

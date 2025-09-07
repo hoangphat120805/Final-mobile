@@ -13,7 +13,6 @@ import com.example.vaicheuserapp.databinding.ActivityMainBinding // Ensure this 
 import com.example.vaicheuserapp.ui.dashboard.HomeFragment
 import com.example.vaicheuserapp.ScrapDetailActivity // Still launched as Activity
 import com.example.vaicheuserapp.ui.profile.ProfileFragment // Now a fragment
-import com.example.vaicheuserapp.ui.sell.SetPlanFragment // New fragment for sell flow
 import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
