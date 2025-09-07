@@ -2,8 +2,7 @@
 
 import uuid
 from app import crud
-from fastapi import APIRouter
-from fastapi import HTTPException, Depends, status, UploadFile
+from fastapi import HTTPException, Depends, status, UploadFile, APIRouter, Query
 from sqlmodel import Session
 
 from app.core.config import settings
@@ -20,7 +19,7 @@ from app import crud, services
 from app.api.deps import get_db, get_current_active_collector
 from app.schemas.transaction import OrderCompletionRequest, TransactionReadResponse
 import uuid
-from typing import List, Tuple
+from typing import Annotated, List, Tuple
 import requests
 from geoalchemy2.shape import to_shape
 
@@ -162,13 +161,21 @@ async def list_nearby_orders(
 
 
 @router.get("/{order_id}", response_model=OrderPublic)
-def get_order(order_id: uuid.UUID, session: SessionDep):
+def get_order(
+    order_id: uuid.UUID, 
+    session: SessionDep, 
+    current_collector: CurrentCollector,
+    include_user: bool = Query(False, description="Include owner and collector details"),
+    include_collector: bool = Query(False, description="Include collector details only")
+):
     """
     Get order details by ID.
     """
     order = crud.get_order_by_id(session=session, order_id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    if order.collector_id != None and order.collector_id != current_collector.id:
+        raise HTTPException(status_code=403, detail="You can only view your own orders or unassigned orders")
     return order
 
 

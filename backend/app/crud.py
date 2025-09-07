@@ -108,8 +108,7 @@ def update_category(session: Session, category: ScrapCategory, category_update: 
     return current_category
 
 def get_order_by_id(session: Session, order_id: uuid.UUID) -> Order:
-    statement = select(Order).where(Order.id == order_id).join(OrderItem, isouter=True)
-    return session.exec(statement).first()
+    return session.get(Order, order_id)
 
 def get_orders_by_user(session: Session, user_id: uuid.UUID) -> list[Order]:
     statement = select(Order).where(Order.owner_id == user_id)
