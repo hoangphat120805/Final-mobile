@@ -7,6 +7,7 @@ from pydantic import field_validator
 from geoalchemy2.elements import WKBElement
 from geoalchemy2.shape import to_shape
 from shapely.geometry import mapping
+from app.schemas.user import UserPublic
 
 class OrderCreate(SQLModel):
     pickup_address: str = Field(min_length=10, max_length=500)
@@ -23,6 +24,8 @@ class OrderPublic(SQLModel):
     items: list['OrderItemPublic'] = []
     created_at: datetime
     updated_at: datetime
+    owner: Optional[UserPublic] = None
+    collector: Optional[UserPublic] = None
 
     @field_validator("location", mode="before")
     def convert_location(cls, v):
