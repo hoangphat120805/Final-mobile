@@ -173,7 +173,7 @@ class OrderDetailActivity : AppCompatActivity() {
             error(R.drawable.bg_image_error)
         }
         binding.tvCollectorName.text = "${collector.fullName}"
-        // REMOVED: Vehicle display
+        binding.tvCollectorPhone.text = collector.phoneNumber
         binding.tvCollectorRating.text = collector.averageRating?.let { String.format(Locale.ROOT, "%.2f", it) } ?: "N/A"
         binding.tvRatingHeader.text = "Rate your experience with ${collector.fullName}"
     }
