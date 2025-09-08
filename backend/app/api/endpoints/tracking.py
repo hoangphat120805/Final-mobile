@@ -1,10 +1,10 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, status
 from sqlmodel import Session
-from typing import Dict, Tuple
+from typing import Dict
 import uuid, json
 
 from app.models import User, Order
-from app.api.deps import get_ws_session_and_user
+from app.api.deps import SessionDep, CurrentUserWs
 
 router = APIRouter(prefix="/ws", tags=["websocket-tracking"])
 
@@ -55,20 +55,12 @@ async def websocket_tracking_endpoint(
     websocket: WebSocket,
     order_id: str,
     client_type: str,  
-   
-    session_and_user: Tuple[Session, User | None] = Depends(get_ws_session_and_user),
+    session: SessionDep,
+    current_user: CurrentUserWs
 ):
-    db, current_user = session_and_user
-
-
-    if not current_user or not db:
-        
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
-
     try:
         # --- AUTHORIZATION ---
-        order = db.get(Order, uuid.UUID(order_id))
+        order = session.get(Order, uuid.UUID(order_id))
         if not order:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Order not found")
             return
@@ -91,7 +83,7 @@ async def websocket_tracking_endpoint(
                     lat, lng = location_data.get("lat"), location_data.get("lng")
                     if lat is not None and lng is not None and order.collector_id:
                         
-                        update_collector_location_in_db(db, order.collector_id, lat, lng)
+                        update_collector_location_in_db(session, order.collector_id, lat, lng)
                         await manager.broadcast_location_to_owner(order_id, lat, lng)
                 except (json.JSONDecodeError, AttributeError):
                     pass
@@ -102,6 +94,5 @@ async def websocket_tracking_endpoint(
         manager.disconnect(order_id, client_type)
     
     finally:
-        # Đảm bảo session luôn được đóng khi kết nối kết thúc
-        if db:
-            db.close()
+        if session:
+            session.close()

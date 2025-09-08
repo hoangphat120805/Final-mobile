@@ -5,7 +5,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from app import crud
 from app.schemas.chat import ConversationCreate, ConversationWithLastMessage, MessageCreate, ConversationPublic, MessagePublic
 from app.schemas.user import UserPublic
-from app.api.deps import SessionDep, CurrentUser, get_current_user_ws
+from app.api.deps import SessionDep, CurrentUser, CurrentUserWs
 from typing import Dict, Annotated
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -15,7 +15,7 @@ active_connections: Dict[int, WebSocket] = {}
 @router.websocket("/ws/chat")
 async def chat_websocket(
     websocket: WebSocket, 
-    current_user: Annotated[UserPublic, Depends(get_current_user_ws)], 
+    current_user: CurrentUserWs,
     session: SessionDep
     ):
     await websocket.accept()
