@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.example.vaicheuserapp.LoginActivity
 import com.example.vaicheuserapp.MainActivity
@@ -20,10 +21,14 @@ class SplashActivity : AppCompatActivity() {
     private val SPLASH_DELAY: Long = 2000 // 2.0 seconds
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
+
+        setTheme(R.style.Theme_VaicheUserApp)
         super.onCreate(savedInstanceState)
+        // --- CRITICAL FIX: Keep setContentView() to display your custom layout after theme ---
         setContentView(R.layout.activity_splash)
 
-        // Use a Handler to delay the execution
+
         Handler(Looper.getMainLooper()).postDelayed({
             checkUserStatusAndNavigate()
         }, SPLASH_DELAY)
