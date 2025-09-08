@@ -202,7 +202,7 @@ def get_nearby_pending_orders_candidates(
     db: Session, 
     latitude: float, 
     longitude: float, 
-    radius_km: float = 5.0, 
+    radius_km: float = 50.0, 
     limit: int = 10
 ) -> list[tuple[Order, float]]:
     """
