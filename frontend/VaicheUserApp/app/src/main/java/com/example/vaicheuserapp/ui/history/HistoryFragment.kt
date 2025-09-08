@@ -88,7 +88,9 @@ class HistoryFragment : Fragment(), OnOrderClickListener {
             intent.putExtra("EXTRA_ORDER", order) // Pass the Parcelable OrderPublic object
             startActivity(intent)
         } else if (order.status == OrderStatus.ACCEPTED) {
-            //show map of collector
+            val intent = Intent(requireContext(), OrderTrackingActivity::class.java)
+            intent.putExtra("EXTRA_ORDER", order)
+            startActivity(intent)
         }
         else {
             Toast.makeText(requireContext(), "Order is not completed or accepted", Toast.LENGTH_SHORT).show()

@@ -97,4 +97,6 @@ dependencies {
     implementation("com.mapbox.search:offline:2.14.0")
     implementation("com.mapbox.search:mapbox-search-android:2.14.0")
     implementation("com.mapbox.search:mapbox-search-android-ui:2.14.0")
+
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 }

@@ -2,6 +2,8 @@
     <dimen name="app_bar_height">180dp</dimen>
     <dimen name="fab_margin">16dp</dimen>
     <dimen name="text_margin">16dp</dimen>
+    <dimen name="map_camera_padding">64dp</dimen>
+    <dimen name="map_route_padding">48dp</dimen>
     <dimen name="rating_star_size">36dp</dimen>      <!-- Standard size for an interactive icon -->
     <dimen name="rating_star_spacing">4dp</dimen>   <!-- Small spacing between stars -->
 </resources>
