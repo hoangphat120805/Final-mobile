@@ -40,12 +40,10 @@ def send_otp(session: SessionDep, otp_request: OTPRequest):
 def verify_otp_endpoint(otp_request: OTPVerifyRequest):
     if verify_otp(otp_request.email, otp_request.otp, purpose=otp_request.purpose):
         if otp_request.purpose == OTPPurpose.RESET:
-            token = generate_token(email=otp_request.email)
-            save_token(otp_request.email, token, 5, purpose="reset")
+            token = generate_token(email=otp_request.email, purpose="reset")
             return OTPResponse(token=token)
         else:
-            token = generate_token(email=otp_request.email)
-            save_token(otp_request.email, token, 10, purpose="register")
+            token = generate_token(email=otp_request.email, purpose="register")
             return OTPResponse(token=token)
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired OTP")
 

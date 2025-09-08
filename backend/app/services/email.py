@@ -99,10 +99,6 @@ def send_and_save_otp(email_to: str, purpose: str):
     send_otp_email(email_to, otp, purpose)
     save_otp(email_to, otp, purpose)
 
-def save_token(email: str, token: str, expire_minutes: int, purpose: str):
-    key = f"{purpose}:{email}"
-    redis_client.setex(key, expire_minutes * 60, token)
-
 def generate_token(email: str, purpose: str) -> str:
     delta = timedelta(hours=settings.EMAIL_TOKEN_EXPIRE_HOURS)
     now = datetime.now(timezone.utc)
