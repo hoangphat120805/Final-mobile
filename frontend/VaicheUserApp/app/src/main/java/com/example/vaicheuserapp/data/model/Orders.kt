@@ -32,3 +32,7 @@ enum class OrderStatus {
     @SerializedName("completed") COMPLETED,
     @SerializedName("cancelled") CANCELLED
 }
+
+data class OrderCreate(
+    @SerializedName("pickup_address") val pickupAddress: String,
+)
