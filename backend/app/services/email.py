@@ -27,15 +27,6 @@ class EmailData:
     html_content: str
     subject: str
 
-
-def render_email_template(*, template_name: str, context: dict[str, Any]) -> str:
-    template_str = (
-        Path(__file__).parent / "email-templates" / "build" / template_name
-    ).read_text()
-    html_content = Template(template_str).render(context)
-    return html_content
-
-
 def send_email(
     *,
     email_to: str,
@@ -59,75 +50,6 @@ def send_email(
         smtp_options["password"] = settings.SMTP_PASSWORD
     response = message.send(to=email_to, smtp=smtp_options)
     logger.info(f"send email result: {response}")
-
-
-def generate_test_email(email_to: str) -> EmailData:
-    project_name = settings.PROJECT_NAME
-    subject = f"{project_name} - Test email"
-    html_content = render_email_template(
-        template_name="test_email.html",
-        context={"project_name": settings.PROJECT_NAME, "email": email_to},
-    )
-    return EmailData(html_content=html_content, subject=subject)
-
-
-def generate_reset_password_email(email_to: str, email: str, token: str) -> EmailData:
-    project_name = settings.PROJECT_NAME
-    subject = f"{project_name} - Password recovery for user {email}"
-    link = f"{settings.FRONTEND_HOST}/reset-password?token={token}"
-    html_content = render_email_template(
-        template_name="reset_password.html",
-        context={
-            "project_name": settings.PROJECT_NAME,
-            "username": email,
-            "email": email_to,
-            "valid_hours": settings.EMAIL_RESET_TOKEN_EXPIRE_HOURS,
-            "link": link,
-        },
-    )
-    return EmailData(html_content=html_content, subject=subject)
-
-
-def generate_new_account_email(
-    email_to: str, username: str, password: str
-) -> EmailData:
-    project_name = settings.PROJECT_NAME
-    subject = f"{project_name} - New account for user {username}"
-    html_content = render_email_template(
-        template_name="new_account.html",
-        context={
-            "project_name": settings.PROJECT_NAME,
-            "username": username,
-            "password": password,
-            "email": email_to,
-            "link": settings.FRONTEND_HOST,
-        },
-    )
-    return EmailData(html_content=html_content, subject=subject)
-
-
-def generate_password_reset_token(email: str) -> str:
-    delta = timedelta(hours=settings.EMAIL_RESET_TOKEN_EXPIRE_HOURS)
-    now = datetime.now(timezone.utc)
-    expires = now + delta
-    exp = expires.timestamp()
-    encoded_jwt = jwt.encode(
-        {"exp": exp, "nbf": now, "sub": email},
-        settings.SECRET_KEY,
-        algorithm=security.ALGORITHM,
-    )
-    return encoded_jwt
-
-
-def verify_password_reset_token(token: str) -> str | None:
-    try:
-        decoded_token = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
-        )
-        return str(decoded_token["sub"])
-    except InvalidTokenError:
-        return None
-
 
 def generate_otp(length=6):
     return ''.join(random.choices(string.digits, k=length))
@@ -159,12 +81,10 @@ redis_client = redis.Redis(
 def hash_otp(otp: str) -> str:
     return hashlib.sha256(otp.encode()).hexdigest()
 
-
 def save_otp(email: str, otp: str, purpose: str, expire_minutes: int = 5):
     key = f"otp:{purpose}:{email}"
     hashed_otp = hash_otp(otp)
     redis_client.setex(key, expire_minutes * 60, hashed_otp)
-
 
 def verify_otp(email: str, otp: str, purpose: str) -> bool:
     key = f"otp:{purpose}:{email}"
@@ -174,26 +94,31 @@ def verify_otp(email: str, otp: str, purpose: str) -> bool:
         return True
     return False
 
-
 def send_and_save_otp(email_to: str, purpose: str):
     otp = generate_otp()
     send_otp_email(email_to, otp, purpose)
     save_otp(email_to, otp, purpose)
 
-
-def generate_reset_token(length=32):
-    return secrets.token_urlsafe(length)
-
-
-def save_token(email: str, token: str, expire_minutes: int, purpose: str):
-    key = f"{purpose}:{email}"
-    redis_client.setex(key, expire_minutes * 60, token)
+def generate_token(email: str, purpose: str) -> str:
+    delta = timedelta(hours=settings.EMAIL_TOKEN_EXPIRE_HOURS)
+    now = datetime.now(timezone.utc)
+    expires = now + delta
+    exp = expires.timestamp()
+    encoded_jwt = jwt.encode(
+        {"exp": exp, "nbf": now, "sub": email, "purpose": purpose},
+        settings.SECRET_KEY,
+        algorithm=security.ALGORITHM,
+    )
+    return encoded_jwt
 
 
 def verify_token(email: str, token: str, purpose: str) -> bool:
-    key = f"{purpose}:{email}"
-    stored_token = redis_client.get(key)
-    if stored_token and stored_token == token:
-        redis_client.delete(key)
-        return True
-    return False
+    try:
+        decoded_token = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+        )
+        if decoded_token.get("purpose") == purpose and decoded_token.get("sub") == email:
+            return True
+        return False
+    except InvalidTokenError:
+        return False
