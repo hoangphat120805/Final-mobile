@@ -166,7 +166,7 @@ class Notification(SQLModel, table=True):
     recipients: List["Noti_User"] = Relationship(back_populates="notification", cascade_delete=True)
 
 class Noti_User(SQLModel, table=True):
-    notification_id: uuid.UUID = Field(foreign_key="notification.id", primary_key=True)
+    notification_id: uuid.UUID = Field(foreign_key="notification.id", ondelete="CASCADE", primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True, ondelete="CASCADE")
     is_read: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.now)
