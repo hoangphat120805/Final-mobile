@@ -333,7 +333,7 @@ def upload_order_image(
 
     image2_url = response2.json().get("data", {}).get("url")
 
-    crud.update_order_img(session, order_id, image1_url=image1_url, image2_url=image2_url)
+    crud.update_order_img(session, order_id, image1_url, image2_url)
     return {"message": "Images uploaded successfully"}
 
 @router.get("/{order_id}/owner", response_model=UserPublic)
