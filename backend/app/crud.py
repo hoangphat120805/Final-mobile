@@ -114,6 +114,10 @@ def get_orders_by_user(session: Session, user_id: uuid.UUID) -> list[Order]:
     statement = select(Order).where(Order.owner_id == user_id)
     return session.exec(statement).all()
 
+def get_orders_by_collector(session: Session, collector_id: uuid.UUID) -> list[Order]:
+    statement = select(Order).where(Order.collector_id == collector_id)
+    return session.exec(statement).all()
+
 async def create_order(session: Session, order_create: OrderCreate, owner_id: uuid.UUID) -> Order:
     MAPBOX_TOKEN = settings.MAPBOX_ACCESS_TOKEN
 
