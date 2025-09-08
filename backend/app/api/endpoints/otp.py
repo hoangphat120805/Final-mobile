@@ -1,7 +1,7 @@
 from app import crud
 from fastapi import APIRouter, HTTPException, status, Body
 from pydantic import EmailStr, BaseModel
-from app.services.email import send_and_save_otp, verify_otp, generate_token, save_token
+from app.services.email import send_and_save_otp, verify_otp, generate_token
 from app.models import User
 from app.api.deps import SessionDep
 from enum import Enum
