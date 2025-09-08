@@ -162,7 +162,7 @@ async def list_nearby_orders(
     return response_objects
 
 
-@router.get("/{order_id}", response_model=OrderPublic)
+@router.get("/{order_id:uuid}", response_model=OrderPublic)
 def get_order(
     order_id: uuid.UUID, 
     session: SessionDep, 
