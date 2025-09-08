@@ -2,15 +2,15 @@ import uuid
 import requests
 from typing import Any
 from pydantic import EmailStr
-from app.utils import verify_token
 from sqlmodel import select, func
 from fastapi import APIRouter, HTTPException, status, File, UploadFile, Depends, Body
 
 from app import crud
 from app.models import User
+from app.api.deps import CurrentUser, SessionDep, get_current_admin
+from app.services.email import verify_token
 from app.core.config import settings
 from app.core.security import verify_password, get_password_hash
-from app.api.deps import CurrentUser, SessionDep, get_current_admin
 from app.schemas.user import UserUpdateMe, UpdatePassword, UserPublic, UsersPublic
 from app.schemas.auth import Message
 from app.schemas.notification import NotificationPublic, UserNotification

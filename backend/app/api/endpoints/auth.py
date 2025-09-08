@@ -1,5 +1,5 @@
 from datetime import timedelta
-from app.utils import verify_token
+from app.services.email import verify_token
 from app.models import UserRole
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm

@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str | None = None
     EMAILS_FROM_EMAIL: EmailStr | None = None
     EMAILS_FROM_NAME: EmailStr | None = None
+    EMAIL_TOKEN_EXPIRE_HOURS: int = 15
 
     IMGBB_API_KEY: str = "imgbb_api_key"
 
