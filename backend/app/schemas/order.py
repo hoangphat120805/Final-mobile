@@ -18,7 +18,7 @@ class OrderPublic(SQLModel):
     collector_id: uuid.UUID | None
     status: OrderStatus
     pickup_address: str
-    location: dict
+    location: Optional[dict] = None
     img_url1: str | None
     img_url2: str | None
     items: list['OrderItemPublic'] = []
