@@ -238,7 +238,7 @@ def complete_order_and_pay(
 
 
 @router.get("/{order_id}/route", response_model=RoutePublic)
-async def get_route_for_order(order_id: uuid.UUID, current_collector: CurrentCollector, session: SessionDep):
+async def get_route_for_order(order_id: uuid.UUID, current_user: CurrentUser, session: SessionDep):
     """
     Get route information from collector's current location to the order's pickup location.
     """
@@ -248,12 +248,12 @@ async def get_route_for_order(order_id: uuid.UUID, current_collector: CurrentCol
     if not order.location:
         raise HTTPException(status_code=400, detail="Order does not have a valid location")
     
-    if not current_collector.location:
+    if not current_user.location:
         raise HTTPException(status_code=400, detail="Collector does not have a valid location")
     
     route_info = await mapbox.get_route_from_mapbox(
-        start_lon=current_collector.location.x,
-        start_lat=current_collector.location.y,
+        start_lon=current_user.location.x,
+        start_lat=current_user.location.y,
         end_lon=order.location.x,
         end_lat=order.location.y
     )
