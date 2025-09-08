@@ -117,7 +117,7 @@ async def list_nearby_orders(
     lng: float,
     current_collector: CurrentCollector,
     session: SessionDep,
-    radius_km: float = 5.0,
+    radius_km: float = 50.0,
     limit: int = 10
 ):
     """
