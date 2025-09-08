@@ -7,99 +7,119 @@
     android:background="@drawable/bottom_sheet_background"
     tools:context=".fragment.SetPlanDialogFragment">
 
-    <!-- Nút Confirm được ghim ở dưới cùng -->
-    <Button
+    <!-- Confirm button pinned at bottom -->
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_confirm"
+        style="@style/Widget.MaterialComponents.Button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
+        android:padding="15dp"
         android:layout_margin="24dp"
-        android:backgroundTint="#48C5B8"
-        android:paddingVertical="16dp"
-        android:text="Confirm Pickup Plan"
+        android:enabled="false"
+        android:text="Start Receiving Orders"
         android:textAllCaps="false"
-        android:textColor="@android:color/white"
         android:textSize="16sp"
-        app:cornerRadius="12dp" />
+        android:textColor="@android:color/white"
+        app:cornerRadius="12dp"
+        app:backgroundTint="#48C5B8" />
 
-    <!-- Nội dung chính nằm phía trên nút Confirm -->
+    <!-- Main content -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:layout_above="@id/btn_confirm"
         android:orientation="vertical">
 
-        <!-- PHẦN GIAO DIỆN BẠN YÊU CẦU GIỮ LẠI -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="24dp">
 
+            <!-- Title -->
             <TextView
                 android:id="@+id/tv_plan_title"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Plan Your Recycling Pickup"
+                android:text="Confirm to Start Orders"
                 android:textColor="@android:color/black"
-                android:textSize="24sp"
+                android:textSize="22sp"
                 android:textStyle="bold"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/iv_truck_icon"/>
+                app:layout_constraintEnd_toStartOf="@+id/iv_truck_icon" />
 
+            <!-- Icon -->
+            <ImageView
+                android:id="@+id/iv_truck_icon"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_truck"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/tv_plan_title" />
+
+            <!-- Subtitle -->
             <TextView
                 android:id="@+id/tv_plan_subtitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Tell us where you're going to collect recyclables."
+                android:text="Orders will be assigned using current location."
                 android:textColor="@android:color/darker_gray"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/tv_plan_title"
-                app:layout_constraintEnd_toStartOf="@+id/iv_truck_icon"/>
+                app:layout_constraintEnd_toStartOf="@+id/iv_truck_icon" />
 
-            <ImageView
-                android:id="@+id/iv_truck_icon"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:src="@drawable/ic_truck"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@id/tv_plan_title"
-                android:contentDescription="Truck Icon"/>
-
-
-            <EditText
-                android:id="@+id/et_location"
+            <!-- Warning -->
+            <LinearLayout
+                android:id="@+id/warning_container"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:background="@drawable/edit_text_background"
-                android:drawableEnd="@drawable/ic_location_pin_sized"
-                android:textSize="15dp"
-
-                android:drawablePadding="12dp"
-                android:hint="Where will you collect recyclables?"
-                android:padding="16dp"
-                app:layout_constraintEnd_toEndOf="parent"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_warning_rounded"
+                android:orientation="horizontal"
+                android:padding="12dp"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tv_plan_subtitle" />
+                app:layout_constraintTop_toBottomOf="@id/tv_plan_subtitle"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginEnd="8dp"
+                    android:src="@drawable/ic_warning"
+                    />
+
+                <TextView
+                    android:id="@+id/tv_no_cancel_note"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="You cannot cancel until the assigned order is fully completed."
+                    android:textColor="#D32F2F"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- Checkbox -->
+            <CheckBox
+                android:id="@+id/cb_ack"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="I confirm to start receiving orders at my current location and understand that cancellation is not allowed until completion."
+                android:textSize="14sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/warning_container"
+                app:layout_constraintEnd_toEndOf="parent" />
+
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <!-- ĐƯỜNG KẺ NGANG -->
+        <!-- Divider -->
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="#F0F0F0"/>
-
-        <!-- RecyclerView để hiển thị kết quả tìm kiếm -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recycler_view_search_results"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-            tools:itemCount="5"
-            tools:listitem="@layout/list_item_search_result" />
+            android:background="#F0F0F0" />
 
     </LinearLayout>
 

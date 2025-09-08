@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".fragment.RegistrationFragment">
+
+    <!-- Nội dung scroll -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/background_light"
+        android:fillViewport="true">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- 1) Decoration -->
+            <ImageView
+                android:id="@+id/iv_decoration_top"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/bg_decoration"
+                android:importantForAccessibility="no"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- 2) Title -->
+            <TextView
+                android:id="@+id/tv_welcome_header"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="80dp"
+                android:text="Welcome Onboard!"
+                android:textColor="@color/black"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="0.5"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/iv_decoration_top" />
+
+            <TextView
+                android:id="@+id/tv_welcome_subheader"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Let's help you meet up your tasks"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_welcome_header" />
+
+            <!-- 3) Inputs -->
+            <LinearLayout
+                android:id="@+id/ll_inputs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:layout_marginTop="32dp"
+                android:orientation="vertical"
+                app:layout_constraintTop_toBottomOf="@id/tv_welcome_subheader">
+
+                <EditText
+                    android:id="@+id/et_full_name"
+                    style="@style/TextInputStyle"
+                    android:hint="Enter your full name"
+                    android:inputType="textPersonName" />
+
+                <EditText
+                    android:id="@+id/et_email"
+                    style="@style/TextInputStyle"
+                    android:hint="Enter your email"
+                    android:inputType="textEmailAddress"
+                    android:layout_marginTop="16dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="16dp"
+                    android:orientation="horizontal"
+                    android:background="@drawable/bg_rounded_white"
+                    android:gravity="center_vertical">
+
+                    <EditText
+                        android:id="@+id/et_otp"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="@null"
+                        android:hint="Enter OTP"
+                        android:inputType="number"
+                        android:maxLength="6"
+                        android:paddingHorizontal="16dp"
+                        android:textSize="16sp"
+                        android:textColor="@color/black"
+                        android:textColorHint="#A0A0A0"/>
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="match_parent"
+                        android:background="#CCCCCC"
+                        android:layout_marginVertical="8dp"/>
+
+                    <TextView
+                        android:id="@+id/btn_send_otp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:paddingHorizontal="16dp"
+                        android:text="Send OTP"
+                        android:textColor="@color/teal_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackground" />
+                </LinearLayout>
+
+                <EditText
+                    android:id="@+id/et_phone_number"
+                    style="@style/TextInputStyle"
+                    android:hint="Enter your phone number"
+                    android:inputType="phone"
+                    android:layout_marginTop="16dp" />
+
+                <EditText
+                    android:id="@+id/et_password"
+                    style="@style/TextInputStyle"
+                    android:hint="Enter password"
+                    android:inputType="textPassword"
+                    android:layout_marginTop="16dp" />
+
+                <EditText
+                    android:id="@+id/et_confirm_password"
+                    style="@style/TextInputStyle"
+                    android:hint="Confirm password"
+                    android:inputType="textPassword"
+                    android:layout_marginTop="16dp" />
+            </LinearLayout>
+
+            <!-- 4) Register -->
+            <Button
+                android:id="@+id/btn_register"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_marginTop="32dp"
+                android:layout_marginHorizontal="24dp"
+                android:backgroundTint="@color/teal_primary"
+                android:text="Register"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:cornerRadius="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/ll_inputs" />
+
+            <!-- 5) Sign in link -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="32dp"
+                android:orientation="horizontal"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/btn_register">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Already have an account? "
+                    android:textColor="@color/black"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tv_sign_in_link"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Sign In"
+                    android:textColor="@color/teal_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </ScrollView>
+
+    <!-- OVERLAY LOADING (luôn căn giữa màn hình) -->
+    <FrameLayout
+        android:id="@+id/loading_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="#80000000"
+        android:translationZ="8dp">
+
+        <ProgressBar
+            android:id="@+id/progress_bar_register"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminate="true"
+            tools:visibility="visible" />
+    </FrameLayout>
+
+</FrameLayout>

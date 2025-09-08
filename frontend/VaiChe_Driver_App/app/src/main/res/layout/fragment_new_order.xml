@@ -8,7 +8,7 @@
     android:paddingBottom="24dp"
     tools:context=".fragment.NewOrderDialogFragment">
 
-    <!-- KHỐI 1: NÚT X (ĐÓNG) - NẰM RIÊNG BIỆT -->
+    <!-- KHỐI 1: NÚT X (ĐÓNG) -->
     <ImageView
         android:id="@+id/iv_close"
         android:layout_width="32dp"
@@ -19,7 +19,7 @@
         app:layout_constraintBottom_toTopOf="@id/info_card"
         app:layout_constraintEnd_toEndOf="@id/info_card"
         app:layout_constraintTop_toTopOf="@id/info_card"
-        tools:background="@drawable/ic_close_circle" />
+        tools:ignore="ContentDescription" />
 
     <!-- KHỐI 2: CARD THÔNG TIN CHÍNH -->
     <com.google.android.material.card.MaterialCardView
@@ -42,7 +42,6 @@
             android:orientation="vertical"
             android:paddingBottom="20dp">
 
-            <!-- Nội dung bên trong card -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -50,19 +49,19 @@
                 android:paddingStart="20dp"
                 android:paddingEnd="20dp">
 
-                <!-- Price -->
+                <!-- Tiêu đề đơn (thay cho price cũ) -->
                 <TextView
-                    android:id="@+id/tv_price"
+                    android:id="@+id/tv_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="20.520đ"
+                    android:text="Nearby order"
                     android:textColor="@android:color/black"
-                    android:textSize="24sp"
+                    android:textSize="20sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
-                <!-- Rating -->
+                <!-- Rating (mặc định 5.0) -->
                 <LinearLayout
                     android:id="@+id/rating_view"
                     android:layout_width="wrap_content"
@@ -74,22 +73,18 @@
                     android:paddingTop="4dp"
                     android:paddingEnd="12dp"
                     android:paddingBottom="4dp"
-                    app:layout_constraintBottom_toBottomOf="@id/tv_price"
+                    app:layout_constraintBottom_toBottomOf="@id/tv_title"
                     app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="@id/tv_price">
+                    app:layout_constraintTop_toTopOf="@id/tv_title">
 
-                    <!-- Icon người dùng màu xám -->
                     <ImageView
-                        android:id="@+id/iv_person"
                         android:layout_width="28dp"
                         android:layout_height="28dp"
                         android:src="@drawable/ic_person_circle"
                         app:tint="#9E9E9E"
                         tools:ignore="ContentDescription" />
 
-                    <!-- Icon ngôi sao màu xanh dương -->
                     <ImageView
-                        android:id="@+id/iv_star"
                         android:layout_width="18dp"
                         android:layout_height="18dp"
                         android:layout_marginStart="8dp"
@@ -97,7 +92,6 @@
                         app:tint="#4285F4"
                         tools:ignore="ContentDescription" />
 
-                    <!-- Text điểm số -->
                     <TextView
                         android:id="@+id/tv_rating_text"
                         android:layout_width="wrap_content"
@@ -107,25 +101,23 @@
                         android:textColor="@android:color/black"
                         android:textSize="16sp"
                         android:textStyle="bold" />
-
                 </LinearLayout>
 
-                <!-- Progress Bar -->
+                <!-- Progress Bar mảnh -->
                 <ProgressBar
                     android:id="@+id/progress_bar"
                     style="?android:attr/progressBarStyleHorizontal"
                     android:layout_width="0dp"
                     android:layout_height="6dp"
                     android:layout_marginTop="16dp"
-                    android:progress="100"
                     android:layout_marginEnd="50dp"
+                    android:progress="100"
                     android:progressDrawable="@drawable/progress_bar_custom"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tv_price" />
+                    app:layout_constraintTop_toBottomOf="@id/tv_title" />
 
                 <!-- Timeline & Addresses -->
-
                 <ImageView
                     android:id="@+id/iv_timeline_image"
                     android:layout_width="20dp"
@@ -136,8 +128,9 @@
                     app:layout_constraintBottom_toBottomOf="@id/tv_end_location_address"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="@id/tv_start_location_name"
-                    app:layout_constraintVertical_bias="0.969" />
+                    tools:ignore="ContentDescription" />
 
+                <!-- Điểm bắt đầu (có thể bind pickup_address nếu muốn) -->
                 <TextView
                     android:id="@+id/tv_start_location_name"
                     android:layout_width="0dp"
@@ -151,7 +144,6 @@
                     app:layout_constraintStart_toEndOf="@id/iv_timeline_image"
                     app:layout_constraintTop_toBottomOf="@id/progress_bar" />
 
-                <!-- Các TextView địa chỉ còn lại -->
                 <TextView
                     android:id="@+id/tv_start_location_address"
                     android:layout_width="0dp"
@@ -162,13 +154,14 @@
                     app:layout_constraintStart_toStartOf="@id/tv_start_location_name"
                     app:layout_constraintTop_toBottomOf="@id/tv_start_location_name" />
 
+                <!-- Điểm đến (mặc định cứng) -->
                 <TextView
                     android:id="@+id/tv_end_location_name"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="16dp"
                     android:layout_marginTop="20dp"
-                    android:text="VAI CHE"
+                    android:text="VaiChe"
                     android:textColor="@android:color/black"
                     android:textStyle="bold"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -185,7 +178,7 @@
                     app:layout_constraintStart_toStartOf="@id/tv_end_location_name"
                     app:layout_constraintTop_toBottomOf="@id/tv_end_location_name" />
 
-                <!-- Divider và Order Details -->
+                <!-- Divider -->
                 <View
                     android:id="@+id/divider"
                     android:layout_width="0dp"
@@ -196,14 +189,16 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_end_location_address" />
 
+                <!-- CUỐI: hiển thị Distance + Time -->
                 <TextView
-                    android:id="@+id/tv_order_details"
+                    android:id="@+id/tv_distance_time"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
-                    android:text="Collect ~12kg recyclable"
+                    android:text="Distance ~12 km • Time ~25 min"
                     android:textColor="@android:color/black"
                     android:textSize="16sp"
+                    app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/divider" />
 
@@ -213,7 +208,7 @@
 
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- KHỐI 3: NÚT ACCEPT - NẰM RIÊNG BIỆT -->
+    <!-- KHỐI 3: NÚT ACCEPT -->
     <Button
         android:id="@+id/btn_accept"
         android:layout_width="0dp"

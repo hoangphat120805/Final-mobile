@@ -91,7 +91,9 @@ dependencies {
     implementation("com.mapbox.maps:android:11.4.1")
 
     implementation("com.google.android.gms:play-services-location:21.3.0")
-    
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation(libs.androidx.navigation.fragment.ktx)
     // --- TESTING ---
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

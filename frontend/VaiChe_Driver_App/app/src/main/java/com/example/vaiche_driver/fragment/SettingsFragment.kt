@@ -20,9 +20,5 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Setup Bottom Navigation cho màn hình này
-        BottomNavHelper.setup(view, BottomNavScreen.PROFILE) { fragment ->
-            // Thêm logic điều hướng từ Profile nếu cần
-        }
     }
 }
