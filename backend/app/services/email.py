@@ -103,24 +103,28 @@ def save_token(email: str, token: str, expire_minutes: int, purpose: str):
     key = f"{purpose}:{email}"
     redis_client.setex(key, expire_minutes * 60, token)
 
-def generate_token(email: str) -> str:
+def generate_token(email: str, purpose: str) -> str:
     delta = timedelta(hours=settings.EMAIL_TOKEN_EXPIRE_HOURS)
     now = datetime.now(timezone.utc)
     expires = now + delta
     exp = expires.timestamp()
     encoded_jwt = jwt.encode(
-        {"exp": exp, "nbf": now, "sub": email},
+        {"exp": exp, "nbf": now, "sub": email, "purpose": purpose},
         settings.SECRET_KEY,
         algorithm=security.ALGORITHM,
     )
     return encoded_jwt
 
 
-def verify_token(token: str) -> str | None:
+def verify_token(token: str, purpose: str) -> bool:
     try:
         decoded_token = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
-        return str(decoded_token["sub"])
+        if decoded_token.get("purpose") == purpose:
+            return True
+        return False
     except InvalidTokenError:
-        return None
+        return False
+    except InvalidTokenError:
+        return False
