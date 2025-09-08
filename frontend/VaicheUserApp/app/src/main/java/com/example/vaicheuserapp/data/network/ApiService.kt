@@ -20,7 +20,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.Part
 import retrofit2.http.Path
 import com.example.vaicheuserapp.data.model.OTPRequest // <-- New import
-import com.example.vaicheuserapp.data.model.OTPVerificationTokenResponse
+import com.example.vaicheuserapp.data.model.Token
 import com.example.vaicheuserapp.data.model.OTPVerifyRequest // <-- New import
 import com.example.vaicheuserapp.data.model.OrderPublic
 import com.example.vaicheuserapp.data.model.ResetPasswordRequest // <-- New import
@@ -30,6 +30,7 @@ import com.example.vaicheuserapp.data.model.CollectorPublic // <-- New import
 import com.example.vaicheuserapp.data.model.OrderCreate
 import com.example.vaicheuserapp.data.model.ReviewCreate // <-- New import
 import com.example.vaicheuserapp.data.model.ReviewPublic // <-- New import
+import com.example.vaicheuserapp.data.model.RoutePublic
 
 interface ApiService {
 
@@ -70,7 +71,7 @@ interface ApiService {
     suspend fun sendOtp(@Body otpRequest: OTPRequest): Response<Unit> // Returns 200 OK with empty body
 
     @POST("/api/otp/verify-otp")
-    suspend fun verifyOtp(@Body otpVerifyRequest: OTPVerifyRequest): Response<OTPVerificationTokenResponse>
+    suspend fun verifyOtp(@Body otpVerifyRequest: OTPVerifyRequest): Response<Token>
     // --- NEW: Reset Password Endpoint ---
     @POST("/api/user/reset-password")
     suspend fun resetPassword(@Body resetPasswordRequest: ResetPasswordRequest): Response<Unit> // Returns 200 OK with empty
@@ -92,4 +93,7 @@ interface ApiService {
 
     @POST("/api/orders/") // <-- NEW: Create Order
     suspend fun createOrder(@Body orderCreate: OrderCreate): Response<OrderPublic>
+
+    @GET("/api/orders/{order_id}/route") // <-- NEW: Get route for order
+    suspend fun getRouteForOrder(@Path("order_id") orderId: String): Response<RoutePublic>
 }

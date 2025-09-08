@@ -37,7 +37,7 @@ data class OTPVerifyRequest(
     val purpose: String // "reset"
 )
 
-data class OTPVerificationTokenResponse( // Renamed from RegisterTokenResponse
+data class Token( // Renamed from RegisterTokenResponse
     @SerializedName("token") // <--- Use "reset_token" as per backend's actual response
     val verificationToken: String // <--- Generic name for the token
 )
