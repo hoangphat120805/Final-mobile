@@ -112,15 +112,13 @@ def generate_token(email: str, purpose: str) -> str:
     return encoded_jwt
 
 
-def verify_token(token: str, purpose: str) -> bool:
+def verify_token(email: str, token: str, purpose: str) -> bool:
     try:
         decoded_token = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
-        if decoded_token.get("purpose") == purpose:
+        if decoded_token.get("purpose") == purpose and decoded_token.get("sub") == email:
             return True
-        return False
-    except InvalidTokenError:
         return False
     except InvalidTokenError:
         return False
