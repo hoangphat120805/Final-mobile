@@ -71,6 +71,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.retrofit)
     implementation (libs.converter.gson)
+    implementation("androidx.core:core-splashscreen:1.0.0")
 
     // OkHttp & Logging Interceptor (for debugging network calls)
     implementation (libs.okhttp)

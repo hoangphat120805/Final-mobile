@@ -15,6 +15,13 @@
         <item name="windowNoTitle">true</item>
     </style>
 
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- Set the splash screen background, animated icon, and animation duration. -->
+        <item name="windowSplashScreenBackground">@drawable/splash_background_layer_list</item>
+
+        <item name="postSplashScreenTheme">@style/Theme.VaicheUserApp</item>
+    </style>
+
     <style name="RatingStar">
         <item name="android:layout_width">36dp</item>
         <item name="android:layout_height">36dp</item>
