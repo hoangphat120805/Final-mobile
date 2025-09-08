@@ -1,5 +1,6 @@
 package com.example.vaiche_driver
 
+import android.app.Notification
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -12,8 +13,8 @@ import com.example.vaiche_driver.adapter.BottomNavHelper
 import com.example.vaiche_driver.adapter.BottomNavScreen
 import com.example.vaiche_driver.data.network.RetrofitClient
 import com.example.vaiche_driver.fragment.DashboardFragment
+import com.example.vaiche_driver.fragment.NotificationsFragment
 import com.example.vaiche_driver.fragment.ScheduleFragment
-import com.example.vaiche_driver.fragment.SettingsFragment
 import com.example.vaiche_driver.ui.ProfileFragment
 import com.example.vaiche_driver.ui.SplashFragment
 import com.example.vaiche_driver.viewmodel.SharedViewModel
@@ -32,7 +33,7 @@ class MainActivity : AppCompatActivity() {
     private val scheduleFragment by lazy { ScheduleFragment() }
     private val profileFragment by lazy { ProfileFragment() }
 
-    private val settingsFragment by lazy { SettingsFragment() }
+    private val notification by lazy { NotificationsFragment() }
 
     private var activeFragment: Fragment? = null
     private lateinit var bottomNavView: View
@@ -60,7 +61,7 @@ class MainActivity : AppCompatActivity() {
             val currentFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
             // Chỉ hiển thị nav nếu đó là một trong các màn hình chính
             val isMainScreen = currentFragment is DashboardFragment || currentFragment is ScheduleFragment
-                    || currentFragment is ProfileFragment || currentFragment is SettingsFragment
+                    || currentFragment is ProfileFragment || currentFragment is NotificationsFragment
             setBottomNavVisibility(isMainScreen)
 
             // Cập nhật màu sắc cho icon
@@ -76,7 +77,7 @@ class MainActivity : AppCompatActivity() {
                 BottomNavScreen.DASHBOARD -> dashboardFragment
                 BottomNavScreen.SCHEDULE -> scheduleFragment
                 BottomNavScreen.PROFILE -> profileFragment
-                BottomNavScreen.SETTINGS -> settingsFragment
+               //BottomNavScreen.NOTIFICATIONS -> notificationFragment
                 else -> null
             }
             fragmentToShow?.let { switchFragment(it) }
@@ -124,7 +125,6 @@ class MainActivity : AppCompatActivity() {
             is DashboardFragment -> BottomNavScreen.DASHBOARD
             is ScheduleFragment -> BottomNavScreen.SCHEDULE
             is ProfileFragment -> BottomNavScreen.PROFILE
-            is SettingsFragment -> BottomNavScreen.SETTINGS
             else -> BottomNavScreen.DASHBOARD
         }
     }

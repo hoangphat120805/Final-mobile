@@ -77,13 +77,6 @@ class DashboardFragment : Fragment() {
         tvCenterTitle.setOnClickListener {
             sharedViewModel.toggleOnlineStatus()
         }
-
-        view.findViewById<ImageView>(R.id.btnLeft).setOnClickListener {
-            // TODO: Earnings
-        }
-        view.findViewById<ImageView>(R.id.btnRight).setOnClickListener {
-            // TODO: Notifications
-        }
     }
 
     private fun observeViewModel() {

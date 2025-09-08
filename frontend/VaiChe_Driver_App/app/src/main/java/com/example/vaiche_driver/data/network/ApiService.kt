@@ -61,6 +61,11 @@ interface ApiService {
     @POST("/api/user/upload/avatar")
     suspend fun uploadAvatar(@Part file: MultipartBody.Part): Response<MessageResponse>
 
+
+    /** Cập nhật thông tin cơ bản của user hiện tại */
+    @PATCH("/api/user/me")
+    suspend fun updateMyProfile(@Body body: UpdateProfileRequest): Response<UserPublic>
+
     /** Lấy danh sách thông báo của tôi */
     @GET("/api/user/me/notifications")
     suspend fun getMyNotifications(): Response<List<UserNotification>>
@@ -80,7 +85,7 @@ interface ApiService {
     //==================== ORDERS ====================
 
     /** Danh sách đơn của current user (collector) */
-    @GET("/api/orders/")
+    @GET("/api/orders/collector")
     suspend fun getMyOrders(): Response<List<OrderPublic>>
 
     /**
@@ -91,7 +96,7 @@ interface ApiService {
     suspend fun getNearbyOrders(
         @Query("lat") lat: Double,
         @Query("lng") lng: Double,
-        @Query("radius_km") radiusKm: Double = 5.0,
+        @Query("radius_km") radiusKm: Double = 50.0,
         @Query("limit") limit: Int = 10
     ): Response<List<NearbyOrderPublic>>
 

@@ -42,6 +42,14 @@ class ProfileFragment : Fragment() {
         setupViews(view)
         observeViewModel()
 
+        // Điều hướng Settings khi bấm icon edit
+        view.findViewById<ImageView>(R.id.iv_edit_profile).setOnClickListener {
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, SettingsFragment())
+                .addToBackStack(null)
+                .commit()
+        }
+
         // Tải dữ liệu lần đầu tiên khi Fragment được tạo
         if (savedInstanceState == null) {
             viewModel.loadInitialProfileData()

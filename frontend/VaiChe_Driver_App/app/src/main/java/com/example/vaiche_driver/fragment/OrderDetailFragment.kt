@@ -36,21 +36,19 @@ class OrderDetailFragment : Fragment() {
     private var orderId: String? = null
     private val viewModel: OrderDetailViewModel by viewModels()
 
-    // --- CHỤP ẢNH ---
+    // --- CAMERA / PHOTO ---
     private var latestTmpUri: Uri? = null
     private var photoTarget: PhotoTarget? = null
 
     private val takeImageResult =
         registerForActivityResult(ActivityResultContracts.TakePicture()) { isSuccess ->
             if (isSuccess) {
-                latestTmpUri?.let { uri ->
-                    handlePhotoResult(uri)
-                }
+                latestTmpUri?.let { uri -> handlePhotoResult(uri) }
             }
         }
 
     enum class PhotoTarget { PICKUP, DROPOFF }
-    // -----------------
+    // ----------------------
 
     private var visibilityManager: BottomNavVisibilityManager? = null
     private var pendingPickupUri: Uri? = null
@@ -87,9 +85,7 @@ class OrderDetailFragment : Fragment() {
             order?.let { bindDataToViews(view, it) }
         }
 
-        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
-            // bạn có thể thêm progress ui ở đây nếu cần
-        }
+        viewModel.isLoading.observe(viewLifecycleOwner) { /* show/hide progress if you want */ }
 
         viewModel.errorMessage.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandled()?.let { msg ->
@@ -100,7 +96,6 @@ class OrderDetailFragment : Fragment() {
         viewModel.orderCompletedEvent.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandled()?.let {
                 Toast.makeText(requireContext(), "Order completed!", Toast.LENGTH_SHORT).show()
-                // Điều hướng sang màn rating nếu cần
                 val id = orderId ?: return@let
                 navigateToRatings(id)
             }
@@ -121,7 +116,6 @@ class OrderDetailFragment : Fragment() {
         val startLocationAddress = view.findViewById<TextView>(R.id.tv_start_location_address_detail)
         val endLocationName = view.findViewById<TextView>(R.id.tv_end_location_name_detail)
         val endLocationAddress = view.findViewById<TextView>(R.id.tv_end_location_address_detail)
-        val userNote = view.findViewById<TextView>(R.id.tv_user_note)
         val itemsContainer = view.findViewById<LinearLayout>(R.id.container_order_items)
         val totalAmount = view.findViewById<TextView>(R.id.tv_total_amount)
         val totalWeight = view.findViewById<TextView>(R.id.tv_total_weight)
@@ -135,14 +129,9 @@ class OrderDetailFragment : Fragment() {
         val ivMessage = view.findViewById<ImageView>(R.id.iv_message)
 
         toolbar.title = "Order Detail #${order.id.takeLast(4)}"
-        toolbar.setNavigationOnClickListener {
-            activity?.onBackPressedDispatcher?.onBackPressed()
-        }
+        toolbar.setNavigationOnClickListener { activity?.onBackPressedDispatcher?.onBackPressed() }
 
-        ivMessage.setOnClickListener {
-            // điều hướng chat với owner
-            navigateToMessages(order.id) // hoặc truyền ownerId nếu bạn có
-        }
+        ivMessage.setOnClickListener { navigateToMessages(order.id) }
 
         Glide.with(this).load(order.user.avatarUrl)
             .placeholder(R.drawable.ic_person_circle)
@@ -160,12 +149,33 @@ class OrderDetailFragment : Fragment() {
         totalAmount.text = formatCurrency(order.totalAmount)
         totalWeight.text = "~${order.totalWeight.toInt()}kg"
 
-        // hiển thị ảnh đã có (nếu trước đó đã upload)
-        setupPhotoView(pickupPhotoView, order.pickupPhotoUrl) {
+        // --- Decide effective URLs (avoid duplicated pickup image as drop-off) ---
+        val isDupPickupDrop = order.pickupPhotoUrl != null &&
+                order.pickupPhotoUrl == order.dropoffPhotoUrl
+
+        val effectiveDropoffUrl: String? = when {
+            // If user has taken a local drop-off photo, prefer showing it (remoteUrl = null then)
+            pendingDropoffUri != null -> null
+            // If status is delivering and server returns the same URL for both -> treat drop-off as empty
+            order.status == OrderStatus.delivering && isDupPickupDrop -> null
+            else -> order.dropoffPhotoUrl
+        }
+
+        // Show photos (local first, then remote). If nothing -> placeholder to capture.
+        setupPhotoView(
+            photoView = pickupPhotoView,
+            remoteUrl = order.pickupPhotoUrl,
+            localUri = pendingPickupUri
+        ) {
             photoTarget = PhotoTarget.PICKUP
             takeImage()
         }
-        setupPhotoView(dropoffPhotoView, order.dropoffPhotoUrl) {
+
+        setupPhotoView(
+            photoView = dropoffPhotoView,
+            remoteUrl = effectiveDropoffUrl,
+            localUri = pendingDropoffUri
+        ) {
             photoTarget = PhotoTarget.DROPOFF
             takeImage()
         }
@@ -179,21 +189,21 @@ class OrderDetailFragment : Fragment() {
                 pickupSection.visibility = View.VISIBLE
                 dropoffSection.visibility = View.GONE
 
-                // Chỉ chụp ảnh pickup ở giai đoạn này
-                // Nút Pick-Up chỉ enable khi đã có ảnh pickup (local hoặc server đã có)
                 actionButton.text = "Pick-Up"
                 actionButton.visibility = View.VISIBLE
-                actionButton.isEnabled = (pendingPickupUri != null) || (order.pickupPhotoUrl != null)
+
+                // Enable when we have an effective pickup (local or remote)
+                val hasPickup = (pendingPickupUri != null) || (order.pickupPhotoUrl != null)
+                actionButton.isEnabled = hasPickup
 
                 actionButton.setOnClickListener {
                     val id = orderId ?: return@setOnClickListener
-                    // Rule backend: upload cần 2 file -> nếu mới có pickup thì tạm upload 2 file đều là pickup
                     val pickupUri = pendingPickupUri
                     if (pickupUri == null && order.pickupPhotoUrl == null) {
                         Toast.makeText(requireContext(), "Please capture pickup photo first.", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
                     }
-                    // gọi upload ở ViewModel; nếu chỉ có local pickup -> upload (pickup, pickup)
+                    // Upload (pickup, pickup) to satisfy backend's 2-file requirement
                     viewModel.uploadPickupPhase(id, pickupUri)
                 }
             }
@@ -208,18 +218,20 @@ class OrderDetailFragment : Fragment() {
 
                 actionButton.text = "Complete Delivery"
                 actionButton.visibility = View.VISIBLE
-                actionButton.isEnabled = (pendingDropoffUri != null) || (order.dropoffPhotoUrl != null)
+
+                // Effective drop-off exists if we have local or (valid) remote URL
+                val hasDropoffEffective = (pendingDropoffUri != null) || (effectiveDropoffUrl != null)
+                actionButton.isEnabled = hasDropoffEffective
 
                 actionButton.setOnClickListener {
                     val id = orderId ?: return@setOnClickListener
                     val pickupUri = pendingPickupUri
                     val dropUri = pendingDropoffUri
-                    // yêu cầu có ảnh drop-off (ít nhất local)
-                    if (dropUri == null && order.dropoffPhotoUrl == null) {
+                    if (dropUri == null && effectiveDropoffUrl == null) {
                         Toast.makeText(requireContext(), "Please capture drop-off photo first.", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
                     }
-                    // Upload đủ 2 ảnh (pickup + dropoff) rồi complete
+                    // Upload both photos (pickup + dropoff) then complete
                     viewModel.uploadDropoffAndComplete(id, pickupUri, dropUri)
                 }
             }
@@ -235,14 +247,13 @@ class OrderDetailFragment : Fragment() {
             }
 
             else -> {
-                // fallback
                 pickupSection.visibility = View.GONE
                 dropoffSection.visibility = View.GONE
                 actionButton.visibility = View.GONE
             }
         }
 
-        // Render list items
+        // Render items
         itemsContainer.removeAllViews()
         val inflater = LayoutInflater.from(context)
         order.items.forEach { item ->
@@ -257,7 +268,7 @@ class OrderDetailFragment : Fragment() {
         }
     }
 
-    // --- ẢNH ---
+    // --- PHOTO helpers ---
     private fun takeImage() {
         lifecycleScope.launch {
             latestTmpUri = getTmpFileUri()
@@ -289,27 +300,39 @@ class OrderDetailFragment : Fragment() {
             }
             else -> Unit
         }
-        // Sau khi chụp xong, reload UI để nút enable
+        // Reload to re-bind UI (buttons enable state, etc.)
         orderId?.let { viewModel.loadOrder(it) }
     }
 
-    private fun setupPhotoView(photoView: View, photoUrl: String?, onPlaceholderClick: (() -> Unit)?) {
+    private fun setupPhotoView(
+        photoView: View,
+        remoteUrl: String?,
+        localUri: Uri?,
+        onPlaceholderClick: (() -> Unit)?
+    ) {
         val photoDisplay = photoView.findViewById<ImageView>(R.id.iv_photo_display)
         val placeholder = photoView.findViewById<LinearLayout>(R.id.container_photo_placeholder)
 
-        if (photoUrl != null) {
-            placeholder.visibility = View.GONE
-            photoDisplay.visibility = View.VISIBLE
-            Glide.with(this).load(photoUrl).centerCrop().into(photoDisplay)
-        } else {
-            placeholder.visibility = View.VISIBLE
-            photoDisplay.visibility = View.GONE
-            placeholder.setOnClickListener { onPlaceholderClick?.invoke() }
+        when {
+            localUri != null -> {
+                placeholder.visibility = View.GONE
+                photoDisplay.visibility = View.VISIBLE
+                Glide.with(this).load(localUri).centerCrop().into(photoDisplay)
+            }
+            remoteUrl != null -> {
+                placeholder.visibility = View.GONE
+                photoDisplay.visibility = View.VISIBLE
+                Glide.with(this).load(remoteUrl).centerCrop().into(photoDisplay)
+            }
+            else -> {
+                placeholder.visibility = View.VISIBLE
+                photoDisplay.visibility = View.GONE
+                placeholder.setOnClickListener { onPlaceholderClick?.invoke() }
+            }
         }
     }
 
     private fun navigateToMessages(conversationKey: String) {
-        // TODO: điều hướng sang màn chat theo conversationKey/ownerId
         Toast.makeText(requireContext(), "Open messages (stub)", Toast.LENGTH_SHORT).show()
     }
 

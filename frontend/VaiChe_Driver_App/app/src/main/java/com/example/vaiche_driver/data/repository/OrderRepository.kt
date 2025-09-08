@@ -96,7 +96,7 @@ class OrderRepository(
     suspend fun getNearbyOrders(
         lat: Double,
         lng: Double,
-        radiusKm: Double = 5.0,
+        radiusKm: Double = 50.0,
         limit: Int = 10
     ): Result<List<NearbyOrderPublic>> = withContext(Dispatchers.IO) {
         try {

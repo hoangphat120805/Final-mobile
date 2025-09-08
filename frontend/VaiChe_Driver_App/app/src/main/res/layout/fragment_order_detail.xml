@@ -216,18 +216,6 @@
                     tools:text="Hồ Chí Minh" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <!-- Note from user -->
-            <TextView
-                style="@style/SectionTitle"
-                android:text="Note from user" />
-
-            <TextView
-                android:id="@+id/tv_user_note"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                tools:text="My house is next to the department store" />
-
             <!-- Detail ROW: tiêu đề + 3 icon cùng hàng -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/detail_header_row"
@@ -250,7 +238,7 @@
                     android:layout_height="40dp"
                     android:padding="8dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@android:drawable/ic_menu_edit"
+                    android:src="@drawable/ic_edit"
                     app:tint="@color/teal_primary"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="@id/tv_detail_title"
@@ -263,7 +251,7 @@
                     android:layout_marginEnd="8dp"
                     android:padding="8dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@android:drawable/ic_menu_delete"
+                    android:src="@drawable/ic_delete"
                     app:tint="@color/teal_primary"
                     app:layout_constraintEnd_toStartOf="@id/ib_edit_item"
                     app:layout_constraintTop_toTopOf="@id/tv_detail_title"

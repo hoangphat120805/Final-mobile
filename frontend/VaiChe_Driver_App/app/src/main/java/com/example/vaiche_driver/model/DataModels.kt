@@ -202,6 +202,14 @@ data class NearbyOrderPublic(
 
 // ----------------- Requests / Responses ----------------
 
+data class UpdateProfileRequest(
+    @SerializedName("full_name") val fullName: String?,
+    @SerializedName("gender") val gender: String?,         // "male" | "female" | "other" ... tuỳ backend
+    @SerializedName("birth_date") val birthDate: String?,  // ISO "YYYY-MM-DD"
+    @SerializedName("email") val email: String? = null      // nếu backend cho phép đổi email
+    // Nếu backend cho phép đổi phone_number thì thêm vào. Thường phone sẽ không cho đổi ở đây.
+)
+
 data class OrderCreate(
     @SerializedName("pickup_address") val pickupAddress: String
 )

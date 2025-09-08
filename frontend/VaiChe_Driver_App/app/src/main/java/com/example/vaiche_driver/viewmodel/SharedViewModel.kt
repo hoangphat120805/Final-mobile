@@ -70,7 +70,6 @@ class SharedViewModel : ViewModel() {
         _workingLocation.value = Pair(lat, lng)
         _driverState.value = DriverState.FINDING_ORDER
 
-        viewModelScope.launch { findNearbyOrder() }
     }
 
 

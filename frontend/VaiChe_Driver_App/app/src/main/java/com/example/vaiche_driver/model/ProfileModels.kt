@@ -9,9 +9,9 @@ data class UserStats(
 
 // Dữ liệu cho một đánh giá (dùng dữ liệu mẫu)
 data class Review(
-    val userName: String,
-    val userAvatarInitial: String, // Chữ cái đầu
-    val rating: Int, // Số sao từ 1-5
-    val timeAgo: String,
-    val comment: String
+    val userName: String,          // tên người viết review (suy ra tạm thời)
+    val userAvatarInitial: String, // chữ cái đầu để vẽ avatar
+    val rating: Int,               // 1..5
+    val timeAgo: String,           // hiển thị "x days ago"
+    val comment: String?           // nội dung
 )

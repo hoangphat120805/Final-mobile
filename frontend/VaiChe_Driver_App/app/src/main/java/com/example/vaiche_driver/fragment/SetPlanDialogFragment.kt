@@ -18,6 +18,8 @@ import com.example.vaiche_driver.R
 import com.example.vaiche_driver.viewmodel.SharedViewModel
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 class SetPlanDialogFragment : BottomSheetDialogFragment() {
@@ -31,9 +33,11 @@ class SetPlanDialogFragment : BottomSheetDialogFragment() {
     private var cbAck: CheckBox? = null
 
     private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            Log.w(TAG, "requestPermissionLauncher result: isGranted=$isGranted")
-            if (isGranted) {
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+            val fine = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true
+            val coarse = grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+            Log.w(TAG, "permission result -> fine=$fine, coarse=$coarse")
+            if (fine || coarse) {
                 confirmPlanWithCurrentLocation()
             } else if (isAdded) {
                 Toast.makeText(
@@ -79,65 +83,97 @@ class SetPlanDialogFragment : BottomSheetDialogFragment() {
                 return@setOnClickListener
             }
 
-            val hasFine = ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-
-            Log.w(TAG, "hasFine=$hasFine")
-
-            if (hasFine) {
+            if (hasLocationPermission()) {
                 confirmPlanWithCurrentLocation()
             } else {
-                Log.w(TAG, "Requesting ACCESS_FINE_LOCATION permission…")
-                requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                Log.w(TAG, "Requesting location permissions…")
+                requestPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
             }
         }
+    }
+
+    private fun hasLocationPermission(): Boolean {
+        val fine = ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        return fine || coarse
     }
 
     @SuppressLint("MissingPermission")
     private fun confirmPlanWithCurrentLocation() {
         if (!isAdded) return
         Log.w(TAG, "confirmPlanWithCurrentLocation(): START")
-        Toast.makeText(context, "Getting current location...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Fetching current location...", Toast.LENGTH_SHORT).show()
 
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location ->
-                if (!isAdded) return@addOnSuccessListener
-                Log.w(TAG, "lastLocation success. location=$location")
+        val cts = CancellationTokenSource()
+        fusedLocationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            cts.token
+        ).addOnSuccessListener { location ->
+            if (!isAdded) return@addOnSuccessListener
 
-                if (location != null) {
-                    val lat = location.latitude
-                    val lng = location.longitude
-                    Log.w(TAG, "onPlanConfirmed(lat=$lat, lng=$lng) -> notify ViewModel")
-                    // 1) Báo vị trí cho ViewModel (giả định hàm này sẽ set DriverState.FINDING_ORDER)
-                    sharedViewModel.onPlanConfirmed(lat, lng)
-
-                    // 2) Mở dialog trạng thái thành công/chờ tìm đơn
-                    Log.w(TAG, "Show SuccessDialogFragment")
-                    SuccessDialogFragment().show(parentFragmentManager, SuccessDialogFragment.TAG)
-
-                    // 3) Đóng bottom sheet
-                    Log.w(TAG, "dismiss() SetPlanDialog")
-                    dismiss()
-                } else {
-                    Log.e(TAG, "lastLocation is NULL")
-                    Toast.makeText(
-                        context,
-                        "Could not get current location. Please ensure GPS is enabled.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+            if (location != null) {
+                val lat = location.latitude
+                val lng = location.longitude
+                Log.w(TAG, "getCurrentLocation OK: lat=$lat, lng=$lng")
+                proceedWithLocation(lat, lng)
+            } else {
+                Log.w(TAG, "getCurrentLocation returned null -> fallback lastLocation")
+                fusedLocationClient.lastLocation
+                    .addOnSuccessListener { last ->
+                        if (!isAdded) return@addOnSuccessListener
+                        if (last != null) {
+                            val lat = last.latitude
+                            val lng = last.longitude
+                            Log.w(TAG, "lastLocation OK: lat=$lat, lng=$lng")
+                            proceedWithLocation(lat, lng)
+                        } else {
+                            Log.e(TAG, "Both currentLocation and lastLocation are null")
+                            Toast.makeText(
+                                context,
+                                "Unable to retrieve location. Please ensure GPS is enabled.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e(TAG, "lastLocation failure: ${e.message}", e)
+                        Toast.makeText(
+                            context,
+                            "Failed to get location (lastLocation): ${e.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
             }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "lastLocation failure: ${e.message}", e)
-                if (isAdded) {
-                    Toast.makeText(
-                        context,
-                        "Failed to get location: ${e.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
+        }.addOnFailureListener { e ->
+            Log.e(TAG, "getCurrentLocation failure: ${e.message}", e)
+            Toast.makeText(
+                context,
+                "Failed to get location: ${e.message}",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private fun proceedWithLocation(lat: Double, lng: Double) {
+        if (!isAdded) return
+        Log.w(TAG, "onPlanConfirmed(lat=$lat, lng=$lng) -> notify ViewModel")
+        sharedViewModel.onPlanConfirmed(lat, lng)
+
+        Log.w(TAG, "Show SuccessDialogFragment")
+        SuccessDialogFragment().show(parentFragmentManager, SuccessDialogFragment.TAG)
+
+        Log.w(TAG, "dismiss() SetPlanDialog")
+        dismiss()
     }
 }
