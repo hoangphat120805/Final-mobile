@@ -15,7 +15,8 @@ from app.schemas.user import UserPublic
 from app.schemas.user import CollectorPublic
 from app.schemas.review import ReviewCreate, ReviewPublic
 from app.models import User, Order, OrderStatus
-from app import crud, services
+from app import crud
+from app.services import mapbox
 from app.api.deps import get_db, get_current_active_collector
 from app.schemas.transaction import OrderCompletionRequest, TransactionReadResponse
 import uuid
@@ -137,7 +138,7 @@ async def list_nearby_orders(
         if order.location:
             point = to_shape(order.location)   
             destination_coords.append((point.x, point.y))
-    travel_info_list = await services.get_travel_info_from_mapbox(
+    travel_info_list = await mapbox.get_travel_info_from_mapbox(
         origin=origin_coords, destinations=destination_coords
     )
 
@@ -250,7 +251,7 @@ async def get_route_for_order(order_id: uuid.UUID, current_collector: CurrentCol
     if not current_collector.location:
         raise HTTPException(status_code=400, detail="Collector does not have a valid location")
     
-    route_info = await services.get_route_from_mapbox(
+    route_info = await mapbox.get_route_from_mapbox(
         start_lon=current_collector.location.x,
         start_lat=current_collector.location.y,
         end_lon=order.location.x,
