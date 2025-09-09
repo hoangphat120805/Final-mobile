@@ -280,7 +280,7 @@ def complete_order_payment_service(
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid OrderItem ID: {item_data.order_item_id}")
 
             order_item.quantity = item_data.actual_quantity
-            final_total_amount += order_item.price_per_unit * order_item.quantity
+            final_total_amount += order_item.category.estimated_price_per_unit * order_item.quantity
             db.add(order_item)
 
         # Step 4: Update the main Order record.
