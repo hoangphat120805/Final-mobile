@@ -2,27 +2,21 @@
 
 import uuid
 from app import crud
-from fastapi import HTTPException, Depends, status, UploadFile, APIRouter, Query
-from sqlmodel import Session
+from fastapi import HTTPException, status, UploadFile, APIRouter, File
+from typing import Annotated, List, Tuple
+from geoalchemy2.shape import to_shape
 
-from app.core.config import settings
 from app.api.deps import SessionDep, CurrentUser, CurrentCollector
-
 from app.schemas.order import OrderCreate, OrderItemCreate, OrderItemUpdate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
 from app.schemas.route import RoutePublic
 from app.schemas.auth import Message
-from app.schemas.user import UserPublic
-from app.schemas.user import CollectorPublic
+from app.schemas.user import UserPublic, CollectorPublic
 from app.schemas.review import ReviewCreate, ReviewPublic
 from app.models import User, Order, OrderStatus
 from app import crud
-from app.services import mapbox
-from app.api.deps import get_db, get_current_active_collector
+from app.services import mapbox, upload
 from app.schemas.transaction import OrderCompletionRequest, TransactionReadResponse
-import uuid
-from typing import Annotated, List, Tuple
-import requests
-from geoalchemy2.shape import to_shape
+
 
 import asyncio
 
@@ -66,7 +60,7 @@ def add_order_items(
 @router.patch("/{order_id}/item/{order_item_id}", response_model=OrderPublic)
 def update_order_item(
     session: SessionDep,
-    current_user: CurrentUser, 
+    current_collector: CurrentCollector,
     order_id: uuid.UUID, 
     order_item_id: uuid.UUID, 
     item: OrderItemUpdate, 
@@ -77,7 +71,7 @@ def update_order_item(
     order = crud.get_order_by_id(session=session, order_id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    if order.owner_id != current_user.id:
+    if order.collector_id != current_collector.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     order_item = crud.get_order_item_by_id(session=session, order_item_id=order_item_id)
     if not order_item or order_item.order_id != order_id:
@@ -90,7 +84,7 @@ def update_order_item(
 @router.delete("/{order_id}/item/{order_item_id}", response_model=OrderPublic)
 def delete_order_item(
     session: SessionDep,
-    current_user: CurrentUser, 
+    current_collector: CurrentCollector,
     order_id: uuid.UUID, 
     order_item_id: uuid.UUID
 ):
@@ -100,7 +94,7 @@ def delete_order_item(
     order = crud.get_order_by_id(session=session, order_id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    if order.owner_id != current_user.id:
+    if order.collector_id != current_collector.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     order_item = crud.get_order_item_by_id(session=session, order_item_id=order_item_id)
     if not order_item or order_item.order_id != order_id:
@@ -166,8 +160,6 @@ def get_order(
     order_id: uuid.UUID, 
     session: SessionDep, 
     current_collector: CurrentCollector,
-    include_user: bool = Query(False, description="Include owner and collector details"),
-    include_collector: bool = Query(False, description="Include collector details only")
 ):
     """
     Get order details by ID.
@@ -279,8 +271,8 @@ def upload_order_image(
     order_id: uuid.UUID,
     current_collector: CurrentCollector,
     session: SessionDep,
-    file1: UploadFile,
-    file2: UploadFile,
+    file1: Annotated[UploadFile, File(...)],
+    file2: Annotated[UploadFile, File(...)],
 ):
     """
     Upload images for an order.
@@ -297,42 +289,9 @@ def upload_order_image(
             detail="Invalid file type. Please upload an image.",
         )
 
-    response1 = requests.post(
-        "https://api.imgbb.com/1/upload",
-        params={
-            "key": settings.IMGBB_API_KEY,
-        },
-        files={
-            "image": file1.file.read()
-        }
-    )
+    img1_url, img2_url = upload.upload_order_image(file1, file2, str(order_id))
 
-    if response1.status_code != 200:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to upload image"
-        )
-    image1_url = response1.json().get("data", {}).get("url")
-
-    response2 = requests.post(
-        "https://api.imgbb.com/1/upload",
-        params={
-            "key": settings.IMGBB_API_KEY,
-        },
-        files={
-            "image": file2.file.read()
-        }
-    )
-
-    if response2.status_code != 200:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to upload image"
-        )
-
-    image2_url = response2.json().get("data", {}).get("url")
-
-    crud.update_order_img(session, order_id, image1_url, image2_url)
+    crud.update_order_img(session, order_id, img1_url, img2_url)
     return {"message": "Images uploaded successfully"}
 
 @router.get("/{order_id}/owner", response_model=UserPublic)

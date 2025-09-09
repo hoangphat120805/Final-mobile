@@ -45,4 +45,8 @@ class Settings(BaseSettings):
 
     DEFAULT_AVATAR_URL: str = "https://i.ibb.co/5xt2NvW0/453178253-471506465671661-2781666950760530985-n.png"
 
+    CLOUD_NAME: str = "cloud_name"
+    CLOUD_API_KEY: str = "cloud_api_key"
+    CLOUD_API_SECRET: str = "cloud_api_secret"
+    
 settings = Settings()
