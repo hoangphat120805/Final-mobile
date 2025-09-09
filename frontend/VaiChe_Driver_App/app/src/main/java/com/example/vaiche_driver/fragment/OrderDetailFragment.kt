@@ -24,103 +24,89 @@ import com.example.vaiche_driver.model.OrderDetail
 import com.example.vaiche_driver.model.OrderStatus
 import com.example.vaiche_driver.viewmodel.OrderDetailViewModel
 import com.google.android.material.appbar.MaterialToolbar
-import java.io.File
-import java.text.NumberFormat
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.text.NumberFormat
+import java.util.Locale
 
-/**
- * Fragment này hiển thị toàn bộ thông tin chi tiết của một đơn hàng.
- * Nó sử dụng một ViewModel (`OrderDetailViewModel`) để quản lý dữ liệu và logic,
- * giúp cho Fragment chỉ tập trung vào việc hiển thị giao diện.
- */
 class OrderDetailFragment : Fragment() {
 
     private var orderId: String? = null
-
-    // Khởi tạo ViewModel. `by viewModels()` là cách chuẩn để làm việc này.
     private val viewModel: OrderDetailViewModel by viewModels()
 
-    // --- LOGIC CHỤP ẢNH ---
+    // --- CAMERA / PHOTO ---
     private var latestTmpUri: Uri? = null
     private var photoTarget: PhotoTarget? = null
 
-    // Đăng ký launcher để gọi camera và nhận kết quả
-    private val takeImageResult = registerForActivityResult(ActivityResultContracts.TakePicture()) { isSuccess ->
-        if (isSuccess) {
-            latestTmpUri?.let { uri ->
-                // Khi chụp ảnh thành công, gọi hàm xử lý kết quả
-                handlePhotoResult(uri)
+    private val takeImageResult =
+        registerForActivityResult(ActivityResultContracts.TakePicture()) { isSuccess ->
+            if (isSuccess) {
+                latestTmpUri?.let { uri -> handlePhotoResult(uri) }
             }
         }
-    }
 
-    // Enum để xác định mục tiêu chụp ảnh là Pick-up hay Drop-off
     enum class PhotoTarget { PICKUP, DROPOFF }
-    // -----------------------
+    // ----------------------
 
     private var visibilityManager: BottomNavVisibilityManager? = null
+    private var pendingPickupUri: Uri? = null
+    private var pendingDropoffUri: Uri? = null
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
-        // Kiểm tra xem Activity có triển khai interface không
         if (context is BottomNavVisibilityManager) {
             visibilityManager = context
-            // Ngay lập tức ra lệnh ẩn thanh nav
             visibilityManager?.setBottomNavVisibility(false)
         }
     }
 
     override fun onDetach() {
         super.onDetach()
-        // Ra lệnh cho Activity hiện lại thanh nav TRƯỚC KHI bị gỡ ra
         visibilityManager?.setBottomNavVisibility(true)
-        // Dọn dẹp tham chiếu để tránh memory leak
         visibilityManager = null
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            orderId = it.getString(ARG_ORDER_ID)
-        }
+        arguments?.let { orderId = it.getString(ARG_ORDER_ID) }
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        // Nạp layout chính cho Fragment
-        return inflater.inflate(R.layout.fragment_order_detail, container, false)
-    }
+    ): View? = inflater.inflate(R.layout.fragment_order_detail, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // BƯỚC 1: "LẮNG NGHE" SỰ THAY ĐỔI DỮ LIỆU TỪ VIEWMODEL
         viewModel.orderDetail.observe(viewLifecycleOwner) { order ->
-            if (order != null) {
-                // Mỗi khi dữ liệu trong ViewModel thay đổi, hàm bind sẽ được gọi để vẽ lại giao diện
-                bindDataToViews(view, order)
-            } else {
-                // Xử lý trường hợp không có dữ liệu (ví dụ: sau khi tải lần đầu)
+            order?.let { bindDataToViews(view, it) }
+        }
+
+        viewModel.isLoading.observe(viewLifecycleOwner) { /* show/hide progress if you want */ }
+
+        viewModel.errorMessage.observe(viewLifecycleOwner) { event ->
+            event.getContentIfNotHandled()?.let { msg ->
+                Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
             }
         }
 
-        // BƯỚC 2: YÊU CẦU VIEWMODEL TẢI DỮ LIỆU LẦN ĐẦU
-        // `savedInstanceState == null` để đảm bảo chỉ tải 1 lần, không tải lại khi xoay màn hình
+        viewModel.orderCompletedEvent.observe(viewLifecycleOwner) { event ->
+            event.getContentIfNotHandled()?.let {
+                Toast.makeText(requireContext(), "Order completed!", Toast.LENGTH_SHORT).show()
+                val id = orderId ?: return@let
+                navigateToRatings(id)
+            }
+        }
+
         if (savedInstanceState == null) {
             viewModel.loadOrder(orderId)
         }
     }
 
-    /**
-     * Hàm trung tâm, nhận dữ liệu đơn hàng và cập nhật toàn bộ giao diện.
-     */
     private fun bindDataToViews(view: View, order: OrderDetail) {
-        // --- Tìm tất cả các View một lần ---
         val toolbar = view.findViewById<MaterialToolbar>(R.id.toolbar)
         val userAvatar = view.findViewById<ImageView>(R.id.iv_user_avatar)
         val userName = view.findViewById<TextView>(R.id.tv_user_name)
@@ -130,7 +116,6 @@ class OrderDetailFragment : Fragment() {
         val startLocationAddress = view.findViewById<TextView>(R.id.tv_start_location_address_detail)
         val endLocationName = view.findViewById<TextView>(R.id.tv_end_location_name_detail)
         val endLocationAddress = view.findViewById<TextView>(R.id.tv_end_location_address_detail)
-        val userNote = view.findViewById<TextView>(R.id.tv_user_note)
         val itemsContainer = view.findViewById<LinearLayout>(R.id.container_order_items)
         val totalAmount = view.findViewById<TextView>(R.id.tv_total_amount)
         val totalWeight = view.findViewById<TextView>(R.id.tv_total_weight)
@@ -141,142 +126,214 @@ class OrderDetailFragment : Fragment() {
         val dropoffSection = view.findViewById<LinearLayout>(R.id.dropoff_section)
         val pickupPhotoView = view.findViewById<View>(R.id.pickup_photo_view)
         val dropoffPhotoView = view.findViewById<View>(R.id.dropoff_photo_view)
+        val ivMessage = view.findViewById<ImageView>(R.id.iv_message)
 
-        // --- Bind dữ liệu chung ---
-        toolbar.title = "Order Detail ${order.id}"
+        toolbar.title = "Order Detail #${order.id.takeLast(4)}"
         toolbar.setNavigationOnClickListener { activity?.onBackPressedDispatcher?.onBackPressed() }
 
-        Glide.with(this).load(order.user.avatarUrl)
-            .placeholder(R.drawable.ic_person_circle).error(R.drawable.ic_person_circle)
-            .circleCrop().into(userAvatar)
+        ivMessage.setOnClickListener { navigateToMessages(order.id) }
 
-        userName.text = order.user.fullName
+        Glide.with(this).load(order.user.avatarUrl)
+            .placeholder(R.drawable.ic_person_circle)
+            .error(R.drawable.ic_person_circle)
+            .circleCrop()
+            .into(userAvatar)
+
+        userName.text = order.user.fullName ?: "User"
         userPhone.text = order.user.phoneNumber
         deliveryTime.text = order.pickupTimestamp
         startLocationName.text = order.startLocationName
         startLocationAddress.text = order.startLocationAddress
         endLocationName.text = order.endLocationName
         endLocationAddress.text = order.endLocationAddress
-        userNote.text = order.noteFromUser
         totalAmount.text = formatCurrency(order.totalAmount)
         totalWeight.text = "~${order.totalWeight.toInt()}kg"
 
-        // ========== LOGIC HIỂN THỊ VÀ SỰ KIỆN CLICK ==========
+        // --- Decide effective URLs (avoid duplicated pickup image as drop-off) ---
+        val isDupPickupDrop = order.pickupPhotoUrl != null &&
+                order.pickupPhotoUrl == order.dropoffPhotoUrl
+
+        val effectiveDropoffUrl: String? = when {
+            // If user has taken a local drop-off photo, prefer showing it (remoteUrl = null then)
+            pendingDropoffUri != null -> null
+            // If status is delivering and server returns the same URL for both -> treat drop-off as empty
+            order.status == OrderStatus.delivering && isDupPickupDrop -> null
+            else -> order.dropoffPhotoUrl
+        }
+
+        // Show photos (local first, then remote). If nothing -> placeholder to capture.
+        setupPhotoView(
+            photoView = pickupPhotoView,
+            remoteUrl = order.pickupPhotoUrl,
+            localUri = pendingPickupUri
+        ) {
+            photoTarget = PhotoTarget.PICKUP
+            takeImage()
+        }
+
+        setupPhotoView(
+            photoView = dropoffPhotoView,
+            remoteUrl = effectiveDropoffUrl,
+            localUri = pendingDropoffUri
+        ) {
+            photoTarget = PhotoTarget.DROPOFF
+            takeImage()
+        }
+
         when (order.status) {
-            OrderStatus.scheduled -> { // GIAI ĐOẠN PICK-UP
+            OrderStatus.scheduled -> {
                 statusDot.background = ContextCompat.getDrawable(requireContext(), R.drawable.green_dot_background)
                 statusText.text = "On the way to pickup"
                 statusText.setTextColor(ContextCompat.getColor(requireContext(), R.color.green_text_color))
 
                 pickupSection.visibility = View.VISIBLE
                 dropoffSection.visibility = View.GONE
-                setupPhotoView(pickupPhotoView, order.pickupPhotoUrl) {
-                    photoTarget = PhotoTarget.PICKUP
-                    takeImage()
-                }
 
                 actionButton.text = "Pick-Up"
-                actionButton.isEnabled = order.pickupPhotoUrl != null
-                actionButton.setOnClickListener {
-                    viewModel.onPickupConfirmed()
-                }
                 actionButton.visibility = View.VISIBLE
+
+                // Enable when we have an effective pickup (local or remote)
+                val hasPickup = (pendingPickupUri != null) || (order.pickupPhotoUrl != null)
+                actionButton.isEnabled = hasPickup
+
+                actionButton.setOnClickListener {
+                    val id = orderId ?: return@setOnClickListener
+                    val pickupUri = pendingPickupUri
+                    if (pickupUri == null && order.pickupPhotoUrl == null) {
+                        Toast.makeText(requireContext(), "Please capture pickup photo first.", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    // Upload (pickup, pickup) to satisfy backend's 2-file requirement
+                    viewModel.uploadPickupPhase(id, pickupUri)
+                }
             }
-            OrderStatus.delivering -> { // GIAI ĐOẠN DROP-OFF
+
+            OrderStatus.delivering -> {
                 statusDot.background = ContextCompat.getDrawable(requireContext(), R.drawable.orange_dot_background)
                 statusText.text = "Delivering"
                 statusText.setTextColor(ContextCompat.getColor(requireContext(), R.color.status_delivering_text))
 
                 pickupSection.visibility = View.VISIBLE
                 dropoffSection.visibility = View.VISIBLE
-                setupPhotoView(pickupPhotoView, order.pickupPhotoUrl, null)
-                setupPhotoView(dropoffPhotoView, order.dropoffPhotoUrl) {
-                    photoTarget = PhotoTarget.DROPOFF
-                    takeImage()
-                }
 
                 actionButton.text = "Complete Delivery"
-                actionButton.isEnabled = order.dropoffPhotoUrl != null
-                actionButton.setOnClickListener {
-                    viewModel.onDeliveryCompleted()
-                    navigateToRatings(order.id)
-                }
                 actionButton.visibility = View.VISIBLE
+
+                // Effective drop-off exists if we have local or (valid) remote URL
+                val hasDropoffEffective = (pendingDropoffUri != null) || (effectiveDropoffUrl != null)
+                actionButton.isEnabled = hasDropoffEffective
+
+                actionButton.setOnClickListener {
+                    val id = orderId ?: return@setOnClickListener
+                    val pickupUri = pendingPickupUri
+                    val dropUri = pendingDropoffUri
+                    if (dropUri == null && effectiveDropoffUrl == null) {
+                        Toast.makeText(requireContext(), "Please capture drop-off photo first.", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    // Upload both photos (pickup + dropoff) then complete
+                    viewModel.uploadDropoffAndComplete(id, pickupUri, dropUri)
+                }
             }
-            OrderStatus.completed -> { // GIAI ĐOẠN HOÀN THÀNH
+
+            OrderStatus.completed -> {
                 statusDot.background = ContextCompat.getDrawable(requireContext(), R.drawable.blue_dot_background)
                 statusText.text = "Done"
                 statusText.setTextColor(ContextCompat.getColor(requireContext(), R.color.status_done_text))
 
                 pickupSection.visibility = View.VISIBLE
                 dropoffSection.visibility = View.VISIBLE
-                setupPhotoView(pickupPhotoView, order.pickupPhotoUrl, null)
-                setupPhotoView(dropoffPhotoView, order.dropoffPhotoUrl, null)
                 actionButton.visibility = View.GONE
             }
+
             else -> {
-                statusText.text = order.status.name.replaceFirstChar { it.titlecase(Locale.getDefault()) }
-                actionButton.visibility = View.GONE
                 pickupSection.visibility = View.GONE
                 dropoffSection.visibility = View.GONE
+                actionButton.visibility = View.GONE
             }
         }
 
-        // --- Bind danh sách Items ---
+        // Render items
         itemsContainer.removeAllViews()
         val inflater = LayoutInflater.from(context)
         order.items.forEach { item ->
             val itemView = inflater.inflate(R.layout.include_order_item_row, itemsContainer, false)
-            itemView.findViewById<TextView>(R.id.tv_item_name).text = "${item.categoryName} (${formatCurrency(item.pricePerUnit)}/${item.categoryUnit})"
-            itemView.findViewById<TextView>(R.id.tv_item_quantity).text = "${item.quantity} ${item.categoryUnit}"
-            itemView.findViewById<TextView>(R.id.tv_item_subtotal).text = formatCurrency(item.quantity * item.pricePerUnit)
+            itemView.findViewById<TextView>(R.id.tv_item_name)
+                .text = "${item.categoryName} (${formatCurrency(item.pricePerUnit)}/${item.categoryUnit})"
+            itemView.findViewById<TextView>(R.id.tv_item_quantity)
+                .text = "${item.quantity} ${item.categoryUnit}"
+            itemView.findViewById<TextView>(R.id.tv_item_subtotal)
+                .text = formatCurrency(item.quantity * item.pricePerUnit)
             itemsContainer.addView(itemView)
         }
     }
 
-    // --- CÁC HÀM XỬ LÝ ẢNH ---
+    // --- PHOTO helpers ---
     private fun takeImage() {
         lifecycleScope.launch {
-            getTmpFileUri().let { uri ->
-                latestTmpUri = uri
-                takeImageResult.launch(uri)
-            }
+            latestTmpUri = getTmpFileUri()
+            takeImageResult.launch(latestTmpUri)
         }
     }
 
-    private suspend fun getTmpFileUri(): Uri {
-        return withContext(Dispatchers.IO) {
-            val tmpFile = File.createTempFile("tmp_image_file", ".png", requireContext().cacheDir).apply {
-                createNewFile()
-                deleteOnExit()
-            }
-            FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.provider", tmpFile)
+    private suspend fun getTmpFileUri(): Uri = withContext(Dispatchers.IO) {
+        val tmpFile = File.createTempFile("tmp_image_file", ".jpg", requireContext().cacheDir).apply {
+            createNewFile()
+            deleteOnExit()
         }
+        FileProvider.getUriForFile(
+            requireContext(),
+            "${requireContext().packageName}.provider",
+            tmpFile
+        )
     }
 
     private fun handlePhotoResult(uri: Uri) {
-        // Báo cáo kết quả cho ViewModel
-        photoTarget?.let { target ->
-            viewModel.onPhotoTaken(uri, target)
+        when (photoTarget) {
+            PhotoTarget.PICKUP -> {
+                pendingPickupUri = uri
+                Toast.makeText(requireContext(), "Pickup photo captured", Toast.LENGTH_SHORT).show()
+            }
+            PhotoTarget.DROPOFF -> {
+                pendingDropoffUri = uri
+                Toast.makeText(requireContext(), "Drop-off photo captured", Toast.LENGTH_SHORT).show()
+            }
+            else -> Unit
         }
+        // Reload to re-bind UI (buttons enable state, etc.)
+        orderId?.let { viewModel.loadOrder(it) }
     }
 
-    // --- CÁC HÀM TIỆN ÍCH ---
-    private fun setupPhotoView(photoView: View, photoUrl: String?, onPlaceholderClick: (() -> Unit)?) {
+    private fun setupPhotoView(
+        photoView: View,
+        remoteUrl: String?,
+        localUri: Uri?,
+        onPlaceholderClick: (() -> Unit)?
+    ) {
         val photoDisplay = photoView.findViewById<ImageView>(R.id.iv_photo_display)
         val placeholder = photoView.findViewById<LinearLayout>(R.id.container_photo_placeholder)
 
-        if (photoUrl != null) {
-            placeholder.visibility = View.GONE
-            photoDisplay.visibility = View.VISIBLE
-            Glide.with(this).load(photoUrl).centerCrop().into(photoDisplay)
-        } else {
-            placeholder.visibility = View.VISIBLE
-            photoDisplay.visibility = View.GONE
-            placeholder.setOnClickListener {
-                onPlaceholderClick?.invoke()
+        when {
+            localUri != null -> {
+                placeholder.visibility = View.GONE
+                photoDisplay.visibility = View.VISIBLE
+                Glide.with(this).load(localUri).centerCrop().into(photoDisplay)
+            }
+            remoteUrl != null -> {
+                placeholder.visibility = View.GONE
+                photoDisplay.visibility = View.VISIBLE
+                Glide.with(this).load(remoteUrl).centerCrop().into(photoDisplay)
+            }
+            else -> {
+                placeholder.visibility = View.VISIBLE
+                photoDisplay.visibility = View.GONE
+                placeholder.setOnClickListener { onPlaceholderClick?.invoke() }
             }
         }
+    }
+
+    private fun navigateToMessages(conversationKey: String) {
+        Toast.makeText(requireContext(), "Open messages (stub)", Toast.LENGTH_SHORT).show()
     }
 
     private fun navigateToRatings(orderId: String) {
@@ -291,19 +348,17 @@ class OrderDetailFragment : Fragment() {
         return try {
             val format = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
             format.format(amount).replace("₫", "đ")
-        } catch (e: Exception) { "${amount.toLong()}đ" }
+        } catch (e: Exception) {
+            "${amount.toLong()}đ"
+        }
     }
 
     companion object {
         private const val ARG_ORDER_ID = "order_id"
 
         @JvmStatic
-        fun newInstance(orderId: String) =
-            OrderDetailFragment().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_ORDER_ID, orderId)
-                }
-            }
+        fun newInstance(orderId: String) = OrderDetailFragment().apply {
+            arguments = Bundle().apply { putString(ARG_ORDER_ID, orderId) }
+        }
     }
-
 }

@@ -13,7 +13,7 @@ enum class BottomNavScreen {
     DASHBOARD,
     SCHEDULE,
     PROFILE,
-    SETTINGS
+    NOTIFICATIONS
 }
 
 /**
@@ -49,7 +49,7 @@ object BottomNavHelper {
             onScreenSelected(BottomNavScreen.PROFILE)
         }
         rootView.findViewById<LinearLayout>(R.id.btnSettingsContainer).setOnClickListener {
-            onScreenSelected(BottomNavScreen.SETTINGS)
+            onScreenSelected(BottomNavScreen.NOTIFICATIONS)
         }
     }
 
@@ -64,7 +64,7 @@ object BottomNavHelper {
         val btnDashboard = rootView.findViewById<ImageButton>(R.id.btnDashboard)
         val btnSchedule = rootView.findViewById<ImageButton>(R.id.btnSchedule)
         val btnProfile = rootView.findViewById<ImageButton>(R.id.btnProfile)
-        val btnSettings = rootView.findViewById<ImageButton>(R.id.btnSettings)
+        //val btnNotification = rootView.findViewById<ImageButton>(R.id.btnNotification)
 
         // Lấy màu từ resources
         val activeColor = ContextCompat.getColor(context, R.color.bottom_nav_active)
@@ -74,6 +74,6 @@ object BottomNavHelper {
         btnDashboard.setColorFilter(if (currentScreen == BottomNavScreen.DASHBOARD) activeColor else inactiveColor)
         btnSchedule.setColorFilter(if (currentScreen == BottomNavScreen.SCHEDULE) activeColor else inactiveColor)
         btnProfile.setColorFilter(if (currentScreen == BottomNavScreen.PROFILE) activeColor else inactiveColor)
-        btnSettings.setColorFilter(if (currentScreen == BottomNavScreen.SETTINGS) activeColor else inactiveColor)
+        //btnNotification.setColorFilter(if (currentScreen == BottomNavScreen.NOTIFICATIONS) activeColor else inactiveColor)
     }
 }

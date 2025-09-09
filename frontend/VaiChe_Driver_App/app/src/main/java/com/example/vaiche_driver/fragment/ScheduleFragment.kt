@@ -38,14 +38,6 @@ class ScheduleFragment: Fragment() {
 
         setupViews(view)
         observeViewModel()
-
-        // Setup bottom nav
-        val bottomNav = view.findViewById<View>(R.id.bottom_nav_include)
-        bottomNav?.let {
-            BottomNavHelper.setup(it, BottomNavScreen.SCHEDULE) { fragment ->
-                // Logic điều hướng
-            }
-        }
     }
 
     override fun onResume() {

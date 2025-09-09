@@ -1,92 +1,114 @@
 package com.example.vaiche_driver.model
 
-/**
- * File này chứa các hàm mở rộng (extension functions) để chuyển đổi
- * giữa các model mạng (Network models - ...Public) và các model giao diện (UI models).
- * Điều này giúp giữ cho logic chuyển đổi được tập trung ở một nơi.
- */
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
- * Chuyển đổi một đối tượng OrderPublic (từ API) thành một đối tượng Schedule (cho UI).
+ * ===========================
+ * Extensions & Mappers (UI)
+ * ===========================
+ *
+ * Quy ước:
+ * - Backend enum: OrderStatusApi { PENDING, ACCEPTED, COMPLETED, CANCELLED }
+ * - Local UI enum: OrderStatus { scheduled, delivering, completed, cancelled, pending }
+ *
+ * Rule duy nhất map backend -> local:
+ * - PENDING   -> pending
+ * - COMPLETED -> completed
+ * - CANCELLED -> cancelled
+ * - ACCEPTED  -> if (imgUrl1 is null/blank) scheduled else delivering
  */
-fun OrderPublic.toSchedule(): Schedule {
-    // Tách chuỗi timestamp thành giờ và ngày
-    val timestamp = this.pickupTimestamp ?: " , "
-    val parts = timestamp.split(',', limit = 2)
-    val time = parts.getOrNull(0)?.trim() ?: ""
-    val date = parts.getOrNull(1)?.trim() ?: ""
 
-    // Chuyển đổi trạng thái từ String sang Enum
-    val statusEnum = OrderStatus.fromString(this.status)
+/** Map backend enum + context ảnh -> local UI enum */
+fun mapBackendToLocalStatus(status: OrderStatusApi, imgUrl1: String?): OrderStatus = when (status) {
+    OrderStatusApi.PENDING   -> OrderStatus.pending
+    OrderStatusApi.COMPLETED -> OrderStatus.completed
+    OrderStatusApi.CANCELLED -> OrderStatus.cancelled
+    OrderStatusApi.ACCEPTED  -> if (imgUrl1.isNullOrBlank()) OrderStatus.scheduled else OrderStatus.delivering
+}
 
+/** Convenience: lấy local status trực tiếp từ OrderPublic */
+fun OrderPublic.localStatus(): OrderStatus =
+    mapBackendToLocalStatus(this.status, this.imgUrl1)
+
+/** Convenience: lấy local status trực tiếp từ NearbyOrderPublic */
+fun NearbyOrderPublic.localStatus(): OrderStatus =
+    mapBackendToLocalStatus(this.status, this.imgUrl1)
+
+/** Parse ISO-8601 timestamp -> Pair(time, date) với nhiều pattern fallback */
+private fun String.toPrettyTimeDate(): Pair<String, String> {
+    val patterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'"
+    )
+    val parsed: Date? = patterns.firstNotNullOfOrNull { p ->
+        try { SimpleDateFormat(p, Locale.getDefault()).parse(this) } catch (_: Exception) { null }
+    }
+    return if (parsed != null) {
+        val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(parsed)
+        val date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(parsed)
+        time to date
+    } else {
+        "" to ""
+    }
+}
+
+/** OrderItemPublic (API) -> OrderItem (UI) */
+fun OrderItemPublic.toOrderItem(): OrderItem = OrderItem(
+    id = id,
+    categoryName = categoryId,   // TODO: khi backend trả tên category thì map lại tại đây
+    categoryUnit = "unit",       // TODO: map theo unit thật nếu có
+    quantity = quantity,
+    pricePerUnit = 0.0           // backend chưa trả đơn giá
+)
+
+/** OrderPublic (API) -> Schedule (UI) */
+fun OrderPublic.toSchedule(statusOverride: OrderStatus? = null): Schedule {
+    val (time, date) = createdAt.toPrettyTimeDate()
+    val uiStatus = statusOverride ?: localStatus()
     return Schedule(
-        id = this.id,
+        id = id,
         date = date,
         time = time,
-        status = statusEnum,
-        startLocationName = this.pickupAddress, // Tạm thời dùng pickupAddress làm tên
-        startLocationAddress = this.pickupAddress,
-        endLocationName = "VAI CHE", // Dữ liệu giả, cần được backend cung cấp
-        endLocationAddress = "Hồ Chí Minh" // Dữ liệu giả
+        status = uiStatus,
+        startLocationName = pickupAddress,
+        startLocationAddress = pickupAddress,
+        endLocationName = "VAI CHE",
+        endLocationAddress = "Hồ Chí Minh"
     )
 }
 
-/**
- * --- HÀM QUAN TRỌNG ---
- * Chuyển đổi một đối tượng OrderPublic (từ API) thành một đối tượng OrderDetail (cho UI).
- */
-fun OrderPublic.toOrderDetail(): OrderDetail {
-    val statusEnum = OrderStatus.fromString(this.status)
+/** OrderPublic (API) -> OrderDetail (UI) */
+fun OrderPublic.toOrderDetail(statusOverride: OrderStatus? = null): OrderDetail {
+    val uiStatus = statusOverride ?: localStatus()
+    val uiItems = items.map { it.toOrderItem() }
 
-    // Chuyển đổi danh sách OrderItemPublic sang OrderItem
-    val uiItems = this.items.map { it.toOrderItem() }
-
-    // Tạo đối tượng User cho UI từ dữ liệu owner
-    // Nếu backend không trả về owner, tạo một user mặc định
-    val uiUser = this.owner?.let {
-        OrderUser(it.fullName, it.phoneNumber, it.avatarUrl)
-    } ?: OrderUser("Unknown User", "N/A", null)
+    val (time, date) = createdAt.toPrettyTimeDate()
+    val ts = listOfNotNull(
+        time.takeIf { it.isNotBlank() },
+        date.takeIf { it.isNotBlank() }
+    ).joinToString(", ").ifBlank { "Unknown Time" }
 
     return OrderDetail(
-        id = this.id,
-        user = uiUser,
-        status = statusEnum,
-        pickupTimestamp = this.pickupTimestamp ?: "Unknown Time",
-        startLocationName = this.pickupAddress,
-        startLocationAddress = this.pickupAddress,
-        endLocationName = "VAI CHE", // Dữ liệu giả
-        endLocationAddress = "Hồ Chí Minh", // Dữ liệu giả
-        noteFromUser = this.note ?: "No note from user.",
+        id = id,
+        user = OrderUser(
+            fullName = owner?.fullName ?: "Unknown User",
+            phoneNumber = owner?.phoneNumber ?: "N/A",
+            avatarUrl = owner?.avatarUrl
+        ),
+        status = uiStatus,
+        pickupTimestamp = ts,
+        startLocationName = pickupAddress,
+        startLocationAddress = pickupAddress,
+        endLocationName = "VAI CHE",
+        endLocationAddress = "Hồ Chí Minh",
         items = uiItems,
-        // Tính toán lại tổng tiền và cân nặng ở client để đảm bảo chính xác
-        totalAmount = uiItems.sumOf { it.quantity * it.pricePerUnit },
-        totalWeight = uiItems.filter { it.categoryUnit == "kg" }.sumOf { it.quantity },
-        pickupPhotoUrl = null, // Backend cần cung cấp trường này
-        dropoffPhotoUrl = null // Backend cần cung cấp trường này
+        totalAmount = 0.0,
+        totalWeight = uiItems.filter { it.categoryUnit.equals("kg", true) }.sumOf { it.quantity },
+        pickupPhotoUrl = imgUrl1,
+        dropoffPhotoUrl = imgUrl2
     )
-}
-
-/**
- * Chuyển đổi một đối tượng OrderItemPublic (từ API) thành OrderItem (cho UI).
- */
-fun OrderItemPublic.toOrderItem(): OrderItem {
-    return OrderItem(
-        id = this.id,
-        // Backend nên trả về categoryName và categoryUnit để không phải gọi API khác
-        categoryName = this.categoryName ?: "Unknown Category",
-        categoryUnit = this.categoryUnit ?: "unit",
-        quantity = this.quantity,
-        pricePerUnit = this.pricePerUnit
-    )
-}
-
-/**
- * Hàm tiện ích để chuyển đổi một chuỗi String thành enum OrderStatus một cách an toàn.
- */
-fun OrderStatus.Companion.fromString(value: String): OrderStatus {
-    return try {
-        OrderStatus.valueOf(value.lowercase())
-    } catch (e: IllegalArgumentException) {
-        OrderStatus.pending // Trả về một giá trị mặc định nếu chuỗi không hợp lệ
-    }
 }

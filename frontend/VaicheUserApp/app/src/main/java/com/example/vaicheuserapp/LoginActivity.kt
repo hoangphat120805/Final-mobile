@@ -3,6 +3,7 @@ package com.example.vaicheuserapp
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
@@ -68,6 +69,7 @@ class LoginActivity : AppCompatActivity() {
     private fun saveAuthToken(token: String) {
         val sharedPreferences = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         sharedPreferences.edit { putString("auth_token", token) }
+        Log.d("LoginActivity", "Token saved to SharedPreferences.")
     }
 
     private fun navigateToDashboard() {

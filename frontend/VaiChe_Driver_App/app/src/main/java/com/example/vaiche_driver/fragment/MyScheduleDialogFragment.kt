@@ -99,7 +99,7 @@ class MyScheduleDialogFragment : BottomSheetDialogFragment() {
 
         // Gán dữ liệu
         dateText.text = schedule.date
-        timeText.text = "${schedule.time},"
+        timeText.text = schedule.time
         orderIdText.text = "#${schedule.id.takeLast(4)}"
         startName.text = schedule.startLocationName
         startAddress.text = schedule.startLocationAddress
@@ -119,8 +119,6 @@ class MyScheduleDialogFragment : BottomSheetDialogFragment() {
                 statusText.setTextColor(ContextCompat.getColor(requireContext(), R.color.status_delivering_text))
             }
             else -> {
-                // Các trạng thái khác (completed, pending...) không phải là "Upcoming"
-                // nên sẽ không hiển thị trong dialog này.
                 statusText.visibility = View.GONE
             }
         }

@@ -32,10 +32,11 @@ router = APIRouter(
 )
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=OrderPublic)
-def create_order(order: OrderCreate, current_user: CurrentUser, session: SessionDep):
+def create_order(order: OrderCreate, current_user: CurrentUser,session: SessionDep):
     """
     Create a new order. Backend will geocode pickup_address using Mapbox.
     """
+    
     db_order = asyncio.run(crud.create_order(session=session, order_create=order, owner_id=current_user.id))
     return db_order
 
@@ -115,7 +116,7 @@ async def list_nearby_orders(
     lng: float,
     current_collector: CurrentCollector,
     session: SessionDep,
-    radius_km: float = 5.0,
+    radius_km: float = 50.0,
     limit: int = 10
 ):
     """
@@ -160,7 +161,7 @@ async def list_nearby_orders(
     return response_objects
 
 
-@router.get("/{order_id}", response_model=OrderPublic)
+@router.get("/{order_id:uuid}", response_model=OrderPublic)
 def get_order(
     order_id: uuid.UUID, 
     session: SessionDep, 
@@ -179,12 +180,23 @@ def get_order(
     return order
 
 
+
+# Lấy tất cả đơn hàng của user
 @router.get("/", response_model=list[OrderPublic])
-def get_orders(current_user: CurrentUser, session: SessionDep):
+def get_orders_for_user(current_user: CurrentUser, session: SessionDep):
     """
     Get all orders for the current user.
     """
     orders = crud.get_orders_by_user(session=session, user_id=current_user.id)
+    return orders
+
+# Lấy tất cả đơn hàng của collector
+@router.get("/collector", response_model=list[OrderPublic])
+def get_orders_for_collector(current_collector: CurrentCollector, session: SessionDep):
+    """
+    Get all orders assigned to the current collector.
+    """
+    orders = crud.get_orders_by_collector(session=session, collector_id=current_collector.id)
     return orders
 
 @router.post("/{order_id}/accept", response_model=OrderAcceptResponse, status_code=status.HTTP_200_OK)
@@ -237,7 +249,7 @@ def complete_order_and_pay(
 
 
 @router.get("/{order_id}/route", response_model=RoutePublic)
-async def get_route_for_order(order_id: uuid.UUID, current_user: CurrentUser, session: SessionDep):
+async def get_route_for_order(order_id: uuid.UUID, current_collector: CurrentCollector, session: SessionDep):
     """
     Get route information from collector's current location to the order's pickup location.
     """
@@ -247,12 +259,12 @@ async def get_route_for_order(order_id: uuid.UUID, current_user: CurrentUser, se
     if not order.location:
         raise HTTPException(status_code=400, detail="Order does not have a valid location")
     
-    if not current_user.location:
+    if not current_collector.location:
         raise HTTPException(status_code=400, detail="Collector does not have a valid location")
     
     route_info = await mapbox.get_route_from_mapbox(
-        start_lon=current_user.location.x,
-        start_lat=current_user.location.y,
+        start_lon=current_collector.location.x,
+        start_lat=current_collector.location.y,
         end_lon=order.location.x,
         end_lat=order.location.y
     )
@@ -320,7 +332,7 @@ def upload_order_image(
 
     image2_url = response2.json().get("data", {}).get("url")
 
-    crud.update_order_images(session, order_id, image1_url=image1_url, image2_url=image2_url)
+    crud.update_order_img(session, order_id, image1_url, image2_url)
     return {"message": "Images uploaded successfully"}
 
 @router.get("/{order_id}/owner", response_model=UserPublic)
@@ -387,12 +399,12 @@ def review_collector_for_order(order_id: uuid.UUID, review: ReviewCreate, curren
     return db_review
 
 @router.get("/{order_id}/review", response_model=ReviewPublic)
-def get_order_review(order_id: uuid.UUID, session:SessionDep, current_user:CurrentUser):
+def get_order_review(order_id: uuid.UUID, session:SessionDep, current_user:CurrentUser, current_collector:CurrentCollector=None):
     """
     Get review for a specific order.
     """
     order = crud.get_order_by_id(session=session, order_id=order_id)
-    if order.owner_id != current_user.id:
+    if order.owner_id != current_user.id and (not current_collector or order.collector_id != current_collector.id):
         raise HTTPException(status_code=403, detail="You can only view reviews for your own orders")
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")

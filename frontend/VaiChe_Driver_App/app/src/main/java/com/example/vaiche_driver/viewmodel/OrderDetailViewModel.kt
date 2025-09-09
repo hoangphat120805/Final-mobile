@@ -1,22 +1,30 @@
 package com.example.vaiche_driver.viewmodel
 
+import android.app.Application
 import android.net.Uri
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vaiche_driver.data.repository.OrderRepository
 import com.example.vaiche_driver.fragment.OrderDetailFragment
 import com.example.vaiche_driver.model.OrderDetail
+import com.example.vaiche_driver.model.OrderStatus
+import com.example.vaiche_driver.model.TransactionMethod
+import com.example.vaiche_driver.model.CompletedOrderItemPayload
 import com.example.vaiche_driver.model.OrderCompletionRequest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import java.io.InputStream
 
-class OrderDetailViewModel : ViewModel() {
+class OrderDetailViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Khởi tạo Repository để tương tác với nguồn dữ liệu
     private val orderRepository = OrderRepository()
 
-    // --- CÁC LIVE DATA CHO GIAO DIỆN ---
     private val _orderDetail = MutableLiveData<OrderDetail?>()
     val orderDetail: LiveData<OrderDetail?> = _orderDetail
 
@@ -26,13 +34,9 @@ class OrderDetailViewModel : ViewModel() {
     private val _errorMessage = MutableLiveData<Event<String>>()
     val errorMessage: LiveData<Event<String>> = _errorMessage
 
-    // LiveData dạng Event để thông báo cho Fragment khi đơn hàng đã hoàn thành
     private val _orderCompletedEvent = MutableLiveData<Event<Boolean>>()
     val orderCompletedEvent: LiveData<Event<Boolean>> = _orderCompletedEvent
 
-    /**
-     * Tải dữ liệu chi tiết của đơn hàng từ Repository.
-     */
     fun loadOrder(orderId: String?) {
         if (orderId == null) {
             _errorMessage.value = Event("Order ID is missing.")
@@ -41,72 +45,109 @@ class OrderDetailViewModel : ViewModel() {
         _isLoading.value = true
         viewModelScope.launch {
             val result = orderRepository.getOrderDetail(orderId)
-            result.onSuccess { orderDetail ->
-                _orderDetail.value = orderDetail
-            }.onFailure { error ->
-                _errorMessage.value = Event(error.message ?: "Failed to load order details.")
-            }
+            result.onSuccess { detail -> _orderDetail.value = detail }
+                .onFailure { e -> _errorMessage.value = Event(e.message ?: "Failed to load order details.") }
             _isLoading.value = false
         }
     }
 
     /**
-     * Xử lý sau khi chụp ảnh thành công.
-     * TƯƠNG LAI: Sẽ gọi API upload ảnh.
+     * Giai đoạn PICK-UP:
+     * - Backend yêu cầu 2 file (file1, file2).
+     * - Khi mới có ảnh pickup, ta tạm upload (pickup, pickup).
+     * - Sau đó chuyển UI sang delivering (map local).
      */
-    fun onPhotoTaken(uri: Uri, target: OrderDetailFragment.PhotoTarget) {
-        val currentOrder = _orderDetail.value ?: return
-
-        _isLoading.value = true
+    fun uploadPickupPhase(orderId: String, pickupUri: Uri?) {
         viewModelScope.launch {
-            // TODO: Gọi repository.uploadPhoto(currentOrder.id, uri, target)
-            // Sau khi upload thành công, API sẽ trả về Order mới đã có URL ảnh
-            // Hiện tại, chúng ta chỉ cần tải lại dữ liệu để giả lập
-            loadOrder(currentOrder.id)
+            val pickupPart = buildPartFromUri(pickupUri, "file1")
+                ?: run {
+                    // Nếu không có local pickupUri (nhưng server đã có ảnh rồi) -> chỉ cần reload.
+                    loadOrder(orderId)
+                    return@launch
+                }
+            // Tạm thời dùng cùng ảnh cho file2 để pass validation
+            val file2Part = buildPartFromUri(pickupUri, "file2")!!
+
+            _isLoading.value = true
+            val uploadResult = orderRepository.uploadOrderImages(orderId, pickupPart, file2Part)
+            uploadResult.onFailure { e ->
+                _errorMessage.value = Event(e.message ?: "Upload pickup failed.")
+            }
+            // Dù upload thành công hay không, vẫn reload để sync trạng thái
+            loadOrder(orderId)
             _isLoading.value = false
         }
     }
 
     /**
-     * Xử lý khi người dùng xác nhận đã Pick-Up.
-     * Chỉ cập nhật trạng thái ở client thành "delivering".
+     * Giai đoạn DROP-OFF + COMPLETE:
+     * - Upload đầy đủ (pickup + dropoff) để cập nhật ảnh chuẩn.
+     * - Sau đó complete đơn.
      */
-    fun onPickupConfirmed() {
-        val currentOrder = _orderDetail.value ?: return
-        _isLoading.value = true
+    fun uploadDropoffAndComplete(orderId: String, pickupUri: Uri?, dropoffUri: Uri?) {
         viewModelScope.launch {
-            val result = orderRepository.markAsDelivering(currentOrder.id)
-            result.onSuccess {
-                // Tải lại dữ liệu để giao diện được cập nhật với trạng thái "delivering" mới
-                loadOrder(currentOrder.id)
-            }.onFailure { error ->
-                _errorMessage.value = Event(error.message ?: "Failed to update status.")
+            _isLoading.value = true
+
+            // Build 2 parts. Nếu thiếu pickupUri (do trước đó đã upload), ta vẫn cần 2 file;
+            // workaround: dùng dropoff cho cả 2 — backend nên cho update từng file trong tương lai.
+            val file1 = buildPartFromUri(pickupUri ?: dropoffUri, "file1")
+            val file2 = buildPartFromUri(dropoffUri ?: pickupUri, "file2")
+
+            if (file1 == null || file2 == null) {
+                _errorMessage.value = Event("Missing images to upload.")
+                _isLoading.value = false
+                return@launch
             }
-            // Không cần ẩn isLoading ở đây vì loadOrder đã xử lý
-        }
-    }
 
-    /**
-     * Xử lý khi người dùng xác nhận đã Drop-Off và hoàn thành đơn.
-     * Sẽ gọi API để cập nhật trạng thái "completed" trên backend.
-     */
-    fun onDeliveryCompleted() {
-        val currentOrder = _orderDetail.value ?: return
+            val uploadRes = orderRepository.uploadOrderImages(orderId, file1, file2)
+            uploadRes.onFailure { e ->
+                _errorMessage.value = Event(e.message ?: "Upload images failed.")
+            }
 
-        _isLoading.value = true
-        viewModelScope.launch {
-            // TODO: Xây dựng request body thực tế từ dữ liệu đơn hàng (các item đã được cân lại)
-            val requestBody = OrderCompletionRequest(items = emptyList())
+            // Chuẩn bị body complete (tạm: lấy item hiện có, dùng quantity làm actual_quantity; payment = cash)
+            val current = _orderDetail.value
+            val completedItems = current?.items?.map { item ->
+                CompletedOrderItemPayload(
+                    orderItemId = item.id,
+                    actualQuantity = item.quantity
+                )
+            } ?: emptyList()
 
-            val result = orderRepository.completeOrder(currentOrder.id, requestBody)
+            val completionBody = OrderCompletionRequest(
+                paymentMethod = TransactionMethod.CASH,
+                items = completedItems
+            )
 
-            result.onSuccess {
-                // Gửi tín hiệu cho Fragment biết rằng đã hoàn thành thành công
+
+            val completeRes = orderRepository.completeOrder(orderId, completionBody)
+            completeRes.onSuccess {
                 _orderCompletedEvent.value = Event(true)
-            }.onFailure { error ->
-                _errorMessage.value = Event(error.message ?: "Failed to complete order.")
+                // reload để đảm bảo đã completed
+                loadOrder(orderId)
+            }.onFailure { e ->
+                _errorMessage.value = Event(e.message ?: "Complete order failed.")
             }
+
             _isLoading.value = false
+        }
+    }
+
+    // ===== Helpers =====
+
+    private suspend fun buildPartFromUri(uri: Uri?, formName: String): MultipartBody.Part? {
+        if (uri == null) return null
+        val resolver = getApplication<Application>().contentResolver
+
+        return withContext(Dispatchers.IO) {
+            try {
+                val mime = resolver.getType(uri) ?: "image/jpeg"
+                val input: InputStream? = resolver.openInputStream(uri)
+                val bytes = input?.readBytes() ?: return@withContext null
+                val body = RequestBody.create(mime.toMediaTypeOrNull(), bytes)
+                MultipartBody.Part.createFormData(formName, "photo.jpg", body)
+            } catch (e: Exception) {
+                null
+            }
         }
     }
 }
