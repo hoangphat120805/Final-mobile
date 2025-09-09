@@ -13,17 +13,26 @@ data class OrderItemPublic(
 ) : Parcelable
 
 @Parcelize
+data class GeoJsonPoint(
+    val type: String, // "Point"
+    val coordinates: List<Double> // [longitude, latitude]
+) : Parcelable
+
+@Parcelize
 data class OrderPublic(
     val id: String,
     @SerializedName("owner_id") val ownerId: String,
     @SerializedName("collector_id") val collectorId: String?,
     val status: OrderStatus,
     @SerializedName("pickup_address") val pickupAddress: String,
-    val location: LocationData, // Flexible for Mapbox/GeoJSON
-    @SerializedName("img_url1") val imgUrl1: String?, // <-- NEW FIELD
-    @SerializedName("img_url2") val imgUrl2: String?, // <-- NEW FIELD
+    @SerializedName("location") val locationGeoJson: GeoJsonPoint, // <-- CRITICAL FIX: Rename to locationGeoJson and use GeoJsonPoint
+    @SerializedName("img_url1") val imgUrl1: String?,
+    @SerializedName("img_url2") val imgUrl2: String?,
+    @SerializedName("items") val items: List<OrderItemPublic>,
     @SerializedName("created_at") val createdAt: String,
-    val items: List<OrderItemPublic> // Default empty list
+    @SerializedName("updated_at") val updatedAt: String,
+    @SerializedName("owner") val owner: UserPublic?, // Owner is now included
+    @SerializedName("collector") val collector: CollectorPublic? // Collector is now included (from getOrder API, not OrderPublic schema itself)
 ) : Parcelable
 
 enum class OrderStatus {

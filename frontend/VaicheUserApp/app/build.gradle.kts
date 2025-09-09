@@ -100,4 +100,6 @@ dependencies {
     implementation("com.mapbox.search:mapbox-search-android-ui:2.14.0")
 
     implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    implementation("com.mapbox.mapboxsdk:mapbox-sdk-turf:7.0.0")
 }
