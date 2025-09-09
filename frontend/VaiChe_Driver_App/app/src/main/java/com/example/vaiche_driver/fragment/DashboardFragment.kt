@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,22 +18,18 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.example.vaiche_driver.R
-import com.example.vaiche_driver.adapter.BottomNavHelper
-import com.example.vaiche_driver.adapter.BottomNavScreen
 import com.example.vaiche_driver.model.DriverState
-import com.example.vaiche_driver.model.FakeDataSource
-import com.example.vaiche_driver.ui.SetPlanDialogFragment
 import com.example.vaiche_driver.viewmodel.SharedViewModel
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.locationcomponent.location
 
 /**
- * Fragment này là màn hình chính (Dashboard), đóng vai trò là "Trung tâm điều khiển".
- * Nó lắng nghe trạng thái từ SharedViewModel và quyết định hành động tiếp theo.
- * Nó cũng tự quản lý thanh điều hướng dưới cùng của riêng mình.
+ * Màn hình Dashboard: lắng nghe trạng thái từ SharedViewModel và điều phối UI/luồng tìm đơn.
  */
 class DashboardFragment : Fragment() {
+
+    private val TAG = "Dashboard"
 
     private val sharedViewModel: SharedViewModel by activityViewModels()
 
@@ -40,30 +37,33 @@ class DashboardFragment : Fragment() {
 
     private val findingHandler = Handler(Looper.getMainLooper())
     private var findingRunnable: Runnable? = null
+    private var timeoutRunnable: Runnable? = null
 
-    // Launcher để xin quyền truy cập vị trí
+    // Xin quyền vị trí
     private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
                 initLocationComponent()
             } else {
-                Toast.makeText(context, "Location permission is required for the map feature.", Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    context,
+                    "Location permission is required for the map feature.",
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_dashboard, container, false)
-    }
+    ): View? = inflater.inflate(R.layout.fragment_dashboard, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         mapView = view.findViewById(R.id.mapView)
 
-        // Khởi tạo bản đồ và các thành phần
+        // Khởi tạo map
         mapView?.getMapboxMap()?.loadStyleUri(Style.MAPBOX_STREETS) {
             checkLocationPermission()
         }
@@ -77,17 +77,15 @@ class DashboardFragment : Fragment() {
         tvCenterTitle.setOnClickListener {
             sharedViewModel.toggleOnlineStatus()
         }
-
-        view.findViewById<ImageView>(R.id.btnLeft).setOnClickListener { /* TODO: Navigate to Earnings */ }
-        view.findViewById<ImageView>(R.id.btnRight).setOnClickListener { /* TODO: Navigate to Notifications */ }
-
     }
 
     private fun observeViewModel() {
         val tvCenterTitle = view?.findViewById<TextView>(R.id.tvCenterTitle) ?: return
 
         sharedViewModel.driverState.observe(viewLifecycleOwner) { state ->
+            // Mỗi lần đổi state thì dừng polling cũ để tránh nhân đôi
             stopFindingOrder()
+
             when (state) {
                 DriverState.OFFLINE -> {
                     tvCenterTitle.text = "Offline"
@@ -95,6 +93,7 @@ class DashboardFragment : Fragment() {
                 }
                 DriverState.ONLINE -> {
                     tvCenterTitle.text = "Online"
+                    tvCenterTitle.isEnabled = true
                     if (parentFragmentManager.findFragmentByTag("SetPlanDialog") == null) {
                         SetPlanDialogFragment().show(parentFragmentManager, "SetPlanDialog")
                     }
@@ -102,7 +101,8 @@ class DashboardFragment : Fragment() {
                 DriverState.FINDING_ORDER -> {
                     tvCenterTitle.text = "Finding..."
                     tvCenterTitle.isEnabled = false
-                    // Start finding order will be triggered by onPlanConfirmed in ViewModel
+                    // Bắt đầu tìm + set timeout 30s
+                    startFindingOrder(immediate = true)
                 }
                 DriverState.DELIVERING -> {
                     tvCenterTitle.text = "Delivering"
@@ -123,59 +123,69 @@ class DashboardFragment : Fragment() {
             event.getContentIfNotHandled()?.let {
                 Toast.makeText(context, "Finding another order...", Toast.LENGTH_SHORT).show()
                 SuccessDialogFragment().show(parentFragmentManager, SuccessDialogFragment.TAG)
+                // Reset vòng tìm + reset lại timeout 30s
                 startFindingOrder(immediate = true)
             }
         }
 
         sharedViewModel.foundNewOrder.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandled()?.let { newOrder ->
+                // Có đơn mới -> dừng polling + đóng "đang chờ"
                 stopFindingOrder()
                 (parentFragmentManager.findFragmentByTag(SuccessDialogFragment.TAG) as? DialogFragment)?.dismiss()
-                NewOrderDialogFragment.newInstance(newOrder.id).show(parentFragmentManager, "NewOrderDialog")
-                // TODO: Vẽ marker và đường đi cho newOrder trên bản đồ
+                NewOrderDialogFragment.newInstance(newOrder.id)
+                    .show(parentFragmentManager, "NewOrderDialog")
+                // TODO: Vẽ marker/route cho newOrder trên map
             }
         }
     }
 
     private fun startFindingOrder(immediate: Boolean = false) {
-        // 1. Định nghĩa công việc cần làm (tìm kiếm đơn hàng)
+        // Luôn dọn dẹp trước khi start để chắc chắn reset lại timeout/polling
+        Log.d(TAG, "startFindingOrder(immediate=$immediate)")
+        stopFindingOrder()
+
+        // Poll tìm đơn mỗi 5s
         findingRunnable = Runnable {
-            // 2. Kiểm tra xem Fragment có còn "sống" không để tránh crash
             if (!isAdded) return@Runnable
-
-            // 3. Ra lệnh cho ViewModel tìm đơn hàng.
-            //    ViewModel đã có sẵn vị trí làm việc và danh sách từ chối.
             sharedViewModel.findNearbyOrder()
-
-            // 4. Lên lịch để tự động tìm lại sau một khoảng thời gian.
-            //    Điều này tạo ra một vòng lặp tìm kiếm.
-            //    Khi một đơn hàng được tìm thấy hoặc trạng thái thay đổi,
-            //    hàm `stopFindingOrder()` sẽ được gọi để ngắt vòng lặp này.
-            findingHandler.postDelayed(findingRunnable!!, 5000) // Tìm lại sau mỗi 15 giây
+            findingHandler.postDelayed(findingRunnable!!, 5_000L)
         }
 
-        // 5. Quyết định độ trễ cho lần tìm kiếm đầu tiên
-        val initialDelay = if (immediate) 0L else 3000L // 0 giây nếu reject, 3 giây nếu là lần đầu
-
-        // 6. Bắt đầu thực thi công việc sau khoảng trễ
+        val initialDelay = if (immediate) 0L else 3_000L
         findingHandler.postDelayed(findingRunnable!!, initialDelay)
+
+        // Timeout 30s: nếu vẫn ở FINDING_ORDER thì tự về OFFLINE
+        timeoutRunnable = Runnable {
+            if (!isAdded) return@Runnable
+            if (sharedViewModel.driverState.value == DriverState.FINDING_ORDER) {
+                stopFindingOrder()
+                Toast.makeText(
+                    requireContext(),
+                    "Can not find any orders!",
+                    Toast.LENGTH_LONG
+                ).show()
+                sharedViewModel.goOffline()
+            }
+        }
+        findingHandler.postDelayed(timeoutRunnable!!, 30_000L)
+        Log.d(TAG, "poll -> findNearbyOrder()")
     }
 
     private fun stopFindingOrder() {
         findingRunnable?.let { findingHandler.removeCallbacks(it) }
+        timeoutRunnable?.let { findingHandler.removeCallbacks(it) }
         findingRunnable = null
+        timeoutRunnable = null
     }
 
-    private fun navigateTo(fragment: Fragment) {
-        parentFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, fragment)
-            .addToBackStack(null)
-            .commit()
-    }
-
-    // --- CÁC HÀM HỖ TRỢ MAPBOX ---
+    // --- Mapbox helpers ---
     private fun checkLocationPermission() {
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
             initLocationComponent()
         } else {
             requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -186,13 +196,13 @@ class DashboardFragment : Fragment() {
         val locationComponentPlugin = mapView?.location
         locationComponentPlugin?.updateSettings {
             this.enabled = true
-            // TODO: Tùy chỉnh icon vị trí nếu cần
+            // Có thể thêm tuỳ chỉnh biểu tượng vị trí tại đây
         }
     }
 
-    // --- QUẢN LÝ VÒNG ĐỜI CỦA MAPVIEW ---
+    // --- Lifecycle MapView ---
     override fun onStart() { super.onStart(); mapView?.onStart() }
-    override fun onStop() { super.onStop(); mapView?.onStop() }
+    override fun onStop() { super.onStop(); mapView?.onStop(); stopFindingOrder() }
     override fun onLowMemory() { super.onLowMemory(); mapView?.onLowMemory() }
     override fun onDestroyView() {
         super.onDestroyView()

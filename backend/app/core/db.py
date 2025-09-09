@@ -8,7 +8,7 @@ from app import crud
 
 engine = create_engine(
     str(settings.POSTGRES_URL), 
-    echo=True, 
+    echo=False, 
     echo_pool=True,
     pool_pre_ping=True,
     pool_size=20,

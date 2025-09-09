@@ -75,9 +75,23 @@
                     app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
                     tools:src="@tools:sample/avatars[4]" />
 
+                <!-- Nút Message (đi đến màn hình chat) -->
+                <ImageView
+                    android:id="@+id/iv_message"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:padding="8dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:src="@android:drawable/ic_dialog_email"
+                    app:tint="@color/teal_primary"
+                    app:layout_constraintTop_toTopOf="@id/iv_user_avatar"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
                 <TextView
                     android:id="@+id/tv_user_name"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="16dp"
                     android:textColor="@android:color/black"
@@ -86,17 +100,19 @@
                     app:layout_constraintBottom_toTopOf="@id/tv_user_phone"
                     app:layout_constraintStart_toEndOf="@id/iv_user_avatar"
                     app:layout_constraintTop_toTopOf="@id/iv_user_avatar"
+                    app:layout_constraintEnd_toStartOf="@id/iv_message"
                     app:layout_constraintVertical_chainStyle="packed"
                     tools:text="User" />
 
                 <TextView
                     android:id="@+id/tv_user_phone"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:textSize="16sp"
                     app:layout_constraintBottom_toBottomOf="@id/iv_user_avatar"
                     app:layout_constraintStart_toStartOf="@id/tv_user_name"
                     app:layout_constraintTop_toBottomOf="@id/tv_user_name"
+                    app:layout_constraintEnd_toStartOf="@id/iv_message"
                     tools:text="070089***" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -143,7 +159,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp">
 
-                <!-- ... Nội dung của timeline view ... -->
                 <ImageView
                     android:id="@+id/iv_timeline_image_detail"
                     android:layout_width="24dp"
@@ -152,6 +167,7 @@
                     app:layout_constraintBottom_toBottomOf="@id/tv_end_location_address_detail"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="@id/tv_start_location_name_detail" />
+
                 <TextView
                     android:id="@+id/tv_start_location_name_detail"
                     android:layout_width="0dp"
@@ -164,6 +180,7 @@
                     app:layout_constraintStart_toEndOf="@id/iv_timeline_image_detail"
                     app:layout_constraintTop_toTopOf="parent"
                     tools:text="Nguyễn Văn Cừ" />
+
                 <TextView
                     android:id="@+id/tv_start_location_address_detail"
                     android:layout_width="0dp"
@@ -173,6 +190,7 @@
                     app:layout_constraintStart_toStartOf="@id/tv_start_location_name_detail"
                     app:layout_constraintTop_toBottomOf="@id/tv_start_location_name_detail"
                     tools:text="Quận 5, Hồ Chí Minh" />
+
                 <TextView
                     android:id="@+id/tv_end_location_name_detail"
                     android:layout_width="0dp"
@@ -186,6 +204,7 @@
                     app:layout_constraintStart_toEndOf="@id/iv_timeline_image_detail"
                     app:layout_constraintTop_toBottomOf="@id/tv_start_location_address_detail"
                     tools:text="VAI CHE" />
+
                 <TextView
                     android:id="@+id/tv_end_location_address_detail"
                     android:layout_width="0dp"
@@ -197,25 +216,62 @@
                     tools:text="Hồ Chí Minh" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <!-- Note from user -->
-            <TextView
-                style="@style/SectionTitle"
-                android:text="Note from user" />
-
-            <TextView
-                android:id="@+id/tv_user_note"
+            <!-- Detail ROW: tiêu đề + 3 icon cùng hàng -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/detail_header_row"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="16sp"
-                tools:text="My house is next to the department store" />
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp">
 
-            <!-- Detail -->
-            <TextView
-                style="@style/SectionTitle"
-                android:layout_marginBottom="8dp"
-                android:text="Detail" />
+                <TextView
+                    android:id="@+id/tv_detail_title"
+                    style="@style/SectionTitle"
+                    android:text="Detail"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
 
-            <!-- Container cho các item chi tiết sẽ được thêm vào từ code -->
+                <ImageButton
+                    android:id="@+id/ib_edit_item"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:padding="8dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_edit"
+                    app:tint="@color/teal_primary"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="@id/tv_detail_title"
+                    app:layout_constraintBottom_toBottomOf="@id/tv_detail_title" />
+
+                <ImageButton
+                    android:id="@+id/ib_delete_item"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="8dp"
+                    android:padding="8dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_delete"
+                    app:tint="@color/teal_primary"
+                    app:layout_constraintEnd_toStartOf="@id/ib_edit_item"
+                    app:layout_constraintTop_toTopOf="@id/tv_detail_title"
+                    app:layout_constraintBottom_toBottomOf="@id/tv_detail_title" />
+
+                <ImageButton
+                    android:id="@+id/ib_add_item"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="8dp"
+                    android:padding="8dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@android:drawable/ic_input_add"
+                    app:tint="@color/teal_primary"
+                    app:layout_constraintEnd_toStartOf="@id/ib_delete_item"
+                    app:layout_constraintTop_toTopOf="@id/tv_detail_title"
+                    app:layout_constraintBottom_toBottomOf="@id/tv_detail_title" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- Container cho các item chi tiết -->
             <LinearLayout
                 android:id="@+id/container_order_items"
                 android:layout_width="match_parent"
@@ -228,7 +284,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp">
 
-                <!-- ... Nội dung của Total và Total Weight ... -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -239,6 +294,7 @@
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
+
                 <TextView
                     android:id="@+id/tv_total_amount"
                     android:layout_width="wrap_content"
@@ -257,6 +313,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp">
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -267,6 +324,7 @@
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
+
                 <TextView
                     android:id="@+id/tv_total_weight"
                     android:layout_width="wrap_content"
@@ -295,9 +353,9 @@
                     android:layout_marginTop="0dp"
                     android:text="Pick-Up" />
 
-                <include layout="@layout/include_photo_section"
-                    android:id="@+id/pickup_photo_view"/>
-
+                <include
+                    android:id="@+id/pickup_photo_view"
+                    layout="@layout/include_photo_section" />
             </LinearLayout>
 
             <!-- Drop-Off Photo Section -->
@@ -315,9 +373,9 @@
                     android:layout_marginTop="0dp"
                     android:text="Drop-Off" />
 
-                <include layout="@layout/include_photo_section"
-                    android:id="@+id/dropoff_photo_view"/>
-
+                <include
+                    android:id="@+id/dropoff_photo_view"
+                    layout="@layout/include_photo_section" />
             </LinearLayout>
 
         </LinearLayout>

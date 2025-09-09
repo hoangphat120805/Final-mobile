@@ -30,25 +30,6 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <!-- Left Icon -->
-        <FrameLayout
-            android:id="@+id/btnLeftContainer"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:background="@drawable/bg_top_button"
-            android:elevation="4dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackgroundBorderless">
-            <ImageView
-                android:id="@+id/btnLeft"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_earn"
-                android:contentDescription="Earnings" />
-        </FrameLayout>
-
         <!-- Center Text -->
         <TextView
             android:id="@+id/tvCenterTitle"
@@ -65,25 +46,6 @@
             android:textColor="@android:color/white"
             android:textSize="18sp"
             android:textStyle="bold"/>
-
-        <!-- Right Icon -->
-        <FrameLayout
-            android:id="@+id/btnRightContainer"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:background="@drawable/bg_top_button"
-            android:elevation="4dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackgroundBorderless">
-            <ImageView
-                android:id="@+id/btnRight"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_gravity="center"
-                android:contentDescription="Notifications"
-                android:src="@drawable/ic_notifications" />
-        </FrameLayout>
 
     </LinearLayout>
 

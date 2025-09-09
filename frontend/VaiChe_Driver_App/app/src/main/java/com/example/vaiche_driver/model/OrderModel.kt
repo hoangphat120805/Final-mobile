@@ -12,7 +12,15 @@ enum class OrderStatus {
     cancelled,
     pending;
 
-    companion object
+    companion object {
+        fun fromString(value: String): OrderStatus {
+            return try {
+                valueOf(value.lowercase())
+            } catch (e: Exception) {
+                pending
+            }
+        }
+    }
 }
 
 data class OrderUser(
@@ -38,7 +46,6 @@ data class OrderDetail(
     val startLocationAddress: String,
     val endLocationName: String,
     val endLocationAddress: String,
-    val noteFromUser: String?,
     val items: List<OrderItem>,
     val totalAmount: Double,
     val totalWeight: Double,

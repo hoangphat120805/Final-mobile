@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+        Chính sách này cho phép giao tiếp cleartext (HTTP)
+        CHỈ với các domain/IP được liệt kê bên dưới.
+        Các domain khác vẫn sẽ yêu cầu HTTPS.
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- THÊM ĐỊA CHỈ IP CỦA BACKEND SERVER CỦA BẠN VÀO ĐÂY -->
+        <domain includeSubdomains="true">160.30.192.11</domain>
+
+        <!-- Thêm 10.0.2.2 để có thể test trên emulator -->
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

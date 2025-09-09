@@ -65,7 +65,8 @@ def get_current_user_ws(session: SessionDep, websocket: WebSocket) -> User:
         )
     return user
 
-CurrentUser = Annotated[UserPublic, Depends(get_current_user)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentUserWs = Annotated[User, Depends(get_current_user_ws)]
 
 def get_current_admin(
     current_user: CurrentUser

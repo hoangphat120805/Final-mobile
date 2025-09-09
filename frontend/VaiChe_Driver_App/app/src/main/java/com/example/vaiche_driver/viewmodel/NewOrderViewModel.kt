@@ -5,18 +5,17 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vaiche_driver.data.repository.OrderRepository
-import com.example.vaiche_driver.model.OrderDetail
-import com.example.vaiche_driver.model.Schedule
-import com.example.vaiche_driver.model.OrderStatus
+import com.example.vaiche_driver.model.NearbyOrderPublic
+import com.example.vaiche_driver.model.OrderPublic
 import kotlinx.coroutines.launch
 
 class NewOrderViewModel : ViewModel() {
 
     private val orderRepository = OrderRepository()
 
-    // LiveData này giữ OrderDetail (UI Model)
-    private val _order = MutableLiveData<OrderDetail?>()
-    val order: LiveData<OrderDetail?> = _order
+    // Hiển thị lên dialog Nearby → dùng NearbyOrderPublic
+    private val _order = MutableLiveData<NearbyOrderPublic?>()
+    val order: LiveData<NearbyOrderPublic?> = _order
 
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
@@ -25,7 +24,9 @@ class NewOrderViewModel : ViewModel() {
     val errorMessage: LiveData<Event<String>> = _errorMessage
 
     /**
-     * Tải chi tiết của một đơn hàng. Repository sẽ trả về đúng kiểu OrderDetail.
+     * Giữ nguyên tên hàm bạn đang gọi: loadOrderDetails(orderId)
+     * Ở đây mình lấy /api/orders/{id} (OrderPublic) rồi map “giản lược” sang NearbyOrderPublic
+     * (distance/time có thể null nếu chưa tính route).
      */
     fun loadOrderDetails(orderId: String?) {
         if (orderId == null) {
@@ -34,47 +35,62 @@ class NewOrderViewModel : ViewModel() {
         }
         _isLoading.value = true
         viewModelScope.launch {
-            val result = orderRepository.getOrderDetail(orderId)
-            result.onSuccess { orderDetail ->
-                // Gán trực tiếp vì Repository đã trả về đúng kiểu
-                _order.value = orderDetail
+            val result = orderRepository.getOrderById(orderId)
+            result.onSuccess { orderPublic ->
+                _order.value = orderPublic.toNearbyShallow()
             }.onFailure { error ->
-                _errorMessage.value = Event(error.message ?: "Failed to load order details.")
+                _errorMessage.value = Event(error.message ?: "Failed to load order.")
+                _order.value = null
             }
             _isLoading.value = false
         }
     }
 
     /**
-     * Xử lý khi người dùng nhấn "Accept".
-     * Cung cấp một đối tượng Schedule cho callback.
+     * Giữ nguyên tên hàm: acceptOrder { ... }
+     * Gọi API nhận đơn, rồi lấy lại chi tiết đơn để trả về OrderPublic cho SharedViewModel.
      */
-    fun acceptOrder(onAccepted: (Schedule) -> Unit) {
-        val orderToAccept = _order.value ?: return
-        onAccepted(orderToAccept.toSchedule())
+    fun acceptOrder(orderId: String, onAccepted: (OrderPublic) -> Unit) {
+        viewModelScope.launch {
+            val acceptRes = orderRepository.acceptOrder(orderId)
+            acceptRes.onSuccess {
+                // fetch lại chi tiết
+                val detailRes = orderRepository.getOrderById(orderId)
+                detailRes.onSuccess { acceptedOrder ->
+                    onAccepted(acceptedOrder)
+                }.onFailure { e ->
+                    _errorMessage.value = Event(e.message ?: "Accepted but failed to fetch order.")
+                }
+            }.onFailure { e ->
+                _errorMessage.value = Event(e.message ?: "Failed to accept order.")
+            }
+        }
     }
 
     /**
-     * Xử lý khi người dùng nhấn "Reject".
+     * Giữ nguyên tên hàm: rejectOrder { ... }
      */
-    fun rejectOrder(onRejected: (String) -> Unit) {
-        val orderToReject = _order.value ?: return
-        onRejected(orderToReject.id)
+    fun rejectOrder(orderId: String, onRejected: (String) -> Unit) {
+        onRejected(orderId)
     }
 
-    /**
-     * Hàm tiện ích để chuyển đổi một đối tượng OrderDetail (UI model) thành Schedule.
-     */
-    private fun OrderDetail.toSchedule(): Schedule {
-        return Schedule(
+    // --- Mapper “giản lược” từ OrderPublic → NearbyOrderPublic (không có route) ---
+    private fun OrderPublic.toNearbyShallow(): NearbyOrderPublic {
+        return NearbyOrderPublic(
             id = this.id,
-            date = this.pickupTimestamp.split(',', limit = 2).getOrNull(1)?.trim() ?: "",
-            time = this.pickupTimestamp.split(',', limit = 2).getOrNull(0)?.trim() ?: "",
-            status = OrderStatus.scheduled, // Gán trạng thái mới
-            startLocationName = this.startLocationName,
-            startLocationAddress = this.startLocationAddress,
-            endLocationName = this.endLocationName,
-            endLocationAddress = this.endLocationAddress
+            ownerId = this.ownerId,
+            collectorId = this.collectorId,
+            status = this.status, // BackendOrderStatus
+            pickupAddress = this.pickupAddress,
+            location = this.location ?: emptyMap(),
+            imgUrl1 = this.imgUrl1,
+            imgUrl2 = this.imgUrl2,
+            items = this.items,
+            createdAt = this.createdAt,
+            updatedAt = this.updatedAt,
+            distanceKm = 0.0,            // chưa tính (server mới trả)
+            travelTimeSeconds = null,     // chưa tính
+            travelDistanceMeters = null   // chưa tính
         )
     }
 }
