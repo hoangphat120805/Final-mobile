@@ -42,7 +42,7 @@ def create_order(order: OrderCreate, current_user: CurrentUser, session: Session
 
 @router.post("/{order_id}/item", response_model=OrderPublic)
 def add_order_items(
-    order_id: uuid.UUID, item: OrderItemCreate, current_user: CurrentUser, session: SessionDep
+    order_id: uuid.UUID, item: OrderItemCreate, current_collector: CurrentCollector, session: SessionDep
 ):
     """
     Add items to an order.
@@ -50,14 +50,13 @@ def add_order_items(
     order = crud.get_order_by_id(session=session, order_id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    if order.owner_id != current_user.id:
+    if order.collector_id != current_collector.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     order_items = crud.get_order_items(session=session, order_id=order_id)
     for existing_item in order_items:
         if existing_item.category_id == item.category_id:
             raise HTTPException(status_code=400, detail="Item already exists in order")
-    
     
     crud.add_order_item(session=session, order_id=order_id, item=item)
     updated_order = crud.get_order_by_id(session=session, order_id=order_id)
