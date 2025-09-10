@@ -229,7 +229,6 @@ class ProfileFragment : Fragment() {
         binding.etFullNameEdit.setText(user.fullName)
 
         binding.tvEmailView.text = user.email ?: "N/A"
-        binding.etEmailEdit.setText(user.email)
 
         binding.tvGenderView.text = user.gender ?: "Unknown"
         binding.etGenderEdit.setText(user.gender)
@@ -261,9 +260,7 @@ class ProfileFragment : Fragment() {
         binding.etFullNameEdit.visibility = visibilityEdit
         binding.etFullNameEdit.isEnabled = enableEdit
 
-        binding.tvEmailView.visibility = visibilityView
-        binding.etEmailEdit.visibility = visibilityEdit
-        binding.etEmailEdit.isEnabled = enableEdit
+        binding.tvEmailView.visibility = View.VISIBLE
 
         binding.tvGenderView.visibility = visibilityView
         binding.etGenderEdit.visibility = visibilityEdit
@@ -339,7 +336,6 @@ class ProfileFragment : Fragment() {
     // --- Save User Profile Function (MODIFIED) ---
     private fun saveUserProfile() {
         val updatedFullName = binding.etFullNameEdit.text.toString().trim()
-        val updatedEmail = binding.etEmailEdit.text.toString().trim()
         val updatedGender = binding.etGenderEdit.text.toString().trim()
         val updatedBirthDate = binding.etBirthDateEdit.text.toString().trim()
 
@@ -353,7 +349,7 @@ class ProfileFragment : Fragment() {
 
         val request = UserUpdateRequest(
             fullName = updatedFullName.ifEmpty { null },
-            email = updatedEmail.ifEmpty { null },
+            email = currentUser?.email,
             gender = updatedGender.ifEmpty { null },
             birthDate = updatedBirthDate.ifEmpty { null },
             phoneNumber = null, // Phone number is not updatable via PATCH /user/me
