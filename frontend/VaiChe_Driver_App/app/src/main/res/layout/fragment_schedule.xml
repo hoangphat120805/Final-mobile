@@ -20,7 +20,8 @@
             android:layout_height="?attr/actionBarSize"
             android:gravity="center"
             android:text="My schedule"
-            android:textColor="@android:color/black"
+            android:background="@color/teal_200"
+            android:textColor="@color/white"
             android:textSize="20sp"
             android:textStyle="bold" />
 

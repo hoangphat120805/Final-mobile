@@ -18,7 +18,8 @@ class SharedViewModel : ViewModel() {
 
     private val TAG = "SharedVM"
     // Khởi tạo Repository
-    private val orderRepository = OrderRepository()
+    private val orderRepository = OrderRepository { com.example.vaiche_driver.data.network.RetrofitClient.instance }
+
 
     private val _workingLocation = MutableLiveData<Pair<Double, Double>?>()
     val workingLocation: LiveData<Pair<Double, Double>?> = _workingLocation
@@ -147,4 +148,21 @@ class SharedViewModel : ViewModel() {
             _driverState.value = DriverState.OFFLINE
         }
     }
+
+    fun syncDriverStateOnLaunch() {
+        viewModelScope.launch {
+            val r = orderRepository.hasAcceptedOrder()
+            if (r.isSuccess) {
+                val hasAccepted = r.getOrNull() ?: false
+                _driverState.value = if (hasAccepted) {
+                    DriverState.DELIVERING
+                } else {
+                    DriverState.OFFLINE
+                }
+            } else {
+                _driverState.value = DriverState.OFFLINE
+            }
+        }
+    }
+
 }

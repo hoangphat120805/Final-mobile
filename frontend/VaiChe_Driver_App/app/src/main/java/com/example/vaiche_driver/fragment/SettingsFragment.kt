@@ -1,5 +1,6 @@
-package com.example.vaiche_driver.ui
+package com.example.vaiche_driver.fragment
 
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -11,13 +12,16 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import com.example.vaiche_driver.MainActivity
 import com.example.vaiche_driver.R
+import com.example.vaiche_driver.fragment.EditProfileFragment
+import com.example.vaiche_driver.util.forceQuitAndReopenApp
 import com.example.vaiche_driver.viewmodel.Event
 import com.example.vaiche_driver.viewmodel.SettingsViewModel
 import com.example.vaiche_driver.viewmodel.SettingsViewModelFactory
+import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.textfield.TextInputEditText
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -29,36 +33,67 @@ class SettingsFragment : Fragment() {
     private val viewModel: SettingsViewModel by viewModels {
         SettingsViewModelFactory(requireContext())
     }
+
     private var progress: ProgressBar? = null
 
+    // Gallery picker
     private val pickImage = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { uploadAvatarFromUri(it) }
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        return inflater.inflate(R.layout.fragment_settings, container, false)
+    // Camera capture (bitmap)
+    private val cameraLauncher = registerForActivityResult(
+        ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        bitmap?.let { uploadAvatarFromBitmap(it) }
     }
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+    ): View = inflater.inflate(R.layout.fragment_settings, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         progress = view.findViewById(R.id.progress_settings)
 
+        // Toolbar back -> về ProfileFragment (pop stack)
+        view.findViewById<MaterialToolbar>(R.id.toolbar)?.setNavigationOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
+
+        // Update password -> mở Fragment
         view.findViewById<MaterialCardView>(R.id.card_update_password).setOnClickListener {
-            showUpdatePasswordDialog()
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, UpdatePasswordFragment())
+                .addToBackStack(null)
+                .commit()
         }
+
+        // Edit avatar: chọn Camera hoặc Gallery
         view.findViewById<MaterialCardView>(R.id.card_edit_avatar).setOnClickListener {
-            pickImage.launch("image/*")
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Change Avatar")
+                .setItems(arrayOf("Take Photo", "Choose from Gallery")) { _, which ->
+                    when (which) {
+                        0 -> cameraLauncher.launch(null)
+                        1 -> pickImage.launch("image/*")
+                    }
+                }.show()
         }
+
+        // Edit profile -> sang EditProfileFragment
         view.findViewById<MaterialCardView>(R.id.card_edit_profile).setOnClickListener {
             parentFragmentManager.beginTransaction()
                 .replace(R.id.fragment_container, EditProfileFragment())
                 .addToBackStack(null)
                 .commit()
         }
+
+        // Logout
         view.findViewById<MaterialCardView>(R.id.card_logout).setOnClickListener {
-            viewModel.logout()
+            viewModel.logout(requireContext())
         }
 
         observeVM()
@@ -68,40 +103,34 @@ class SettingsFragment : Fragment() {
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
             progress?.visibility = if (loading) View.VISIBLE else View.GONE
         }
+
         viewModel.toastMessage.observe(viewLifecycleOwner) { ev: Event<String> ->
-            ev.getContentIfNotHandled()?.let { Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show() }
+            ev.getContentIfNotHandled()?.let {
+                Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
+            }
         }
+
+        // Nếu muốn Settings tự xử lý điều hướng khi update password từ UpdatePasswordFragment xong:
+        // (Chỉ cần nếu bạn phát cùng Event từ VM và muốn pop thêm)
+        viewModel.passwordUpdated.observe(viewLifecycleOwner) { ev ->
+            ev.getContentIfNotHandled()?.let {
+                // về Profile: Settings đang trên backstack, nên pop 1 lần là về Profile
+                parentFragmentManager.popBackStack() // rời UpdatePassword -> về Settings
+                parentFragmentManager.popBackStack() // rời Settings -> về Profile
+            }
+        }
+
         viewModel.loggedOut.observe(viewLifecycleOwner) { done ->
             if (done == true) {
-                // TODO: điều hướng về màn hình đăng nhập
-                requireActivity().finish()
+                // TRƯỚC ĐÂY: (activity as? MainActivity)?.logoutToLogin()
+                // GIỜ: thoát hẳn và mở lại Login
+                requireActivity().forceQuitAndReopenApp()
             }
         }
+
     }
 
-    private fun showUpdatePasswordDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_update_password, null)
-        val edtOld = dialogView.findViewById<TextInputEditText>(R.id.edt_old_password)
-        val edtNew = dialogView.findViewById<TextInputEditText>(R.id.edt_new_password)
-        val edtConfirm = dialogView.findViewById<TextInputEditText>(R.id.edt_confirm_password)
-
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Update password")
-            .setView(dialogView)
-            .setPositiveButton("Update") { d, _ ->
-                val oldP = edtOld.text?.toString().orEmpty()
-                val newP = edtNew.text?.toString().orEmpty()
-                val confirm = edtConfirm.text?.toString().orEmpty()
-                when {
-                    oldP.isBlank() || newP.isBlank() -> toast("Please fill all fields")
-                    newP != confirm -> toast("Confirm mismatch")
-                    else -> viewModel.updatePassword(oldP, newP)
-                }
-                d.dismiss()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
+    // ===== Avatar helpers =====
 
     private fun uploadAvatarFromUri(uri: Uri) {
         val fileName = queryDisplayName(uri) ?: "avatar.jpg"
@@ -114,6 +143,16 @@ class SettingsFragment : Fragment() {
         viewModel.uploadAvatar(part)
     }
 
+    private fun uploadAvatarFromBitmap(bitmap: Bitmap) {
+        val file = File(requireContext().cacheDir, "avatar_camera.jpg")
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+        }
+        val reqBody = file.asRequestBody("image/*".toMediaTypeOrNull())
+        val part = MultipartBody.Part.createFormData("file", file.name, reqBody)
+        viewModel.uploadAvatar(part)
+    }
+
     private fun queryDisplayName(uri: Uri): String? {
         val c = requireContext().contentResolver.query(uri, null, null, null, null) ?: return null
         c.use {
@@ -122,6 +161,4 @@ class SettingsFragment : Fragment() {
         }
         return null
     }
-
-    private fun toast(msg: String) = Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
 }

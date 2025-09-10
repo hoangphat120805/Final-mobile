@@ -39,10 +39,9 @@ fun NearbyOrderPublic.localStatus(): OrderStatus =
 /** Parse ISO-8601 timestamp -> Pair(time, date) với nhiều pattern fallback */
 private fun String.toPrettyTimeDate(): Pair<String, String> {
     val patterns = listOf(
-        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-        "yyyy-MM-dd'T'HH:mm:ssX",
-        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-        "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",   // 6 chữ số microseconds
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",      // 3 chữ số millis
+        "yyyy-MM-dd'T'HH:mm:ss"           // không có phần thập phân
     )
     val parsed: Date? = patterns.firstNotNullOfOrNull { p ->
         try { SimpleDateFormat(p, Locale.getDefault()).parse(this) } catch (_: Exception) { null }
@@ -56,13 +55,33 @@ private fun String.toPrettyTimeDate(): Pair<String, String> {
     }
 }
 
-/** OrderItemPublic (API) -> OrderItem (UI) */
-fun OrderItemPublic.toOrderItem(): OrderItem = OrderItem(
+
+/**
+ * OrderItemPublic (API) -> OrderItem (UI)
+ * Dùng map categoriesById để enrich thông tin category.
+ */
+fun OrderItemPublic.toOrderItem(categoriesById: Map<String, CategoryPublic>): OrderItem {
+    val cat = categoriesById[this.categoryId]
+    return OrderItem(
+        id = id,
+        categoryId = categoryId,
+        categoryName = cat?.name ?: categoryId, // fallback: dùng id nếu không tìm thấy
+        categoryUnit = cat?.unit ?: "kg",
+        quantity = quantity,
+        pricePerUnit = cat?.estimatedPricePerUnit ?: 0.0
+    )
+}
+
+/**
+ * Fallback: khi không có categories
+ */
+fun OrderItemPublic.toOrderItemFallback(): OrderItem = OrderItem(
     id = id,
-    categoryName = categoryId,   // TODO: khi backend trả tên category thì map lại tại đây
-    categoryUnit = "unit",       // TODO: map theo unit thật nếu có
+    categoryId = categoryId,
+    categoryName = categoryId,
+    categoryUnit = "kg",
     quantity = quantity,
-    pricePerUnit = 0.0           // backend chưa trả đơn giá
+    pricePerUnit = 0.0
 )
 
 /** OrderPublic (API) -> Schedule (UI) */
@@ -74,17 +93,57 @@ fun OrderPublic.toSchedule(statusOverride: OrderStatus? = null): Schedule {
         date = date,
         time = time,
         status = uiStatus,
-        startLocationName = pickupAddress,
+        startLocationName = owner?.fullName ?: "Unknown User",
         startLocationAddress = pickupAddress,
         endLocationName = "VAI CHE",
         endLocationAddress = "Hồ Chí Minh"
     )
 }
 
-/** OrderPublic (API) -> OrderDetail (UI) */
-fun OrderPublic.toOrderDetail(statusOverride: OrderStatus? = null): OrderDetail {
+/** OrderPublic (API) -> OrderDetail (UI) — với categories enrich */
+fun OrderPublic.toOrderDetail(
+    categories: List<CategoryPublic>,
+    statusOverride: OrderStatus? = null
+): OrderDetail {
+    val categoriesById = categories.associateBy { it.id }
     val uiStatus = statusOverride ?: localStatus()
-    val uiItems = items.map { it.toOrderItem() }
+    val uiItems = items.map { it.toOrderItem(categoriesById) }
+
+    val (time, date) = createdAt.toPrettyTimeDate()
+    val ts = listOfNotNull(
+        time.takeIf { it.isNotBlank() },
+        date.takeIf { it.isNotBlank() }
+    ).joinToString(", ").ifBlank { "Unknown Time" }
+
+    return OrderDetail(
+        id = id,
+        user = OrderUser(
+            fullName = owner?.fullName ?: "Unknown User",
+            phoneNumber = owner?.phoneNumber ?: "N/A",
+            avatarUrl = owner?.avatarUrl
+        ),
+        status = uiStatus,
+        pickupTimestamp = ts,
+        startLocationName = owner?.fullName ?: "Unknown User",
+        startLocationAddress = pickupAddress,
+        endLocationName = "VAI CHE",
+        endLocationAddress = "Hồ Chí Minh",
+        items = uiItems,
+        totalAmount = uiItems.sumOf { it.quantity * it.pricePerUnit },
+        totalWeight = uiItems.filter { it.categoryUnit.equals("kg", true) }.sumOf { it.quantity },
+        pickupPhotoUrl = imgUrl1,
+        dropoffPhotoUrl = imgUrl2
+    )
+}
+
+/**
+ * OrderPublic (API) -> OrderDetail (UI) — fallback nếu không gọi categories
+ */
+fun OrderPublic.toOrderDetailFallback(
+    statusOverride: OrderStatus? = null
+): OrderDetail {
+    val uiStatus = statusOverride ?: localStatus()
+    val uiItems = items.map { it.toOrderItemFallback() }
 
     val (time, date) = createdAt.toPrettyTimeDate()
     val ts = listOfNotNull(

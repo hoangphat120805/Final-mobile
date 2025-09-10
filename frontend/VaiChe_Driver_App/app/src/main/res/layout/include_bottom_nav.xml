@@ -48,6 +48,27 @@
             android:src="@drawable/ic_history" />
     </LinearLayout>
 
+
+    <!-- Notifications -->
+    <LinearLayout
+        android:id="@+id/btnNotificationsContainer"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:gravity="center">
+
+        <ImageButton
+            android:id="@+id/btnNotifications"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:background="@android:color/transparent"
+            android:clickable="false"
+            android:contentDescription="Notifications"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_notifications" />
+    </LinearLayout>
+
     <!-- Profile -->
     <LinearLayout
         android:id="@+id/btnProfileContainer"
@@ -66,26 +87,6 @@
             android:contentDescription="Profile"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_user" />
-    </LinearLayout>
-
-    <!-- Settings -->
-    <LinearLayout
-        android:id="@+id/btnSettingsContainer"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:gravity="center">
-
-        <ImageButton
-            android:id="@+id/btnSettings"
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:background="@android:color/transparent"
-            android:clickable="false"
-            android:contentDescription="Settings"
-            android:scaleType="fitCenter"
-            android:src="@drawable/ic_settings" />
     </LinearLayout>
 
 </LinearLayout>

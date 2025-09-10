@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vaiche_driver.data.network.RetrofitClient
 import com.example.vaiche_driver.data.repository.OrderRepository
 import com.example.vaiche_driver.model.NearbyOrderPublic
 import com.example.vaiche_driver.model.OrderPublic
@@ -11,22 +12,29 @@ import kotlinx.coroutines.launch
 
 class NewOrderViewModel : ViewModel() {
 
-    private val orderRepository = OrderRepository()
+    private val orderRepository = OrderRepository { RetrofitClient.instance }
 
-    // Hiển thị lên dialog Nearby → dùng NearbyOrderPublic
+    // Dùng NearbyOrderPublic để hiển thị trên dialog
     private val _order = MutableLiveData<NearbyOrderPublic?>()
     val order: LiveData<NearbyOrderPublic?> = _order
 
-    private val _isLoading = MutableLiveData<Boolean>()
+    private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
 
     private val _errorMessage = MutableLiveData<Event<String>>()
     val errorMessage: LiveData<Event<String>> = _errorMessage
 
     /**
-     * Giữ nguyên tên hàm bạn đang gọi: loadOrderDetails(orderId)
-     * Ở đây mình lấy /api/orders/{id} (OrderPublic) rồi map “giản lược” sang NearbyOrderPublic
-     * (distance/time có thể null nếu chưa tính route).
+     * Prime dữ liệu từ kết quả /nearby (đã có distance/time) để hiển thị ngay.
+     */
+    fun primeWithSeed(seed: NearbyOrderPublic?) {
+        if (seed != null) _order.value = seed
+    }
+
+    /**
+     * Giữ tên cũ bạn đang gọi: loadOrderDetails(orderId)
+     * Lấy /api/orders/{id} -> OrderPublic rồi map sang NearbyOrderPublic.
+     * Nếu trước đó đã có seed (distance/time) thì giữ lại distance/time.
      */
     fun loadOrderDetails(orderId: String?) {
         if (orderId == null) {
@@ -36,31 +44,39 @@ class NewOrderViewModel : ViewModel() {
         _isLoading.value = true
         viewModelScope.launch {
             val result = orderRepository.getOrderById(orderId)
-            result.onSuccess { orderPublic ->
-                _order.value = orderPublic.toNearbyShallow()
-            }.onFailure { error ->
-                _errorMessage.value = Event(error.message ?: "Failed to load order.")
-                _order.value = null
-            }
+            result
+                .onSuccess { orderPublic ->
+                    val shallow = orderPublic.toNearbyShallow()
+                    // preserve distance/time nếu có seed cho đúng id
+                    val seed = _order.value?.takeIf { it.id == orderPublic.id }
+                    _order.value = shallow.copy(
+                        distanceKm = seed?.distanceKm ?: shallow.distanceKm,
+                        travelTimeSeconds = seed?.travelTimeSeconds ?: shallow.travelTimeSeconds,
+                        travelDistanceMeters = seed?.travelDistanceMeters ?: shallow.travelDistanceMeters
+                    )
+                }
+                .onFailure { error ->
+                    _errorMessage.value = Event(error.message ?: "Failed to load order.")
+                    // vẫn giữ seed nếu có, tránh màn hình trống
+                }
             _isLoading.value = false
         }
     }
 
     /**
-     * Giữ nguyên tên hàm: acceptOrder { ... }
-     * Gọi API nhận đơn, rồi lấy lại chi tiết đơn để trả về OrderPublic cho SharedViewModel.
+     * Accept: gọi API nhận đơn, fetch lại chi tiết và trả về OrderPublic cho caller.
      */
     fun acceptOrder(orderId: String, onAccepted: (OrderPublic) -> Unit) {
         viewModelScope.launch {
             val acceptRes = orderRepository.acceptOrder(orderId)
             acceptRes.onSuccess {
-                // fetch lại chi tiết
                 val detailRes = orderRepository.getOrderById(orderId)
-                detailRes.onSuccess { acceptedOrder ->
-                    onAccepted(acceptedOrder)
-                }.onFailure { e ->
-                    _errorMessage.value = Event(e.message ?: "Accepted but failed to fetch order.")
-                }
+                detailRes
+                    .onSuccess { acceptedOrder -> onAccepted(acceptedOrder) }
+                    .onFailure { e ->
+                        _errorMessage.value =
+                            Event(e.message ?: "Accepted but failed to fetch order.")
+                    }
             }.onFailure { e ->
                 _errorMessage.value = Event(e.message ?: "Failed to accept order.")
             }
@@ -68,19 +84,19 @@ class NewOrderViewModel : ViewModel() {
     }
 
     /**
-     * Giữ nguyên tên hàm: rejectOrder { ... }
+     * Reject: báo ngược lại ID để SharedViewModel lưu vào rejected list.
      */
     fun rejectOrder(orderId: String, onRejected: (String) -> Unit) {
         onRejected(orderId)
     }
 
-    // --- Mapper “giản lược” từ OrderPublic → NearbyOrderPublic (không có route) ---
+    // --- Mapper: OrderPublic -> NearbyOrderPublic (không có route) ---
     private fun OrderPublic.toNearbyShallow(): NearbyOrderPublic {
         return NearbyOrderPublic(
             id = this.id,
             ownerId = this.ownerId,
             collectorId = this.collectorId,
-            status = this.status, // BackendOrderStatus
+            status = this.status,            // BackendOrderStatus
             pickupAddress = this.pickupAddress,
             location = this.location ?: emptyMap(),
             imgUrl1 = this.imgUrl1,
@@ -88,9 +104,10 @@ class NewOrderViewModel : ViewModel() {
             items = this.items,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
-            distanceKm = 0.0,            // chưa tính (server mới trả)
-            travelTimeSeconds = null,     // chưa tính
-            travelDistanceMeters = null   // chưa tính
+            // chưa có route từ /orders/{id}; để 0/null và sẽ giữ từ seed nếu có
+            distanceKm = 0.0,
+            travelTimeSeconds = null,
+            travelDistanceMeters = null
         )
     }
 }

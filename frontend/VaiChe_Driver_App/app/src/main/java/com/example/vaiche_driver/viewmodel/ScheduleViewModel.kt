@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vaiche_driver.data.network.RetrofitClient
 import com.example.vaiche_driver.data.repository.OrderRepository
 import com.example.vaiche_driver.model.OrderStatus
 import com.example.vaiche_driver.model.Schedule
@@ -15,7 +16,7 @@ import java.util.Locale
 class ScheduleViewModel : ViewModel() {
 
     // Khởi tạo Repository
-    private val orderRepository = OrderRepository()
+    private val orderRepository = OrderRepository { RetrofitClient.instance }
 
     // --- CÁC LIVE DATA CHO GIAO DIỆN ---
     private val _scheduleList = MutableLiveData<List<ScheduleListItem>>()

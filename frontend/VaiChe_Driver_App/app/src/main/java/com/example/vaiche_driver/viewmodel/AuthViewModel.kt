@@ -1,4 +1,4 @@
-package com.example.vaiche_driver.ui
+package com.example.vaiche_driver.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -7,7 +7,6 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.vaiche_driver.data.repository.AuthRepository
 import com.example.vaiche_driver.model.*
-import com.example.vaiche_driver.viewmodel.Event
 import kotlinx.coroutines.launch
 
 /**
@@ -55,6 +54,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
      * Xử lý logic đăng nhập.
      */
     fun login(phoneNumber: String, password: String) {
+        if (_isLoading.value == true) return
         _isLoading.value = true
         viewModelScope.launch {
             val result = authRepository.login(UserLoginRequest(phoneNumber, password))

@@ -133,7 +133,7 @@ class DashboardFragment : Fragment() {
                 // Có đơn mới -> dừng polling + đóng "đang chờ"
                 stopFindingOrder()
                 (parentFragmentManager.findFragmentByTag(SuccessDialogFragment.TAG) as? DialogFragment)?.dismiss()
-                NewOrderDialogFragment.newInstance(newOrder.id)
+                NewOrderDialogFragment.newInstanceWithSeed(newOrder)
                     .show(parentFragmentManager, "NewOrderDialog")
                 // TODO: Vẽ marker/route cho newOrder trên map
             }
