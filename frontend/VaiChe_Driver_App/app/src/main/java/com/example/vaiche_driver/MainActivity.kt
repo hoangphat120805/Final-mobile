@@ -1,24 +1,33 @@
 package com.example.vaiche_driver
 
-import android.app.Notification
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import com.example.vaiche_driver.adapter.BottomNavHelper
 import com.example.vaiche_driver.adapter.BottomNavScreen
+import com.example.vaiche_driver.data.local.SessionCleaner
 import com.example.vaiche_driver.data.network.RetrofitClient
 import com.example.vaiche_driver.fragment.DashboardFragment
+import com.example.vaiche_driver.fragment.LoginFragment
 import com.example.vaiche_driver.fragment.NotificationsFragment
+import com.example.vaiche_driver.fragment.ProfileFragment
 import com.example.vaiche_driver.fragment.ScheduleFragment
-import com.example.vaiche_driver.ui.ProfileFragment
-import com.example.vaiche_driver.ui.SplashFragment
+import com.example.vaiche_driver.fragment.SplashFragment
 import com.example.vaiche_driver.viewmodel.SharedViewModel
 import kotlinx.coroutines.launch
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.Process
+import kotlin.system.exitProcess
 
 /**
  * MainActivity là "vỏ" chính của ứng dụng.
@@ -28,12 +37,10 @@ import kotlinx.coroutines.launch
  */
 class MainActivity : AppCompatActivity() {
 
-    // Khởi tạo các Fragment chính MỘT LẦN DUY NHẤT bằng `lazy`
     private val dashboardFragment by lazy { DashboardFragment() }
     private val scheduleFragment by lazy { ScheduleFragment() }
     private val profileFragment by lazy { ProfileFragment() }
-
-    private val notification by lazy { NotificationsFragment() }
+    private val notificationsFragment by lazy { NotificationsFragment() }
 
     private var activeFragment: Fragment? = null
     private lateinit var bottomNavView: View
@@ -46,90 +53,155 @@ class MainActivity : AppCompatActivity() {
         bottomNavView = findViewById(R.id.bottom_nav_include)
 
         if (savedInstanceState == null) {
-            // Luôn bắt đầu bằng SplashFragment để kiểm tra trạng thái đăng nhập
             supportFragmentManager.commit {
                 replace(R.id.fragment_container, SplashFragment())
             }
-            // Ẩn thanh nav đi lúc đầu
             setBottomNavVisibility(false)
         }
 
         setupBottomNavigation()
 
+        // Chỉ ẩn/hiện nav theo fragment top của container.
+        // KHÔNG cập nhật highlight icon ở đây (tránh ghi đè sai).
         supportFragmentManager.addOnBackStackChangedListener {
-            // Lấy Fragment đang hiển thị trên cùng
-            val currentFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
-            // Chỉ hiển thị nav nếu đó là một trong các màn hình chính
-            val isMainScreen = currentFragment is DashboardFragment || currentFragment is ScheduleFragment
-                    || currentFragment is ProfileFragment || currentFragment is NotificationsFragment
-            setBottomNavVisibility(isMainScreen)
+            val top = supportFragmentManager.findFragmentById(R.id.fragment_container)
+            val isMain = top is DashboardFragment || top is ScheduleFragment ||
+                    top is ProfileFragment || top is NotificationsFragment
+            setBottomNavVisibility(isMain)
+            // Không gọi updateIconColorsOnly ở đây nữa.
+        }
+    }
 
-            // Cập nhật màu sắc cho icon
-            if (isMainScreen && currentFragment != null) {
-                BottomNavHelper.updateIconColorsOnly(bottomNavView, getScreenForFragment(currentFragment))
+    private fun ensureMainFragmentsAdded() {
+        supportFragmentManager.commit {
+            setReorderingAllowed(true)
+            if (!dashboardFragment.isAdded) {
+                add(R.id.fragment_container, dashboardFragment, "DASH").hide(dashboardFragment)
+            }
+            if (!scheduleFragment.isAdded) {
+                add(R.id.fragment_container, scheduleFragment, "SCH").hide(scheduleFragment)
+            }
+            if (!profileFragment.isAdded) {
+                add(R.id.fragment_container, profileFragment, "PRO").hide(profileFragment)
+            }
+            if (!notificationsFragment.isAdded) {
+                add(R.id.fragment_container, notificationsFragment, "NO").hide(notificationsFragment)
             }
         }
     }
 
     private fun setupBottomNavigation() {
-        BottomNavHelper.setup(bottomNavView, getScreenForFragment(activeFragment ?: dashboardFragment)) { screen ->
+        // tab mặc định là DASHBOARD
+        BottomNavHelper.setup(
+            bottomNavView,
+            BottomNavScreen.DASHBOARD
+        ) { screen ->
             val fragmentToShow = when (screen) {
-                BottomNavScreen.DASHBOARD -> dashboardFragment
-                BottomNavScreen.SCHEDULE -> scheduleFragment
-                BottomNavScreen.PROFILE -> profileFragment
-               //BottomNavScreen.NOTIFICATIONS -> notificationFragment
-                else -> null
+                BottomNavScreen.DASHBOARD     -> dashboardFragment
+                BottomNavScreen.SCHEDULE      -> scheduleFragment
+                BottomNavScreen.PROFILE       -> profileFragment
+                BottomNavScreen.NOTIFICATIONS -> notificationsFragment
+                else                          -> dashboardFragment
             }
-            fragmentToShow?.let { switchFragment(it) }
+            showMainFragment(fragmentToShow, screen)
         }
     }
 
-    /**
-     * Hàm này được gọi từ LoginFragment sau khi đăng nhập thành công.
-     * Nó sẽ thiết lập các Fragment chính của ứng dụng.
-     */
+    /** Được gọi sau login hoặc khi splash xác nhận đã login */
     fun navigateToDashboard() {
-        supportFragmentManager.commit {
-            setReorderingAllowed(true)
-
-            if (supportFragmentManager.findFragmentByTag("DASH") == null) {
-                add(R.id.fragment_container, dashboardFragment, "DASH")
-            }
-            if (supportFragmentManager.findFragmentByTag("SCH") == null) {
-                add(R.id.fragment_container, scheduleFragment, "SCH").hide(scheduleFragment)
-            }
-            if (supportFragmentManager.findFragmentByTag("PRO") == null) {
-                add(R.id.fragment_container, profileFragment, "PRO").hide(profileFragment)
+        // Gỡ Splash nếu còn
+        supportFragmentManager.findFragmentById(R.id.fragment_container)?.let { f ->
+            if (f is SplashFragment) {
+                supportFragmentManager.commit { remove(f) }
+                // Quan trọng: hoàn tất giao dịch trước khi add/show các fragment khác
+                supportFragmentManager.executePendingTransactions()
             }
         }
-        activeFragment = supportFragmentManager.findFragmentByTag("DASH")
+
+        ensureMainFragmentsAdded()
+
+        // Show DASHBOARD, hide còn lại
+        supportFragmentManager.commit {
+            hide(scheduleFragment)
+            hide(profileFragment)
+            hide(notificationsFragment)
+            show(dashboardFragment)
+        }
+        activeFragment = dashboardFragment
         setBottomNavVisibility(true)
+        BottomNavHelper.updateIconColorsOnly(bottomNavView, BottomNavScreen.DASHBOARD)
+
+        sharedViewModel.syncDriverStateOnLaunch()
     }
 
-    private fun switchFragment(fragment: Fragment) {
-        if (fragment == activeFragment) return
+
+    /** API public: chọn tab từ fragment con */
+    fun selectMainTab(screen: BottomNavScreen, clearBackStack: Boolean = true) {
+        if (clearBackStack) {
+            supportFragmentManager.popBackStack(
+                null,
+                androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE
+            )
+            supportFragmentManager.executePendingTransactions()
+        }
+
+        ensureMainFragmentsAdded()
+
+        val fragmentToShow = when (screen) {
+            BottomNavScreen.DASHBOARD     -> dashboardFragment
+            BottomNavScreen.SCHEDULE      -> scheduleFragment
+            BottomNavScreen.PROFILE       -> profileFragment
+            BottomNavScreen.NOTIFICATIONS -> notificationsFragment
+            else                          -> dashboardFragment
+        }
+
+        showMainFragment(fragmentToShow, screen)
+    }
+
+
+    /** Thao tác hide/show + cập nhật state + highlight */
+    private fun showMainFragment(fragmentToShow: Fragment, screen: BottomNavScreen) {
+        if (fragmentToShow == activeFragment) {
+            // vẫn cập nhật highlight để chắc
+            setBottomNavVisibility(true)
+            BottomNavHelper.updateIconColorsOnly(bottomNavView, screen)
+            return
+        }
 
         supportFragmentManager.commit {
-            if (activeFragment != null) {
-                hide(activeFragment!!)
-            }
-            show(fragment)
-        }
-        activeFragment = fragment
+            // hide 4 cái để chắc
+            if (dashboardFragment.isAdded) hide(dashboardFragment)
+            if (scheduleFragment.isAdded) hide(scheduleFragment)
+            if (profileFragment.isAdded) hide(profileFragment)
+            if (notificationsFragment.isAdded) hide(notificationsFragment)
 
-        BottomNavHelper.updateIconColorsOnly(bottomNavView, getScreenForFragment(fragment))
-    }
-
-    private fun getScreenForFragment(fragment: Fragment): BottomNavScreen {
-        return when(fragment) {
-            is DashboardFragment -> BottomNavScreen.DASHBOARD
-            is ScheduleFragment -> BottomNavScreen.SCHEDULE
-            is ProfileFragment -> BottomNavScreen.PROFILE
-            else -> BottomNavScreen.DASHBOARD
+            show(fragmentToShow)
         }
+
+        activeFragment = fragmentToShow
+        setBottomNavVisibility(true)
+        BottomNavHelper.updateIconColorsOnly(bottomNavView, screen)
     }
 
     private fun setBottomNavVisibility(isVisible: Boolean) {
         bottomNavView.visibility = if (isVisible) View.VISIBLE else View.GONE
     }
+
+    // MainActivity.kt
+    fun logoutToLogin() {
+        lifecycleScope.launch {
+            // (tuỳ bạn) gọi revoke token server trước:
+            // runCatching { api.revokeToken() }
+
+            SessionCleaner.hardLogout(applicationContext)
+
+            // UI sạch: xoá ViewModel + back stack
+            viewModelStore.clear()
+            supportFragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, LoginFragment())
+                .commit()
+        }
+    }
+
 }

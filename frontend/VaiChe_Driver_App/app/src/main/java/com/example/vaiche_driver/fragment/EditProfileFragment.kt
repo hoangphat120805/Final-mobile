@@ -1,92 +1,113 @@
-package com.example.vaiche_driver.ui
+package com.example.vaiche_driver.fragment
 
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AutoCompleteTextView
-import android.widget.ProgressBar
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.example.vaiche_driver.R
+import com.example.vaiche_driver.databinding.FragmentEditProfileBinding
+import com.example.vaiche_driver.viewmodel.Event
 import com.example.vaiche_driver.viewmodel.SettingsViewModel
 import com.example.vaiche_driver.viewmodel.SettingsViewModelFactory
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.datepicker.MaterialDatePicker
-import com.google.android.material.textfield.TextInputEditText
 import java.text.SimpleDateFormat
 import java.util.*
 
 class EditProfileFragment : Fragment() {
 
-    private val viewModel: SettingsViewModel by viewModels({ requireParentFragment() }) {
+    private var _binding: FragmentEditProfileBinding? = null
+    private val binding get() = _binding!!
+
+    private val viewModel: SettingsViewModel by viewModels {
         SettingsViewModelFactory(requireContext())
     }
 
-    private var progress: ProgressBar? = null
-    private lateinit var edtFullName: TextInputEditText
-    private lateinit var edtEmail: TextInputEditText
-    private lateinit var edtGender: AutoCompleteTextView
-    private lateinit var edtBirthDate: TextInputEditText
-    private lateinit var btnSave: MaterialButton
-
-    private val isoFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        return inflater.inflate(R.layout.fragment_edit_profile, container, false)
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentEditProfileBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        progress = view.findViewById(R.id.progress_edit_profile)
-        edtFullName = view.findViewById(R.id.edt_full_name)
-        edtEmail = view.findViewById(R.id.edt_email)
-        edtGender = view.findViewById(R.id.edt_gender)
-        edtBirthDate = view.findViewById(R.id.edt_birth_date)
-        btnSave = view.findViewById(R.id.btn_save_profile)
 
-        edtBirthDate.setOnClickListener { showDatePicker() }
-
-        btnSave.setOnClickListener {
-            val fullName = edtFullName.text?.toString()?.takeIf { it.isNotBlank() }
-            val email = edtEmail.text?.toString()?.takeIf { it.isNotBlank() }
-            val gender = edtGender.text?.toString()?.takeIf { it.isNotBlank() }
-            val birth = edtBirthDate.text?.toString()?.takeIf { it.isNotBlank() }
-
-            if (fullName == null) {
-                Toast.makeText(requireContext(), "Full name is required", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            viewModel.updateProfile(fullName, gender, birth, email)
-        }
-
+        setupToolbar()
+        setupGenderDropdown()
+        setupDobPicker()
+        setupSaveButton()
         observeVM()
+    }
+
+    private fun setupToolbar() {
+        binding.toolbarEditProfile.setNavigationOnClickListener {
+            parentFragmentManager.popBackStack() // quay về Settings
+        }
+    }
+
+    private fun setupGenderDropdown() {
+        val genders = listOf("Male", "Female", "Other")
+        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, genders)
+        binding.actvGender.setAdapter(adapter)
+    }
+
+    private fun setupDobPicker() {
+        binding.tilDob.setEndIconOnClickListener { showDatePicker() }
+        binding.etDob.setOnClickListener { showDatePicker() }
     }
 
     private fun showDatePicker() {
         val picker = MaterialDatePicker.Builder.datePicker()
-            .setTitleText("Select birth date")
+            .setTitleText("Select date of birth")
             .build()
+
         picker.addOnPositiveButtonClickListener { millis ->
-            val date = Date(millis)
-            edtBirthDate.setText(isoFormat.format(date))
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US) // ISO format
+            val dateStr = sdf.format(Date(millis))
+            binding.etDob.setText(dateStr)
         }
-        picker.show(parentFragmentManager, "birth_date_picker")
+
+        picker.show(parentFragmentManager, "dob_picker")
+    }
+
+    private fun setupSaveButton() {
+        binding.btnSaveProfile.setOnClickListener {
+            val phone = binding.etPhone.text?.toString()
+            val name = binding.etFullname.text?.toString()
+            val email = binding.etEmail.text?.toString()
+            val gender = binding.actvGender.text?.toString()
+            val dob = binding.etDob.text?.toString()
+
+            if (name.isNullOrBlank() || email.isNullOrBlank()) {
+                Toast.makeText(requireContext(), "Name and email required", Toast.LENGTH_SHORT).show()
+            } else {
+                viewModel.updateProfile(name, gender, dob, email)
+            }
+        }
     }
 
     private fun observeVM() {
-        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
-            progress?.visibility = if (loading) View.VISIBLE else View.GONE
-            btnSave.isEnabled = !loading
-        }
-        viewModel.toastMessage.observe(viewLifecycleOwner) { ev ->
+        viewModel.toastMessage.observe(viewLifecycleOwner) { ev: Event<String> ->
             ev.getContentIfNotHandled()?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
-                if (it.contains("Profile updated", ignoreCase = true)) {
-                    parentFragmentManager.popBackStack()
-                }
             }
         }
+
+        viewModel.profileUpdated.observe(viewLifecycleOwner) { ev ->
+            ev.getContentIfNotHandled()?.let {
+                // Sau khi cập nhật thành công -> popBackStack về Settings
+                parentFragmentManager.popBackStack()
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }

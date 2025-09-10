@@ -7,7 +7,9 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.activityViewModels
+import com.example.vaiche_driver.MainActivity
 import com.example.vaiche_driver.R
+import com.example.vaiche_driver.adapter.BottomNavScreen
 import com.example.vaiche_driver.model.Schedule
 import com.example.vaiche_driver.model.OrderStatus
 import com.example.vaiche_driver.viewmodel.SharedViewModel
@@ -57,20 +59,10 @@ class MyScheduleDialogFragment : BottomSheetDialogFragment() {
         // Luôn gán sự kiện cho "See all"
         seeAllTextView.setOnClickListener {
             dismiss()
-            navigateToScheduleFragment()
+            (activity as? MainActivity)?.selectMainTab(BottomNavScreen.SCHEDULE, clearBackStack = true)
         }
     }
 
-    /**
-     * Hàm điều hướng đến ScheduleFragment (danh sách đầy đủ).
-     */
-    private fun navigateToScheduleFragment() {
-        val scheduleFragment = ScheduleFragment()
-        parentFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, scheduleFragment) // <-- NHỚ THAY ID CONTAINER CỦA BẠN
-            .addToBackStack(null)
-            .commit()
-    }
 
     /**
      * Hàm điều hướng đến OrderDetailFragment (chi tiết đơn hàng).

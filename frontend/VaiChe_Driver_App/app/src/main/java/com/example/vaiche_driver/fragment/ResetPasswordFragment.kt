@@ -1,4 +1,4 @@
-package com.example.vaiche_driver.ui
+package com.example.vaiche_driver.fragment
 
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.example.vaiche_driver.R
+import com.example.vaiche_driver.viewmodel.AuthViewModel
 
 class ResetPasswordFragment : Fragment() {
 

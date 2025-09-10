@@ -15,8 +15,10 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:navigationIcon="@drawable/ic_arrow_back_sized"
+        android:background="@color/teal_200"
+        app:navigationIcon="@drawable/ic_arrow_back_white"
         app:title="Order Detail"
+        app:titleTextColor="@color/white"
         app:titleCentered="true" />
 
     <!-- Nút hành động ở dưới cùng (nội dung và visibility sẽ được thay đổi từ code) -->
@@ -238,7 +240,7 @@
                     android:layout_height="40dp"
                     android:padding="8dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_edit"
+                    android:src="@drawable/ic_edit_blue"
                     app:tint="@color/teal_primary"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="@id/tv_detail_title"
@@ -264,7 +266,7 @@
                     android:layout_marginEnd="8dp"
                     android:padding="8dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@android:drawable/ic_input_add"
+                    android:src="@drawable/ic_plus"
                     app:tint="@color/teal_primary"
                     app:layout_constraintEnd_toStartOf="@id/ib_delete_item"
                     app:layout_constraintTop_toTopOf="@id/tv_detail_title"

@@ -1,16 +1,14 @@
-package com.example.vaiche_driver.ui
+package com.example.vaiche_driver.fragment
 
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -18,6 +16,7 @@ import com.bumptech.glide.Glide
 import com.example.vaiche_driver.R
 import com.example.vaiche_driver.model.UserPublic
 import com.example.vaiche_driver.adapter.ReviewAdapter
+import com.example.vaiche_driver.fragment.SettingsFragment
 import com.example.vaiche_driver.viewmodel.ProfileViewModel
 
 class ProfileFragment : Fragment() {
@@ -35,6 +34,13 @@ class ProfileFragment : Fragment() {
         // Nạp layout cho Fragment
         return inflater.inflate(R.layout.fragment_profile, container, false)
     }
+
+    override fun onResume() {
+        super.onResume()
+        // ép tải lại profile + reviews (xoá cache + gọi API)
+        viewModel.refresh()
+    }
+
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)

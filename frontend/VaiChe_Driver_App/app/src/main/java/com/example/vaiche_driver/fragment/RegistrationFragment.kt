@@ -14,7 +14,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.example.vaiche_driver.R
-import com.example.vaiche_driver.ui.AuthViewModel
+import com.example.vaiche_driver.viewmodel.AuthViewModel
 
 class RegistrationFragment : Fragment() {
 

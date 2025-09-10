@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -18,12 +19,18 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
+import com.example.vaiche_driver.MainActivity
 import com.example.vaiche_driver.R
+import com.example.vaiche_driver.adapter.BottomNavScreen
 import com.example.vaiche_driver.adapter.BottomNavVisibilityManager
+import com.example.vaiche_driver.data.network.RetrofitClient
+import com.example.vaiche_driver.data.repository.OrderRepository
 import com.example.vaiche_driver.model.OrderDetail
 import com.example.vaiche_driver.model.OrderStatus
+import com.example.vaiche_driver.fragment.ItemFragment
 import com.example.vaiche_driver.viewmodel.OrderDetailViewModel
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,6 +60,13 @@ class OrderDetailFragment : Fragment() {
     private var visibilityManager: BottomNavVisibilityManager? = null
     private var pendingPickupUri: Uri? = null
     private var pendingDropoffUri: Uri? = null
+
+    // Item actions
+    private val orderRepo = OrderRepository { RetrofitClient.instance }
+    private var selectedOrderItemId: String? = null
+    private var selectedCategoryId: String? = null
+    private var selectedQuantity: Double? = null
+    private var selectedRowView: View? = null
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -85,8 +99,6 @@ class OrderDetailFragment : Fragment() {
             order?.let { bindDataToViews(view, it) }
         }
 
-        viewModel.isLoading.observe(viewLifecycleOwner) { /* show/hide progress if you want */ }
-
         viewModel.errorMessage.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandled()?.let { msg ->
                 Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
@@ -97,7 +109,7 @@ class OrderDetailFragment : Fragment() {
             event.getContentIfNotHandled()?.let {
                 Toast.makeText(requireContext(), "Order completed!", Toast.LENGTH_SHORT).show()
                 val id = orderId ?: return@let
-                navigateToRatings(id)
+                (activity as? MainActivity)?.selectMainTab(BottomNavScreen.SCHEDULE, clearBackStack = true)
             }
         }
 
@@ -128,9 +140,12 @@ class OrderDetailFragment : Fragment() {
         val dropoffPhotoView = view.findViewById<View>(R.id.dropoff_photo_view)
         val ivMessage = view.findViewById<ImageView>(R.id.iv_message)
 
-        toolbar.title = "Order Detail #${order.id.takeLast(4)}"
-        toolbar.setNavigationOnClickListener { activity?.onBackPressedDispatcher?.onBackPressed() }
+        val btnAdd = view.findViewById<ImageButton>(R.id.ib_add_item)
+        val btnEdit = view.findViewById<ImageButton>(R.id.ib_edit_item)
+        val btnDelete = view.findViewById<ImageButton>(R.id.ib_delete_item)
 
+        toolbar.title = "Order Detail #${order.id.takeLast(4)}"
+        toolbar.setNavigationOnClickListener { (activity as? MainActivity)?.selectMainTab(BottomNavScreen.SCHEDULE, clearBackStack = true) }
         ivMessage.setOnClickListener { navigateToMessages(order.id) }
 
         Glide.with(this).load(order.user.avatarUrl)
@@ -149,37 +164,112 @@ class OrderDetailFragment : Fragment() {
         totalAmount.text = formatCurrency(order.totalAmount)
         totalWeight.text = "~${order.totalWeight.toInt()}kg"
 
-        // --- Decide effective URLs (avoid duplicated pickup image as drop-off) ---
-        val isDupPickupDrop = order.pickupPhotoUrl != null &&
-                order.pickupPhotoUrl == order.dropoffPhotoUrl
+        // Enable add/edit/delete only at scheduled/pending
+        val enableItemActions = (order.status == OrderStatus.scheduled || order.status == OrderStatus.pending)
+        btnAdd.isEnabled = enableItemActions
+        btnEdit.isEnabled = enableItemActions
+        btnDelete.isEnabled = enableItemActions
+        btnAdd.alpha = if (enableItemActions) 1f else 0.4f
+        btnEdit.alpha = if (enableItemActions) 1f else 0.4f
+        btnDelete.alpha = if (enableItemActions) 1f else 0.4f
 
-        val effectiveDropoffUrl: String? = when {
-            // If user has taken a local drop-off photo, prefer showing it (remoteUrl = null then)
-            pendingDropoffUri != null -> null
-            // If status is delivering and server returns the same URL for both -> treat drop-off as empty
-            order.status == OrderStatus.delivering && isDupPickupDrop -> null
-            else -> order.dropoffPhotoUrl
+        if (enableItemActions) {
+            btnAdd.setOnClickListener {
+                val id = orderId ?: return@setOnClickListener
+                parentFragmentManager.beginTransaction()
+                    .replace(R.id.fragment_container, ItemFragment.newInstance(id))
+                    .addToBackStack(null)
+                    .commit()
+            }
+            btnEdit.setOnClickListener {
+                val id = orderId ?: return@setOnClickListener
+                val itemId = selectedOrderItemId
+                val catId = selectedCategoryId
+                val qty = selectedQuantity
+                if (itemId == null || catId == null || qty == null) {
+                    Toast.makeText(requireContext(), "Please tap an item below to edit", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                parentFragmentManager.beginTransaction()
+                    .replace(
+                        R.id.fragment_container,
+                        DetailItemFragment.newInstanceForEdit(
+                            orderId = id, categoryId = catId,
+                            orderItemId = itemId, initialQty = qty
+                        )
+                    )
+                    .addToBackStack(null)
+                    .commit()
+            }
+            btnDelete.setOnClickListener {
+                val id = orderId ?: return@setOnClickListener
+                val itemId = selectedOrderItemId
+                if (itemId == null) {
+                    Toast.makeText(requireContext(), "Please tap an item below to delete", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Delete item")
+                    .setMessage("Are you sure you want to delete this item from the order?")
+                    .setNegativeButton("Abort", null)
+                    .setPositiveButton("Delete") { _, _ ->
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            val res = withContext(Dispatchers.IO) { orderRepo.deleteOrderItem(id, itemId) }
+                            res.onSuccess {
+                                Toast.makeText(requireContext(), "Deleted item", Toast.LENGTH_SHORT).show()
+                                clearSelection()
+                                viewModel.loadOrder(orderId)
+                            }.onFailure { e ->
+                                Toast.makeText(requireContext(), e.message ?: "Delete error", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }.show()
+            }
+        } else {
+            btnAdd.setOnClickListener(null)
+            btnEdit.setOnClickListener(null)
+            btnDelete.setOnClickListener(null)
         }
 
-        // Show photos (local first, then remote). If nothing -> placeholder to capture.
+        // ---------------- PHOTO RENDERING ----------------
+        val pickupUrl = order.pickupPhotoUrl
+        val dropUrlFromServer = order.dropoffPhotoUrl
+
+        // RULE: During Delivering, drop-off is ALWAYS blank by default,
+        // unless the driver has just taken a local drop-off photo (pendingDropoffUri != null).
+        // Only in Completed we show the server's drop-off image.
+        val effectiveDropoffUrl: String? = when (order.status) {
+            OrderStatus.completed -> dropUrlFromServer
+            OrderStatus.delivering -> if (pendingDropoffUri != null) null else null // force placeholder
+            else -> null // scheduled/pending: drop-off hidden/unused
+        }
+
+        // Pickup photo: show local (if any) else remote, else placeholder
         setupPhotoView(
             photoView = pickupPhotoView,
-            remoteUrl = order.pickupPhotoUrl,
+            remoteUrl = pickupUrl,
             localUri = pendingPickupUri
         ) {
             photoTarget = PhotoTarget.PICKUP
             takeImage()
         }
 
+        // Drop-off photo:
+        // - Delivering: placeholder unless localUri exists (pendingDropoffUri)
+        // - Completed: show server or local (if just captured before complete)
+        val dropLocal = pendingDropoffUri
+        val dropRemote = effectiveDropoffUrl
         setupPhotoView(
             photoView = dropoffPhotoView,
-            remoteUrl = effectiveDropoffUrl,
-            localUri = pendingDropoffUri
+            remoteUrl = dropRemote,
+            localUri = dropLocal
         ) {
             photoTarget = PhotoTarget.DROPOFF
             takeImage()
         }
+        // -------------------------------------------------
 
+        // --- STATUS / ACTION ---
         when (order.status) {
             OrderStatus.scheduled -> {
                 statusDot.background = ContextCompat.getDrawable(requireContext(), R.drawable.green_dot_background)
@@ -191,19 +281,15 @@ class OrderDetailFragment : Fragment() {
 
                 actionButton.text = "Pick-Up"
                 actionButton.visibility = View.VISIBLE
-
-                // Enable when we have an effective pickup (local or remote)
-                val hasPickup = (pendingPickupUri != null) || (order.pickupPhotoUrl != null)
-                actionButton.isEnabled = hasPickup
+                actionButton.isEnabled = (pendingPickupUri != null) || (pickupUrl != null)
 
                 actionButton.setOnClickListener {
                     val id = orderId ?: return@setOnClickListener
                     val pickupUri = pendingPickupUri
-                    if (pickupUri == null && order.pickupPhotoUrl == null) {
+                    if (pickupUri == null && pickupUrl == null) {
                         Toast.makeText(requireContext(), "Please capture pickup photo first.", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
                     }
-                    // Upload (pickup, pickup) to satisfy backend's 2-file requirement
                     viewModel.uploadPickupPhase(id, pickupUri)
                 }
             }
@@ -219,19 +305,18 @@ class OrderDetailFragment : Fragment() {
                 actionButton.text = "Complete Delivery"
                 actionButton.visibility = View.VISIBLE
 
-                // Effective drop-off exists if we have local or (valid) remote URL
-                val hasDropoffEffective = (pendingDropoffUri != null) || (effectiveDropoffUrl != null)
-                actionButton.isEnabled = hasDropoffEffective
+                // Because we force drop-off to be blank unless there is a local photo,
+                // the button only enables when pendingDropoffUri exists.
+                actionButton.isEnabled = (pendingDropoffUri != null)
 
                 actionButton.setOnClickListener {
                     val id = orderId ?: return@setOnClickListener
                     val pickupUri = pendingPickupUri
                     val dropUri = pendingDropoffUri
-                    if (dropUri == null && effectiveDropoffUrl == null) {
+                    if (dropUri == null) {
                         Toast.makeText(requireContext(), "Please capture drop-off photo first.", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
                     }
-                    // Upload both photos (pickup + dropoff) then complete
                     viewModel.uploadDropoffAndComplete(id, pickupUri, dropUri)
                 }
             }
@@ -253,24 +338,50 @@ class OrderDetailFragment : Fragment() {
             }
         }
 
-        // Render items
+        // --- Render items (with selection) ---
         itemsContainer.removeAllViews()
         val inflater = LayoutInflater.from(context)
+        clearSelection()
+
         order.items.forEach { item ->
-            val itemView = inflater.inflate(R.layout.include_order_item_row, itemsContainer, false)
-            itemView.findViewById<TextView>(R.id.tv_item_name)
+            val row = inflater.inflate(R.layout.include_order_item_row, itemsContainer, false)
+
+            row.findViewById<TextView>(R.id.tv_item_name)
                 .text = "${item.categoryName} (${formatCurrency(item.pricePerUnit)}/${item.categoryUnit})"
-            itemView.findViewById<TextView>(R.id.tv_item_quantity)
+            row.findViewById<TextView>(R.id.tv_item_quantity)
                 .text = "${item.quantity} ${item.categoryUnit}"
-            itemView.findViewById<TextView>(R.id.tv_item_subtotal)
+            row.findViewById<TextView>(R.id.tv_item_subtotal)
                 .text = formatCurrency(item.quantity * item.pricePerUnit)
-            itemsContainer.addView(itemView)
+
+            row.setOnClickListener {
+                selectedRowView?.setBackgroundColor(
+                    ContextCompat.getColor(requireContext(), android.R.color.transparent)
+                )
+                row.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.teal_200))
+
+                selectedRowView = row
+                selectedOrderItemId = item.id
+                selectedCategoryId = item.categoryId
+                selectedQuantity = item.quantity
+            }
+
+            itemsContainer.addView(row)
         }
+    }
+
+    private fun clearSelection() {
+        selectedOrderItemId = null
+        selectedCategoryId = null
+        selectedQuantity = null
+        selectedRowView?.setBackgroundColor(
+            ContextCompat.getColor(requireContext(), android.R.color.transparent)
+        )
+        selectedRowView = null
     }
 
     // --- PHOTO helpers ---
     private fun takeImage() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             latestTmpUri = getTmpFileUri()
             takeImageResult.launch(latestTmpUri)
         }
@@ -300,7 +411,6 @@ class OrderDetailFragment : Fragment() {
             }
             else -> Unit
         }
-        // Reload to re-bind UI (buttons enable state, etc.)
         orderId?.let { viewModel.loadOrder(it) }
     }
 
@@ -334,14 +444,6 @@ class OrderDetailFragment : Fragment() {
 
     private fun navigateToMessages(conversationKey: String) {
         Toast.makeText(requireContext(), "Open messages (stub)", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun navigateToRatings(orderId: String) {
-        val ratingsFragment = RatingsFragment.newInstance(orderId)
-        parentFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, ratingsFragment)
-            .addToBackStack(null)
-            .commit()
     }
 
     private fun formatCurrency(amount: Double): String {

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.16.4",
+    "cloudinary>=1.44.1",
     "emails>=0.6",
     "fastapi[standard]>=0.116.1",
     "geoalchemy2>=0.18.0",

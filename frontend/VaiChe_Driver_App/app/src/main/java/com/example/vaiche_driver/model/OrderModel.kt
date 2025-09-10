@@ -31,6 +31,7 @@ data class OrderUser(
 
 data class OrderItem(
     val id: String,
+    val categoryId: String,
     val categoryName: String,
     val categoryUnit: String,
     val quantity: Double,

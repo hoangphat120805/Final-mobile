@@ -55,4 +55,3 @@ class UsersPublic(SQLModel):
 
 class CollectorPublic(UserPublic):
     average_rating: float | None = None
-

@@ -15,8 +15,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.commit
 import com.example.vaiche_driver.MainActivity
 import com.example.vaiche_driver.R
-import com.example.vaiche_driver.ui.AuthViewModel
-import com.example.vaiche_driver.ui.ResetPasswordFragment
+import com.example.vaiche_driver.viewmodel.AuthViewModel
 
 class LoginFragment : Fragment() {
 

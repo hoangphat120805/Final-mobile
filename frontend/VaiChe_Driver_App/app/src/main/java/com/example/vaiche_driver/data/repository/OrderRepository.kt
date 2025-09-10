@@ -1,69 +1,82 @@
 package com.example.vaiche_driver.data.repository
 
+import com.example.vaiche_driver.data.common.safeApiCall
 import com.example.vaiche_driver.data.network.ApiService
-import com.example.vaiche_driver.data.network.RetrofitClient
 import com.example.vaiche_driver.model.*
+//import com.mapbox.api.directions.v5.DirectionsCriteria
+//import com.mapbox.api.directions.v5.models.DirectionsRoute
+//import com.mapbox.api.directions.v5.models.RouteOptions
+import com.mapbox.geojson.utils.PolylineUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import okhttp3.MultipartBody
+import retrofit2.HttpException
+import retrofit2.Response
 
 class OrderRepository(
-    private val apiService: ApiService = RetrofitClient.instance
+    // Provider trả ApiService mới nhất mỗi lần dùng
+    private val apiProvider: () -> ApiService
 ) {
+    private val api get() = apiProvider()
+
     // Trạng thái "ảo" ở client (ví dụ ép Delivering sau khi pickup local)
     private val localStatusCache = mutableMapOf<String, OrderStatus>()
 
     /** Danh sách Schedule (map từ OrderPublic bằng extensions) */
     suspend fun getSchedules(): Result<List<Schedule>> = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.getMyOrders()
-            if (response.isSuccessful) {
-                val schedules = response.body()
-                    ?.map { op ->
-                        val override = localStatusCache[op.id]
-                        op.toSchedule(statusOverride = override)
-                    }
-                    ?: emptyList()
-                Result.success(schedules)
-            } else {
-                Result.failure(Exception("API Error: ${response.code()}"))
+        safeApiCall { api.getMyOrders() }.map { orders ->
+            orders.map { op ->
+                val override = localStatusCache[op.id]
+                op.toSchedule(statusOverride = override)
             }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /** Lấy chi tiết đơn đã map sang OrderDetail (extensions) */
-    suspend fun getOrderDetail(orderId: String): Result<OrderDetail> = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.getOrderById(
-                orderId = orderId,
-                includeUser = true,
-                includeCollector = true
-            )
-            if (response.isSuccessful && response.body() != null) {
-                val override = localStatusCache[orderId]
-                Result.success(response.body()!!.toOrderDetail(statusOverride = override))
-            } else {
-                Result.failure(Exception("API Error: ${response.code()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
 
     /** Lấy OrderPublic thô (nếu VM cần) */
     suspend fun getOrderById(orderId: String): Result<OrderPublic> = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.getOrderById(
+        safeApiCall {
+            api.getOrderById(
                 orderId = orderId,
                 includeUser = true,
                 includeCollector = true
             )
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
-            } else {
-                Result.failure(Exception("API Error: ${response.code()}"))
+        }
+    }
+
+    /** Lấy chi tiết đơn đã map sang OrderDetail (extensions) — có enrich từ Category, fallback khi lỗi */
+    suspend fun getOrderDetail(orderId: String): Result<OrderDetail> = withContext(Dispatchers.IO) {
+        try {
+            coroutineScope {
+                val orderDefer = async {
+                    safeApiCall {
+                        api.getOrderById(
+                            orderId = orderId,
+                            includeUser = true,
+                            includeCollector = true
+                        )
+                    }
+                }
+                val catsDefer = async {
+                    // Categories lỗi thì fallback empty list, không fail cả màn
+                    safeApiCall { api.getCategories() }.getOrElse { emptyList() }
+                }
+
+                val orderPublic = orderDefer.await().getOrElse { throw it }
+                val categories = catsDefer.await()
+                val override = localStatusCache[orderId]
+
+                if (categories.isEmpty()) {
+                    Result.success(orderPublic.toOrderDetailFallback(statusOverride = override))
+                } else {
+                    Result.success(
+                        orderPublic.toOrderDetail(
+                            categories = categories,
+                            statusOverride = override
+                        )
+                    )
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -71,7 +84,7 @@ class OrderRepository(
     }
 
     /** Đánh dấu local delivering (không gọi API) */
-    suspend fun markAsDelivering(orderId: String): Result<Unit> = withContext(Dispatchers.Main) {
+    suspend fun markAsDelivering(orderId: String): Result<Unit> = withContext(Dispatchers.IO) {
         localStatusCache[orderId] = OrderStatus.delivering
         Result.success(Unit)
     }
@@ -79,16 +92,8 @@ class OrderRepository(
     /** Hoàn tất đơn */
     suspend fun completeOrder(orderId: String, request: OrderCompletionRequest): Result<Unit> =
         withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.completeOrder(orderId, request)
-                if (response.isSuccessful) {
-                    localStatusCache.remove(orderId)
-                    Result.success(Unit)
-                } else {
-                    Result.failure(Exception("Failed to complete order: ${response.code()}"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+            safeApiCall { api.completeOrder(orderId, request) }.map { Unit }.onSuccess {
+                localStatusCache.remove(orderId)
             }
         }
 
@@ -99,45 +104,18 @@ class OrderRepository(
         radiusKm: Double = 50.0,
         limit: Int = 10
     ): Result<List<NearbyOrderPublic>> = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.getNearbyOrders(lat, lng, radiusKm, limit)
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
-            } else {
-                Result.failure(Exception("API Error: ${response.code()} - ${response.message()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        safeApiCall { api.getNearbyOrders(lat, lng, radiusKm, limit) }
     }
 
     /** Collector nhận đơn */
     suspend fun acceptOrder(orderId: String): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.acceptOrder(orderId)
-            if (response.isSuccessful) {
-                Result.success(Unit)
-            } else {
-                Result.failure(Exception("Failed to accept order: ${response.code()} - ${response.message()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        safeApiCall { api.acceptOrder(orderId) }.map { Unit }
     }
 
     /** Thêm item vào đơn */
     suspend fun addItemsToOrder(orderId: String, items: OrderItemCreate): Result<OrderPublic> =
         withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.addItemsToOrder(orderId, items)
-                if (response.isSuccessful && response.body() != null) {
-                    Result.success(response.body()!!)
-                } else {
-                    Result.failure(Exception("Failed to add items: ${response.code()} - ${response.message()}"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            safeApiCall { api.addItemsToOrder(orderId, items) }
         }
 
     /** Upload ảnh đơn (pickup & dropoff) */
@@ -146,16 +124,7 @@ class OrderRepository(
         file1: MultipartBody.Part,
         file2: MultipartBody.Part
     ): Result<MessageResponse> = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.uploadOrderImages(orderId, file1, file2)
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
-            } else {
-                Result.failure(Exception("Upload images failed: ${response.code()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        safeApiCall { api.uploadOrderImages(orderId, file1, file2) }
     }
 
     /** Cập nhật item trong đơn */
@@ -164,16 +133,7 @@ class OrderRepository(
         orderItemId: String,
         itemUpdate: OrderItemUpdate
     ): Result<OrderPublic> = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.updateOrderItem(orderId, orderItemId, itemUpdate)
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
-            } else {
-                Result.failure(Exception("Failed to update item: ${response.code()} - ${response.message()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        safeApiCall { api.updateOrderItem(orderId, orderItemId, itemUpdate) }
     }
 
     /** Xóa item khỏi đơn */
@@ -181,60 +141,47 @@ class OrderRepository(
         orderId: String,
         orderItemId: String
     ): Result<OrderPublic> = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.deleteOrderItem(orderId, orderItemId)
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
-            } else {
-                Result.failure(Exception("Failed to delete item: ${response.code()} - ${response.message()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        safeApiCall { api.deleteOrderItem(orderId, orderItemId) }
     }
 
     /** Lấy route collector -> pickup */
-    suspend fun getRouteForOrder(orderId: String): Result<RoutePublic> =
+    suspend fun getRouteForOrder(orderId: String, lat: Double, lon: Double): Result<RoutePublic> =
         withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getRouteForOrder(orderId)
-                if (response.isSuccessful && response.body() != null) {
-                    Result.success(response.body()!!)
-                } else {
-                    Result.failure(Exception("Failed to get route: ${response.code()}"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            safeApiCall { api.getRouteForOrder(orderId, lat, lon) }
         }
+
 
     /** Chủ đơn (owner) */
     suspend fun getOrderOwner(orderId: String): Result<UserPublic> =
         withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getOrderOwner(orderId)
-                if (response.isSuccessful && response.body() != null) {
-                    Result.success(response.body()!!)
-                } else {
-                    Result.failure(Exception("Failed to get owner: ${response.code()}"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            safeApiCall { api.getOrderOwner(orderId) }
         }
 
     /** Collector của đơn */
     suspend fun getOrderCollector(orderId: String): Result<CollectorPublic> =
         withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getOrderCollector(orderId)
-                if (response.isSuccessful && response.body() != null) {
-                    Result.success(response.body()!!)
-                } else {
-                    Result.failure(Exception("Failed to get collector: ${response.code()}"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            safeApiCall { api.getOrderCollector(orderId) }
         }
+
+    suspend fun getActiveOrder(): Result<OrderPublic?> = withContext(Dispatchers.IO) {
+        safeApiCall { api.getMyOrders() }.map { list ->
+            list.firstOrNull { it.status == OrderStatusApi.ACCEPTED }
+        }
+    }
+
+
+//    suspend fun getOrderRoute(orderId: String): Result<DirectionsRoute> = withContext(Dispatchers.IO) {
+//        try {
+//            val res = api.getRouteForOrder(orderId)
+//            if (res.isSuccessful && res.body() != null) {
+//                Result.success(res.body()!!.toDirectionsRoute(5))
+//            } else {
+//                Result.failure(Exception("Route error: ${res.code()}"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+
+
 }

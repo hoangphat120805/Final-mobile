@@ -98,7 +98,7 @@ def delete_category(session: Session, category: ScrapCategory) -> None:
     session.delete(category)
     session.commit()
 
-def update_category(session: Session, category: ScrapCategory, category_update: CategoryCreate, current_user: UserPublic) -> ScrapCategory:
+def update_category(session: Session, category: ScrapCategory, category_update: CategoryCreate, current_user: User) -> ScrapCategory:
     category_data = category_update.dict(exclude_unset=True)
     current_category = category.sqlmodel_update(category_data)
     current_category.last_updated_by = current_user.id
@@ -106,6 +106,14 @@ def update_category(session: Session, category: ScrapCategory, category_update: 
     session.commit()
     session.refresh(current_category)
     return current_category
+
+def update_category_icon(session: Session, category: ScrapCategory, current_user: User, icon_url: str) -> ScrapCategory:
+    category.icon_url = icon_url
+    category.last_updated_by = current_user.id
+    session.add(category)
+    session.commit()
+    session.refresh(category)
+    return category
 
 def get_order_by_id(session: Session, order_id: uuid.UUID) -> Order:
     return session.get(Order, order_id)
@@ -272,7 +280,7 @@ def complete_order_payment_service(
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid OrderItem ID: {item_data.order_item_id}")
 
             order_item.quantity = item_data.actual_quantity
-            final_total_amount += order_item.price_per_unit * order_item.quantity
+            final_total_amount += order_item.category.estimated_price_per_unit * order_item.quantity
             db.add(order_item)
 
         # Step 4: Update the main Order record.

@@ -45,7 +45,7 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:layout_marginEnd="24dp"
-                    android:src="@drawable/ic_edit"
+                    android:src="@drawable/ic_settings"
                     app:layout_constraintBottom_toBottomOf="@id/tv_profile_title"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="@id/tv_profile_title"
@@ -86,7 +86,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    app:layout_constraintGuide_begin="255dp" />
+                    app:layout_constraintGuide_begin="236dp" />
 
                 <TextView
                     android:id="@+id/tv_phone_label"

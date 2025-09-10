@@ -1,50 +1,50 @@
-//package com.example.vaiche_driver.viewmodel
-//
-//import androidx.lifecycle.ViewModel
-//import androidx.lifecycle.viewModelScope
-//import com.example.vaiche_driver.data.repository.OrderRepository
-//import com.example.vaiche_driver.model.CategoryPublic
-//import dagger.hilt.android.lifecycle.HiltViewModel
-//import kotlinx.coroutines.flow.MutableStateFlow
-//import kotlinx.coroutines.flow.StateFlow
-//import kotlinx.coroutines.flow.update
-//import kotlinx.coroutines.launch
-//import javax.inject.Inject
-//
-//data class ItemUiState(
-//    val isLoading: Boolean = false,
-//    val items: List<CategoryPublic> = emptyList(),
-//    val query: String = "",
-//    val error: String? = null
-//)
-//
-//@HiltViewModel
-//class ItemViewModel @Inject constructor(
-//    private val repo: OrderRepository
-//) : ViewModel() {
-//
-//    private val _ui = MutableStateFlow(ItemUiState(isLoading = true))
-//    val ui: StateFlow<ItemUiState> = _ui
-//
-//    init { refresh() }
-//
-//    fun refresh() {
-//        viewModelScope.launch {
-//            _ui.update { it.copy(isLoading = true, error = null) }
-//            when (val res = repo.getCategories()) {
-//                is Result.Success -> _ui.update { it.copy(isLoading = false, items = res.getOrNull().orEmpty()) }
-//                is Result.Failure -> _ui.update { it.copy(isLoading = false, error = res.exceptionOrNull()?.message) }
-//            }
-//        }
-//    }
-//
-//    fun setQuery(q: String) {
-//        _ui.update { it.copy(query = q) }
-//    }
-//
-//    fun filtered(): List<CategoryPublic> {
-//        val q = _ui.value.query.trim().lowercase()
-//        if (q.isEmpty()) return _ui.value.items
-//        return _ui.value.items.filter { it.name.lowercase().contains(q) || it.slug.lowercase().contains(q) }
-//    }
-//}
+package com.example.vaiche_driver.viewmodel
+
+import androidx.lifecycle.*
+import com.example.vaiche_driver.data.network.RetrofitClient
+import com.example.vaiche_driver.data.repository.CategoryRepository
+import com.example.vaiche_driver.model.CategoryPublic
+import kotlinx.coroutines.launch
+
+class ItemViewModel(
+    private val repo: CategoryRepository = CategoryRepository { RetrofitClient.instance }
+) : ViewModel() {
+
+    private val _isLoading = MutableLiveData(false)
+    val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _categories = MutableLiveData<List<CategoryPublic>>(emptyList())
+    val categories: LiveData<List<CategoryPublic>> = _categories
+
+    private val _filtered = MutableLiveData<List<CategoryPublic>>(emptyList())
+    val filtered: LiveData<List<CategoryPublic>> = _filtered
+
+    private val _error = MutableLiveData<Event<String>>()
+    val error: LiveData<Event<String>> = _error
+
+    fun load() {
+        if (_categories.value?.isNotEmpty() == true) return
+        _isLoading.value = true
+        viewModelScope.launch {
+            repo.getCategories()
+                .onSuccess {
+                    _categories.value = it
+                    _filtered.value = it
+                }
+                .onFailure { e -> _error.value = Event(e.message ?: "Load categories failed") }
+            _isLoading.value = false
+        }
+    }
+
+    fun filter(query: String) {
+        val src = _categories.value ?: emptyList()
+        if (query.isBlank()) {
+            _filtered.value = src
+        } else {
+            val q = query.trim().lowercase()
+            _filtered.value = src.filter {
+                it.name.lowercase().contains(q) || it.slug.lowercase().contains(q)
+            }
+        }
+    }
+}

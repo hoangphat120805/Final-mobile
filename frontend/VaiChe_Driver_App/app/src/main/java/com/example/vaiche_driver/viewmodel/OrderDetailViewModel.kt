@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.example.vaiche_driver.data.network.RetrofitClient
 import com.example.vaiche_driver.data.repository.OrderRepository
 import com.example.vaiche_driver.fragment.OrderDetailFragment
 import com.example.vaiche_driver.model.OrderDetail
@@ -23,7 +24,7 @@ import java.io.InputStream
 
 class OrderDetailViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val orderRepository = OrderRepository()
+    private val orderRepository = OrderRepository { RetrofitClient.instance }
 
     private val _orderDetail = MutableLiveData<OrderDetail?>()
     val orderDetail: LiveData<OrderDetail?> = _orderDetail

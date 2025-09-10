@@ -269,6 +269,8 @@ data class RoutePublic(
     @SerializedName("polyline") val polyline: String
 )
 
+data class LocationBody(val lat: Double, val lng: Double)
+
 // =======================================================
 // ======================== REVIEW =======================
 // =======================================================

@@ -88,8 +88,10 @@ dependencies {
     implementation("androidx.profileinstaller:profileinstaller:1.3.1")
 
 
-    implementation("com.mapbox.maps:android:11.4.1")
+    // Mapbox Maps SDK v11 (biến thể ndk27)
+    implementation("com.mapbox.maps:android-ndk27:11.14.4")
 
+    // (Optional) Location Google nếu bạn đã dùng FusedLocationProvider
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
@@ -99,5 +101,3 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
-
-

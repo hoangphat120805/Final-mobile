@@ -5,19 +5,44 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_light"
+    android:background="#E0F2F1"
     tools:context=".fragment.ItemFragment">
+
+    <!-- Toolbar -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="0dp"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/teal_200"
+        app:navigationIcon="@drawable/ic_arrow_back_white"
+        app:title="Order Detail"
+        app:titleCentered="true"
+        app:titleTextColor="@android:color/white"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Đường kẻ mảnh dưới toolbar -->
+    <View
+        android:id="@+id/toolbar_divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:background="#1F000000"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Search Bar -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/card_search"
         android:layout_width="0dp"
         android:layout_height="52dp"
-        app:cardCornerRadius="26dp"
-        app:cardElevation="2dp"
         android:layout_marginHorizontal="16dp"
         android:layout_marginTop="12dp"
-        app:layout_constraintTop_toTopOf="parent"
+        app:cardCornerRadius="26dp"
+        app:cardElevation="2dp"
+        app:cardBackgroundColor="@android:color/white"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_divider"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -31,7 +56,8 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:layout_gravity="start|center_vertical"
-                android:src="@drawable/ic_search"/>
+                android:src="@drawable/ic_search"
+               />
 
             <EditText
                 android:id="@+id/et_search"
@@ -40,6 +66,8 @@
                 android:layout_marginStart="32dp"
                 android:background="@null"
                 android:hint="Search item"
+                android:textColor="@color/black"
+                android:textColorHint="@color/black"
                 android:imeOptions="actionSearch"/>
         </FrameLayout>
     </com.google.android.material.card.MaterialCardView>
@@ -61,7 +89,7 @@
         android:id="@+id/rv_categories"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_margin="8dp"
+        android:background="#E0F2F1"
         app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
         app:spanCount="2"
         app:layout_constraintTop_toBottomOf="@id/tv_scrap_prices_title"
@@ -92,4 +120,5 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

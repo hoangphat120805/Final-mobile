@@ -2,16 +2,11 @@ import hashlib
 import logging
 import random
 import string
-import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Any
-import os
 
 import emails  # type: ignore
 import jwt
-from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
 import redis
 

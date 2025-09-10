@@ -19,6 +19,7 @@ import com.example.vaiche_driver.model.localStatus
 import com.example.vaiche_driver.model.toSchedule
 import com.example.vaiche_driver.viewmodel.NewOrderViewModel
 import com.example.vaiche_driver.viewmodel.SharedViewModel
+import com.google.gson.Gson
 import kotlin.math.roundToInt
 
 class NewOrderDialogFragment : DialogFragment() {
@@ -27,15 +28,24 @@ class NewOrderDialogFragment : DialogFragment() {
     private val sharedViewModel: SharedViewModel by activityViewModels()
 
     private var orderId: String? = null
+    private var seedNearby: NearbyOrderPublic? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setStyle(STYLE_NO_TITLE, R.style.TransparentDialogTheme)
-        arguments?.let { orderId = it.getString(ARG_ORDER_ID) }
+
+        // Read args
+        val args = requireArguments()
+        orderId = args.getString(ARG_ORDER_ID)
+
+        args.getString(ARG_ORDER_SEED_JSON)?.let { json ->
+            seedNearby = runCatching { Gson().fromJson(json, NearbyOrderPublic::class.java) }.getOrNull()
+        }
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.fragment_new_order, container, false)
@@ -51,7 +61,10 @@ class NewOrderDialogFragment : DialogFragment() {
 
         acceptButton.isEnabled = false
 
-        // Observe NearbyOrderPublic để bind vào UI “Nearby order”
+        // Nếu có seed từ Nearby -> prime vào VM để UI có distance/time tức thì
+        viewModel.primeWithSeed(seedNearby)
+
+        // Quan sát dữ liệu để bind UI
         viewModel.order.observe(viewLifecycleOwner) { order ->
             if (order != null) {
                 bindDataToViews(view, order)
@@ -61,32 +74,31 @@ class NewOrderDialogFragment : DialogFragment() {
             }
         }
 
-        // Load dữ liệu lần đầu (giữ nguyên tên hàm theo bạn dùng)
+        // Lần đầu: vẫn fetch detail theo id để bổ sung thông tin khác
         if (savedInstanceState == null) {
             viewModel.loadOrderDetails(orderId)
         }
 
-        // Accept → gọi API nhận đơn, bắn qua SharedViewModel, đóng dialog
+        // Accept
         acceptButton.setOnClickListener {
             val id = orderId
             if (id == null) {
                 Toast.makeText(context, "Missing order id", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            viewModel.acceptOrder(id) { acceptedOrder ->   // acceptedOrder: OrderPublic
-                // map OrderPublic -> Schedule (dùng rule localStatus bạn đã định nghĩa)
+            viewModel.acceptOrder(id) { acceptedOrder ->
                 val schedule = acceptedOrder.toSchedule(acceptedOrder.localStatus())
                 sharedViewModel.onOrderAccepted(schedule)
                 dismissAllowingStateLoss()
             }
         }
 
-        // Close (Reject) → bắn rejected id qua SharedViewModel, đóng
+        // Close / Reject
         closeButton.setOnClickListener {
             val id = orderId
             if (id != null) {
-                viewModel.rejectOrder(id) { rejectedOrderId ->
-                    sharedViewModel.onOrderRejected(rejectedOrderId)
+                viewModel.rejectOrder(id) { rejectedId ->
+                    sharedViewModel.onOrderRejected(rejectedId)
                     dismissAllowingStateLoss()
                 }
             } else {
@@ -112,11 +124,8 @@ class NewOrderDialogFragment : DialogFragment() {
         val distanceTime = view.findViewById<TextView>(R.id.tv_distance_time)
 
         titleText.text = "Nearby order"
-        // Dùng pickup_address cho cả name & address (đơn giản)
         startName.text = order.pickupAddress
         startAddress.text = order.pickupAddress
-
-        // Điểm đến cố định theo yêu cầu
         endName.text = "VaiChe"
         endAddress.text = "Hồ Chí Minh"
 
@@ -124,24 +133,52 @@ class NewOrderDialogFragment : DialogFragment() {
     }
 
     private fun formatDistanceTime(distanceKm: Double?, travelTimeSeconds: Double?): String {
+        // ---- Distance ----
         val distancePart = distanceKm?.let {
-            val d = ((it * 10.0).roundToInt() / 10.0) // 1 decimal
-            "~$d km"
-        } ?: "~? km"
+            if (it < 1.0) {
+                val meters = (it * 1000).toInt()
+                "$meters m"
+            } else {
+                val km = String.format("%.1f", it)
+                "$km km"
+            }
+        } ?: "? m"
 
+        // ---- Time ----
         val timePart = travelTimeSeconds?.let {
-            val minutes = (it / 60.0).roundToInt()
-            "~$minutes min"
-        } ?: "~? min"
+            val totalMinutes = (it / 60.0).toInt().coerceAtLeast(1) // min = 1 phút
+            if (totalMinutes >= 60) {
+                val hours = totalMinutes / 60
+                val minutes = totalMinutes % 60
+                if (minutes > 0) {
+                    "$hours h $minutes min"
+                } else {
+                    "$hours h"
+                }
+            } else {
+                "$totalMinutes min"
+            }
+        } ?: "? min"
 
         return "Distance $distancePart • Time $timePart"
     }
 
+
     companion object {
         private const val ARG_ORDER_ID = "order_id"
+        private const val ARG_ORDER_SEED_JSON = "order_seed_json"
 
+        // Giữ hàm cũ (nếu nơi khác vẫn đang gọi theo id)
         fun newInstance(orderId: String) = NewOrderDialogFragment().apply {
             arguments = Bundle().apply { putString(ARG_ORDER_ID, orderId) }
+        }
+
+        // Hàm mới: truyền cả NearbyOrderPublic để có sẵn distance/time
+        fun newInstanceWithSeed(order: NearbyOrderPublic) = NewOrderDialogFragment().apply {
+            arguments = Bundle().apply {
+                putString(ARG_ORDER_ID, order.id)
+                putString(ARG_ORDER_SEED_JSON, Gson().toJson(order))
+            }
         }
     }
 }
