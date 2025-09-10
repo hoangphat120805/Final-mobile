@@ -10,7 +10,7 @@ from app.api.deps import SessionDep, CurrentUser, CurrentCollector
 from app.schemas.order import OrderCreate, OrderItemCreate, OrderItemUpdate, OrderPublic, OrderAcceptRequest, OrderAcceptResponse, NearbyOrderPublic
 from app.schemas.route import RoutePublic
 from app.schemas.auth import Message
-from app.schemas.user import UserPublic, CollectorPublic, Location
+from app.schemas.user import UserPublic, CollectorPublic
 from app.schemas.review import ReviewCreate, ReviewPublic
 from app.models import User, Order, OrderStatus
 from app import crud
@@ -245,7 +245,8 @@ async def get_route_for_order(
     order_id: uuid.UUID, 
     current_collector: CurrentCollector, 
     session: SessionDep,
-    location: Location
+    lat: float,
+    lon: float
     ):
     """
     Get route information from collector's current location to the order's pickup location.
@@ -255,16 +256,14 @@ async def get_route_for_order(
         raise HTTPException(status_code=404, detail="Order not found")
     if not order.location:
         raise HTTPException(status_code=400, detail="Order does not have a valid location")
-    if not location:
-        raise HTTPException(status_code=400, detail="Collector does not have a valid location")
     if order.collector_id != current_collector.id:
         raise HTTPException(status_code=403, detail="You can only view routes for your own orders")
     
     route_info = await mapbox.get_route_from_mapbox(
-        start_lon=location.lng,
-        start_lat=location.lat,
-        end_lon=order.location.x,
-        end_lat=order.location.y
+        start_lon=lon,
+        start_lat=lat,
+        end_lon=order.location.lon,
+        end_lat=order.location.lat
     )
     
     if not route_info:
