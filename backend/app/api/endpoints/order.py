@@ -258,12 +258,13 @@ async def get_route_for_order(
         raise HTTPException(status_code=400, detail="Order does not have a valid location")
     if order.collector_id != current_collector.id:
         raise HTTPException(status_code=403, detail="You can only view routes for your own orders")
+    order = OrderPublic.from_orm(order)
     
     route_info = await mapbox.get_route_from_mapbox(
         start_lon=lon,
         start_lat=lat,
-        end_lon=order.location.lon,
-        end_lat=order.location.lat
+        end_lon=order.location['coordinates'][0],
+        end_lat=order.location['coordinates'][1]
     )
     
     if not route_info:
