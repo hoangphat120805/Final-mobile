@@ -1,13 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".fragment.DashboardFragment">
-
-    <!-- MAPBOX MAP VIEW -->
-    <!-- Đây là thành phần chính để hiển thị bản đồ -->
+    android:layout_height="match_parent">
 
     <com.mapbox.maps.MapView
         android:id="@+id/mapView"
@@ -17,9 +12,7 @@
         app:mapbox_cameraTargetLng="106.66"
         app:mapbox_cameraZoom="12.0" />
 
-
-
-
+    <!-- Thanh top của bạn -->
     <LinearLayout
         android:id="@+id/top_bar"
         android:layout_width="match_parent"
@@ -30,7 +23,6 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <!-- Center Text -->
         <TextView
             android:id="@+id/tvCenterTitle"
             android:layout_width="0dp"
@@ -46,7 +38,24 @@
             android:textColor="@android:color/white"
             android:textSize="18sp"
             android:textStyle="bold"/>
-
     </LinearLayout>
 
+<!--    &lt;!&ndash; UI chỉ dẫn rẽ &ndash;&gt;-->
+<!--    <com.mapbox.navigation.ui.maneuver.view.MapboxManeuverView-->
+<!--        android:id="@+id/maneuverView"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:layout_alignParentTop="true"-->
+<!--        android:paddingTop="8dp"-->
+<!--        android:paddingHorizontal="16dp"-->
+<!--        android:background="@android:color/transparent"/>-->
+
+<!--    &lt;!&ndash; UI tiến trình lộ trình &ndash;&gt;-->
+<!--    <com.mapbox.navigation.ui.tripprogress.view.MapboxTripProgressView-->
+<!--        android:id="@+id/tripProgressView"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:layout_below="@id/maneuverView"-->
+<!--        android:padding="8dp"-->
+<!--        android:background="@android:color/transparent"/>-->
 </RelativeLayout>
