@@ -11,9 +11,13 @@ class ConversationBase(BaseModel):
 class ConversationCreate(ConversationBase):
     member_ids: list[uuid.UUID]
 
+class ConversationMember(BaseModel):
+    user_id: uuid.UUID
+
 class ConversationPublic(ConversationBase):
     id: uuid.UUID
     last_message_id: uuid.UUID | None
+    members: list[ConversationMember] = []
     created_at: datetime
     updated_at: datetime
 
@@ -31,3 +35,4 @@ class MessagePublic(MessageBase):
 
 class ConversationWithLastMessage(ConversationPublic):
     last_message: MessagePublic | None = None
+
