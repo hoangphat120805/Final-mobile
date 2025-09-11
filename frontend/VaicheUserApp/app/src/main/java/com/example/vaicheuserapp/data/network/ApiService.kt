@@ -27,6 +27,10 @@ import com.example.vaicheuserapp.data.model.ResetPasswordRequest // <-- New impo
 import com.example.vaicheuserapp.data.model.TransactionReadResponse
 import com.example.vaicheuserapp.data.model.UserRegisterRequest // <-- NEW: For signup request
 import com.example.vaicheuserapp.data.model.CollectorPublic // <-- New import
+import com.example.vaicheuserapp.data.model.ConversationCreate
+import com.example.vaicheuserapp.data.model.ConversationPublic
+import com.example.vaicheuserapp.data.model.ConversationWithLastMessage
+import com.example.vaicheuserapp.data.model.MessagePublic
 import com.example.vaicheuserapp.data.model.OrderCreate
 import com.example.vaicheuserapp.data.model.ReviewCreate // <-- New import
 import com.example.vaicheuserapp.data.model.ReviewPublic // <-- New import
@@ -96,4 +100,13 @@ interface ApiService {
 
     @GET("/api/orders/{order_id}/route") // <-- NEW: Get route for order
     suspend fun getRouteForOrder(@Path("order_id") orderId: String): Response<RoutePublic>
+
+    @POST("/api/chat/conversations/")
+    suspend fun createConversation(@Body conversationCreate: ConversationCreate): Response<ConversationPublic>
+
+    @GET("/api/chat/conversations/")
+    suspend fun getConversations(): Response<List<ConversationWithLastMessage>>
+
+    @GET("/api/chat/conversations/{conversation_id}/messages/")
+    suspend fun getMessages(@Path("conversation_id") conversationId: String): Response<List<MessagePublic>>
 }
