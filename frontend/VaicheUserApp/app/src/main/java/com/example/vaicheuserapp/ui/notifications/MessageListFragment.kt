@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.vaicheuserapp.ChatActivity // <-- NEW IMPORT: The chat activity
 import com.example.vaicheuserapp.R
 import com.example.vaicheuserapp.data.model.ConversationWithLastMessage
+import com.example.vaicheuserapp.data.model.UserPublic
 import com.example.vaicheuserapp.data.network.RetrofitClient
 import com.example.vaicheuserapp.databinding.FragmentMessageListBinding
 import kotlinx.coroutines.launch
@@ -26,6 +27,8 @@ class MessageListFragment : Fragment(), OnConversationClickListener {
     private lateinit var conversationListAdapter: ConversationListAdapter
     private var allConversations = listOf<ConversationWithLastMessage>()
     private var currentUserId: String = "" // Will be set from shared preferences
+
+    private val userProfileCache = mutableMapOf<String, UserPublic>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -60,10 +63,39 @@ class MessageListFragment : Fragment(), OnConversationClickListener {
     }
 
     private fun setupRecyclerView() {
-        conversationListAdapter = ConversationListAdapter(this, currentUserId)
+        // --- CRITICAL FIX: Pass the lambda for fetching/caching user profiles ---
+        conversationListAdapter = ConversationListAdapter(this, currentUserId) { userId, callback ->
+            fetchAndCacheUserProfile(userId, callback)
+        }
         binding.rvConversations.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = conversationListAdapter
+        }
+    }
+
+    private fun fetchAndCacheUserProfile(userId: String, callback: (UserPublic?) -> Unit) {
+        // Check cache first
+        userProfileCache[userId]?.let { cachedUser ->
+            callback(cachedUser)
+            return
+        }
+
+        // If not in cache, fetch from API
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.instance.getUser(userId)
+                if (response.isSuccessful && response.body() != null) {
+                    val user = response.body()!!
+                    userProfileCache[userId] = user // Cache the user
+                    callback(user)
+                } else {
+                    Log.e("MessageListFragment", "Failed to fetch user $userId: ${response.code()}")
+                    callback(null)
+                }
+            } catch (e: Exception) {
+                Log.e("MessageListFragment", "Error fetching user $userId: ${e.message}")
+                callback(null)
+            }
         }
     }
 

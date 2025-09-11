@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.vaicheuserapp.data.model.ConversationWithLastMessage
 import com.example.vaicheuserapp.data.model.MessageCreate
 import com.example.vaicheuserapp.data.model.MessagePublic
+import com.example.vaicheuserapp.data.model.UserPublic
 import com.example.vaicheuserapp.data.network.RetrofitClient
 import com.example.vaicheuserapp.databinding.ActivityChatBinding
 import com.example.vaicheuserapp.ui.chat.ChatAdapter // <-- NEW IMPORT
@@ -29,12 +30,15 @@ import okhttp3.Request
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import coil.load
+import coil.transform.CircleCropTransformation
 
 class ChatActivity : AppCompatActivity() {
 
@@ -43,6 +47,7 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var currentConversation: ConversationWithLastMessage
     private lateinit var currentUserId: String
 
+    private var chatPartner: UserPublic? = null
     private var webSocket: WebSocket? = null
     private val okHttpClient = OkHttpClient.Builder().readTimeout(30, TimeUnit.SECONDS).build()
     private val gson = Gson()
@@ -75,6 +80,7 @@ class ChatActivity : AppCompatActivity() {
         setupToolbar()
         setupRecyclerView()
         setupListeners()
+        fetchChatPartnerDetails()
         fetchMessages()
         connectWebSocket()
     }
@@ -89,6 +95,20 @@ class ChatActivity : AppCompatActivity() {
         binding.rvChatMessages.apply {
             layoutManager = LinearLayoutManager(this@ChatActivity)
             adapter = chatAdapter
+            // --- CRITICAL FIX: Ensure scroll after layout passes, especially for initial load ---
+            // This listener ensures that when layout changes (e.g., keyboard pops up),
+            // it scrolls to the last message.
+            addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                if (chatAdapter.itemCount > 0) {
+                    binding.rvChatMessages.post { // Post to ensure scroll happens after layout
+                        (binding.rvChatMessages.layoutManager as? LinearLayoutManager)?.let {
+                            if (it.findLastVisibleItemPosition() != chatAdapter.itemCount - 1) { // Only scroll if not already at bottom
+                                binding.rvChatMessages.scrollToPosition(chatAdapter.itemCount - 1)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -100,6 +120,41 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
+    private fun fetchChatPartnerDetails() {
+        lifecycleScope.launch {
+            try {
+                val otherMemberId = currentConversation.memberIds?.firstOrNull { it != currentUserId }
+
+                if (otherMemberId != null) {
+                    val response = RetrofitClient.instance.getUser(otherMemberId) // Call /api/user/{user_id}
+                    if (response.isSuccessful && response.body() != null) {
+                        chatPartner = response.body()
+                        binding.tvToolbarTitle.text = chatPartner?.fullName ?: currentConversation.name ?: "Chat Partner"
+                        binding.ivChatToolbarAvatar.load(chatPartner?.avtUrl, RetrofitClient.imageLoader) {
+                            crossfade(true)
+                            transformations(CircleCropTransformation())
+                            placeholder(R.drawable.default_avatar)
+                            error(R.drawable.bg_image_error)
+                        }
+                    } else {
+                        Log.e("ChatActivity", "Failed to get chat partner details for ID $otherMemberId: ${response.code()}")
+                        binding.tvToolbarTitle.text = currentConversation.name ?: "Chat Partner (Error)"
+                        binding.ivChatToolbarAvatar.setImageResource(R.drawable.default_avatar)
+                    }
+                } else {
+                    // Group chat or no other member found (e.g., conversation with self)
+                    binding.tvToolbarTitle.text = currentConversation.name ?: "Group Chat"
+                    binding.ivChatToolbarAvatar.setImageResource(R.drawable.default_avatar) // Generic group icon
+                }
+            } catch (e: Exception) {
+                Log.e("ChatActivity", "Error fetching chat partner details: ${e.message}", e)
+                binding.tvToolbarTitle.text = currentConversation.name ?: "Chat Partner (Error)"
+                binding.ivChatToolbarAvatar.setImageResource(R.drawable.default_avatar)
+            }
+        }
+    }
+
+
     private fun fetchMessages() {
         binding.pbLoadingMessages.visibility = View.VISIBLE
         lifecycleScope.launch {
@@ -107,7 +162,8 @@ class ChatActivity : AppCompatActivity() {
                 val response = RetrofitClient.instance.getMessages(currentConversation.id)
                 if (response.isSuccessful && response.body() != null) {
                     val messages = response.body()!!
-                    chatAdapter.submitList(messages)
+                    val messagesWithSeparators = addDateSeparators(messages)
+                    chatAdapter.submitList(messagesWithSeparators)
                     binding.rvChatMessages.scrollToPosition(messages.size - 1) // Scroll to latest
                 } else {
                     Log.e("ChatActivity", "Failed to load messages: ${response.code()} - ${response.errorBody()?.string()}")
@@ -122,6 +178,61 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
+    private fun addDateSeparators(messages: List<MessagePublic>): List<MessagePublic> {
+        if (messages.isEmpty()) return emptyList()
+
+        // 1. Sort messages first (important for correct date separator placement)
+        val sortedMessages = messages.sortedBy { LocalDateTime.parse(it.createdAt, BACKEND_DATETIME_FORMATTER) }
+        val messagesWithSeparators = mutableListOf<MessagePublic>()
+        var lastDate: LocalDate? = null
+
+        sortedMessages.forEach { message ->
+            // Skip processing if it's already a date separator (prevent duplicates from re-processing)
+            if (message.viewType == MessagePublic.VIEW_TYPE_DATE_SEPARATOR) {
+                // Ensure no redundant separators if a message on the same date follows
+                val separatorDate = try { LocalDateTime.parse(message.createdAt, BACKEND_DATETIME_FORMATTER).toLocalDate() } catch (e: Exception) { null }
+                if (lastDate == null || separatorDate?.isAfter(lastDate) == true) {
+                    messagesWithSeparators.add(message)
+                    lastDate = separatorDate
+                }
+                return@forEach // Continue to next message
+            }
+
+            val messageDateTime = LocalDateTime.parse(message.createdAt, BACKEND_DATETIME_FORMATTER)
+            val messageDate = messageDateTime.toLocalDate()
+
+            // Check if a new date separator is needed
+            // Only add if the date is different from the last date processed
+            if (lastDate == null || !messageDate.isEqual(lastDate)) {
+                val separatorMessage = MessagePublic(
+                    id = UUID.randomUUID().toString(),
+                    conversationId = message.conversationId,
+                    senderId = "", // No sender for separator
+                    content = formatDateSeparator(messageDate), // Format the date
+                    createdAt = message.createdAt, // Use message's time for sorting
+                    viewType = MessagePublic.VIEW_TYPE_DATE_SEPARATOR
+                )
+                messagesWithSeparators.add(separatorMessage)
+                lastDate = messageDate // Update lastDate
+            }
+            messagesWithSeparators.add(message) // Add the actual message
+        }
+        return messagesWithSeparators
+    }
+
+    private fun formatDateSeparator(date: LocalDate): String {
+        // Use the current date in the specific timezone for consistent comparison
+        val today = LocalDate.now(VIETNAM_ZONE_ID)
+        val yesterday = today.minusDays(1)
+        val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("vi", "VN"))
+
+        return when {
+            date.isEqual(today) -> "TODAY"
+            date.isEqual(yesterday) -> "YESTERDAY"
+            else -> date.format(dateFormatter)
+        }
+    }
+
     private fun connectWebSocket() {
         val token = getSharedPreferences("app_prefs", Context.MODE_PRIVATE).getString("auth_token", null)
         if (token.isNullOrEmpty()) {
@@ -130,7 +241,7 @@ class ChatActivity : AppCompatActivity() {
         }
 
         // --- CRITICAL: WebSocket URL for chat (from your backend spec) ---
-        val wsUrl = "ws://160.30.192.11:8000/ws/chat" // This is the generic chat websocket
+        val wsUrl = "ws://160.30.192.11:8000/api/chat/ws/chat" // This is the generic chat websocket
         val request = Request.Builder()
             .url(wsUrl)
             .addHeader("Authorization", "Bearer $token")
@@ -154,7 +265,7 @@ class ChatActivity : AppCompatActivity() {
                             val convId = it["conversation_id"] as? String ?: currentConversation.id
                             val senderId = it["sender_id"] as? String ?: UUID.randomUUID().toString()
                             val content = it["content"] as? String ?: ""
-                            val createdAt = it["created_at"] as? String ?: LocalDateTime.now(VIETNAM_ZONE_ID).format(DateTimeFormatter.ISO_DATE_TIME)
+                            val createdAt = it["created_at"] as? String ?: LocalDateTime.now(ZoneId.of("UTC")).format(BACKEND_DATETIME_FORMATTER)
 
                             val receivedMessage = MessagePublic(id, convId, senderId, content, createdAt)
 
@@ -191,15 +302,22 @@ class ChatActivity : AppCompatActivity() {
         val messageCreate = MessageCreate(currentConversation.id, messageContent)
         val messageJson = gson.toJson(mapOf("type" to "message", "data" to messageCreate))
 
-        webSocket?.send(messageJson) // Send via WebSocket
+        webSocket?.send(messageJson)
 
-        // Optimistically add message to UI
-        val tempMessageId = UUID.randomUUID().toString() // Temporary ID
-        val tempMessage = MessagePublic(tempMessageId, currentConversation.id, currentUserId, messageContent, LocalDateTime.now(VIETNAM_ZONE_ID).format(DateTimeFormatter.ISO_DATE_TIME))
-        chatAdapter.addMessage(tempMessage)
-        binding.rvChatMessages.scrollToPosition(chatAdapter.itemCount - 1)
+        val tempMessageId = UUID.randomUUID().toString()
+        val currentTimeFormatted = LocalDateTime.now(ZoneId.of("UTC")).format(BACKEND_DATETIME_FORMATTER)
+        val tempMessage = MessagePublic(tempMessageId, currentConversation.id, currentUserId, messageContent, currentTimeFormatted)
 
-        binding.etMessageInput.text.clear() // Clear input
+        // Add message to adapter
+        // Then re-process the list to add separators correctly
+        val updatedList = (chatAdapter.currentList + tempMessage).toMutableList()
+        val messagesWithSeparators = addDateSeparators(updatedList)
+        chatAdapter.submitList(messagesWithSeparators) {
+            // --- CRITICAL FIX: Scroll after submitList is done updating UI ---
+            binding.rvChatMessages.scrollToPosition(chatAdapter.itemCount - 1)
+        }
+
+        binding.etMessageInput.text.clear()
         hideKeyboard()
     }
 
