@@ -162,3 +162,13 @@ def reset_password(
     session.add(user)
     session.commit()
     return {"message": "Password reset successful"}
+
+@router.get("/{user_id}", response_model=UserPublic)
+def get_user_by_id(
+    user_id: uuid.UUID,
+    session: SessionDep,
+):
+    user = crud.get_user_by_id(session, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return user
