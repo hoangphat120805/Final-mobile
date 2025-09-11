@@ -168,7 +168,7 @@ def get_user_by_id(
     user_id: uuid.UUID,
     session: SessionDep,
 ):
-    user = crud.get_user(session, user_id)
+    user = crud.get_user_by_id(session, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
