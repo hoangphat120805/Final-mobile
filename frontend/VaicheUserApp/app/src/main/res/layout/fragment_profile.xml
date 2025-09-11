@@ -75,17 +75,32 @@
         app:layout_constraintTop_toTopOf="@+id/iv_profile_picture" />
 
     <!-- Profile Details Card (Positioned relative to welcome text) -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/card_profile_details"
+    <ScrollView
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="24dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/tv_welcome_name"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_welcome_name">
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:paddingBottom="96dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="16dp">
+
+        <!-- Profile Details Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_profile_details"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp">
+        <!-- IMPORTANT: No top margin here, already handled by ScrollView's paddingVertical / ConstraintLayout -->
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -103,7 +118,7 @@
 
             <Space android:layout_width="match_parent" android:layout_height="16dp"/>
 
-            <!-- Phone Number (Read-only, cannot be changed via PATCH) -->
+            <!-- Phone Number row -->
             <LinearLayout style="@style/ProfileDetailRow">
                 <TextView style="@style/ProfileDetailLabel" android:text="Phone number"/>
                 <TextView
@@ -111,44 +126,35 @@
                     style="@style/ProfileDetailValue"
                     tools:text="0338391647" />
             </LinearLayout>
-
             <View style="@style/ProfileDetailDivider" />
 
-            <!-- Full Name -->
+            <!-- Full Name row -->
             <LinearLayout style="@style/ProfileDetailRow">
                 <TextView style="@style/ProfileDetailLabel" android:text="Full name"/>
                 <TextView
                     android:id="@+id/tv_full_name_view"
                     style="@style/ProfileDetailValue"
-                    tools:text="hello" />
+                    tools:text="KaPe503" />
                 <EditText
                     android:id="@+id/et_full_name_edit"
                     style="@style/ProfileDetailValueEdit"
                     android:inputType="textPersonName"
                     android:visibility="gone"
-                    tools:text="hello" />
+                    tools:text="KaPe503" />
             </LinearLayout>
-
             <View style="@style/ProfileDetailDivider" />
 
-            <!-- Email -->
+            <!-- Email Row -->
             <LinearLayout style="@style/ProfileDetailRow">
                 <TextView style="@style/ProfileDetailLabel" android:text="Email"/>
                 <TextView
                     android:id="@+id/tv_email_view"
                     style="@style/ProfileDetailValue"
-                    tools:text="N/A" />
-                <EditText
-                    android:id="@+id/et_email_edit"
-                    style="@style/ProfileDetailValueEdit"
-                    android:inputType="textEmailAddress"
-                    android:visibility="gone"
-                    tools:text="N/A" />
+                    tools:text="kp@gmail.com" />
             </LinearLayout>
-
             <View style="@style/ProfileDetailDivider" />
 
-            <!-- Gender -->
+            <!-- Gender row -->
             <LinearLayout style="@style/ProfileDetailRow">
                 <TextView style="@style/ProfileDetailLabel" android:text="Gender"/>
                 <TextView
@@ -162,16 +168,15 @@
                     android:visibility="gone"
                     tools:text="Female" />
             </LinearLayout>
-
             <View style="@style/ProfileDetailDivider" />
 
-            <!-- Date of birth -->
+            <!-- Date of birth row -->
             <LinearLayout style="@style/ProfileDetailRow">
                 <TextView style="@style/ProfileDetailLabel" android:text="Date of birth"/>
                 <TextView
                     android:id="@+id/tv_birth_date_view"
                     style="@style/ProfileDetailValue"
-                    tools:text="N/A" />
+                    tools:text="08/05/2005" />
                 <EditText
                     android:id="@+id/et_birth_date_edit"
                     style="@style/ProfileDetailValueEdit"
@@ -191,18 +196,14 @@
         style="@style/ProfileActionButton"
         android:layout_marginTop="24dp"
         android:text="Edit profile"
-        app:layout_constraintTop_toBottomOf="@id/card_profile_details"
-        app:layout_constraintStart_toStartOf="@id/card_profile_details"
-        app:layout_constraintEnd_toEndOf="@id/card_profile_details" />
+        android:layout_width="match_parent" /> <!-- match_parent for direct child of LinearLayout -->
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_reset_password"
         style="@style/ProfileActionButton"
         android:layout_marginTop="12dp"
         android:text="Reset password"
-        app:layout_constraintTop_toBottomOf="@id/btn_edit_profile"
-        app:layout_constraintStart_toStartOf="@id/card_profile_details"
-        app:layout_constraintEnd_toEndOf="@id/card_profile_details" />
+        android:layout_width="match_parent" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_logout"
@@ -210,9 +211,7 @@
         android:layout_marginTop="12dp"
         android:text="Logout"
         android:backgroundTint="@color/black"
-        app:layout_constraintTop_toBottomOf="@id/btn_reset_password"
-        app:layout_constraintStart_toStartOf="@id/card_profile_details"
-        app:layout_constraintEnd_toEndOf="@id/card_profile_details" />
+        android:layout_width="match_parent" />
 
     <!-- Button for Edit Mode -->
     <com.google.android.material.button.MaterialButton
@@ -221,8 +220,9 @@
         android:layout_marginTop="24dp"
         android:text="Save"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/card_profile_details"
-        app:layout_constraintStart_toStartOf="@id/card_profile_details"
-        app:layout_constraintEnd_toEndOf="@id/card_profile_details" />
+        android:layout_width="match_parent" />
+
+</LinearLayout>
+    </ScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

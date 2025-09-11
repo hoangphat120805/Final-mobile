@@ -53,9 +53,22 @@ class LoginActivity : AppCompatActivity() {
                 val response = RetrofitClient.instance.login(phoneNumber = phone, password = password)
                 if (response.isSuccessful && response.body() != null) {
                     val accessToken = response.body()!!.accessToken
-                    saveAuthToken(accessToken)
-                    Toast.makeText(this@LoginActivity, "Login Successful!", Toast.LENGTH_SHORT).show()
-                    navigateToDashboard()
+                    saveAuthToken(accessToken) // Save access token
+
+                    // --- CRITICAL FIX: Fetch user details and save ID ---
+                    val userMeResponse = RetrofitClient.instance.getUserMe()
+                    if (userMeResponse.isSuccessful && userMeResponse.body() != null) {
+                        val user = userMeResponse.body()!!
+                        saveUserId(user.id) // Save user ID
+                        Toast.makeText(this@LoginActivity, "Login Successful!", Toast.LENGTH_SHORT).show()
+                        navigateToDashboard()
+                    } else {
+                        Log.e("LoginActivity", "Failed to fetch user profile after login: ${userMeResponse.code()} - ${userMeResponse.errorBody()?.string()}")
+                        Toast.makeText(this@LoginActivity, "Login successful, but failed to load user data.", Toast.LENGTH_LONG).show()
+                        // Decide whether to navigate to dashboard anyway or log out.
+                        // For now, let's navigate, but user-specific features might break.
+                        navigateToDashboard()
+                    }
                 } else {
                     val errorBody = response.errorBody()?.string()
                     Toast.makeText(this@LoginActivity, "Login failed: $errorBody", Toast.LENGTH_LONG).show()
@@ -64,6 +77,12 @@ class LoginActivity : AppCompatActivity() {
                 Toast.makeText(this@LoginActivity, "An error occurred: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun saveUserId(userId: String) {
+        val sharedPreferences = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        sharedPreferences.edit { putString("user_id", userId) }
+        Log.d("LoginActivity", "User ID saved: $userId")
     }
 
     private fun saveAuthToken(token: String) {

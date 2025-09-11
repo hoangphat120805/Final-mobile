@@ -1,10 +1,14 @@
 package com.example.vaicheuserapp // Make sure this matches your package name
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings.Global.putString
+import android.util.Log
+import androidx.core.content.edit
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -41,6 +45,8 @@ class SplashActivity : AppCompatActivity() {
             try {
                 val response = RetrofitClient.instance.getUserMe()
                 if (response.isSuccessful && response.body() != null) {
+                    val user = response.body()!!
+                    saveUserId(user.id)
                     val intent = Intent(this@SplashActivity, MainActivity::class.java)
                     startActivity(intent)
                 } else {
@@ -56,5 +62,11 @@ class SplashActivity : AppCompatActivity() {
                 finish()
             }
         }
+    }
+
+    private fun saveUserId(userId: String) {
+        val sharedPreferences = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        sharedPreferences.edit{ putString("user_id", userId) }
+        Log.d("LoginActivity", "User ID saved: $userId")
     }
 }

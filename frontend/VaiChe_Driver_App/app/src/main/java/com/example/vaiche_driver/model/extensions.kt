@@ -1,5 +1,10 @@
 package com.example.vaiche_driver.model
 
+//import com.mapbox.api.directions.v5.DirectionsCriteria
+//import com.mapbox.api.directions.v5.models.DirectionsRoute
+//import com.mapbox.api.directions.v5.models.RouteOptions
+import com.mapbox.geojson.Point
+import com.mapbox.geojson.utils.PolylineUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -26,6 +31,35 @@ fun mapBackendToLocalStatus(status: OrderStatusApi, imgUrl1: String?): OrderStat
     OrderStatusApi.COMPLETED -> OrderStatus.completed
     OrderStatusApi.CANCELLED -> OrderStatus.cancelled
     OrderStatusApi.ACCEPTED  -> if (imgUrl1.isNullOrBlank()) OrderStatus.scheduled else OrderStatus.delivering
+}
+
+//fun RoutePublic.toDirectionsRoute(precision: Int): DirectionsRoute {
+//    val coords = PolylineUtils.decode(polyline, precision)
+//    val opts = RouteOptions.builder()
+//        .profile(DirectionsCriteria.PROFILE_DRIVING)
+//        .coordinatesList(coords)
+//        .build()
+//    return DirectionsRoute.builder()
+//        .geometry(polyline)
+//        .distance(distanceMeters)
+//        .duration(durationSeconds)
+//        .routeOptions(opts)
+//        .build()
+//}
+
+fun OrderPublic.toOriginDestination(): Pair<Point, Point>? {
+    val loc = location ?: return null
+
+    fun num(key: String) = (loc[key] as? Number)?.toDouble()
+
+    // ĐẶT các khóa theo backend của bạn (ví dụ này):
+    val pLat = num("pickup_lat") ?: num("start_lat")
+    val pLng = num("pickup_lng") ?: num("start_lng")
+    val dLat = num("drop_lat")   ?: num("end_lat")
+    val dLng = num("drop_lng")   ?: num("end_lng")
+
+    if (pLat == null || pLng == null || dLat == null || dLng == null) return null
+    return Point.fromLngLat(pLng, pLat) to Point.fromLngLat(dLng, dLat)
 }
 
 /** Convenience: lấy local status trực tiếp từ OrderPublic */
@@ -170,4 +204,5 @@ fun OrderPublic.toOrderDetailFallback(
         pickupPhotoUrl = imgUrl1,
         dropoffPhotoUrl = imgUrl2
     )
+
 }

@@ -10,8 +10,7 @@ class ViewPagerAdapter(fragmentManager: FragmentManager, lifecycle: Lifecycle) :
 
     private val fragments = listOf(
         NotificationListFragment(), // For the "Notification" tab
-        // MessageListFragment() // TODO: Implement this when Message tab is ready
-        Fragment() // Placeholder for the "Message" tab
+        MessageListFragment()
     )
     private val fragmentTitles = listOf("Notification", "Message")
 

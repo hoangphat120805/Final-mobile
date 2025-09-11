@@ -3,6 +3,10 @@ package com.example.vaiche_driver.data.repository
 import com.example.vaiche_driver.data.common.safeApiCall
 import com.example.vaiche_driver.data.network.ApiService
 import com.example.vaiche_driver.model.*
+//import com.mapbox.api.directions.v5.DirectionsCriteria
+//import com.mapbox.api.directions.v5.models.DirectionsRoute
+//import com.mapbox.api.directions.v5.models.RouteOptions
+import com.mapbox.geojson.utils.PolylineUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -141,10 +145,11 @@ class OrderRepository(
     }
 
     /** Lấy route collector -> pickup */
-    suspend fun getRouteForOrder(orderId: String): Result<RoutePublic> =
+    suspend fun getRouteForOrder(orderId: String, lat: Double, lon: Double): Result<RoutePublic> =
         withContext(Dispatchers.IO) {
-            safeApiCall { api.getRouteForOrder(orderId) }
+            safeApiCall { api.getRouteForOrder(orderId, lat, lon) }
         }
+
 
     /** Chủ đơn (owner) */
     suspend fun getOrderOwner(orderId: String): Result<UserPublic> =
@@ -158,10 +163,25 @@ class OrderRepository(
             safeApiCall { api.getOrderCollector(orderId) }
         }
 
-    suspend fun hasAcceptedOrder(): Result<Boolean> = withContext(Dispatchers.IO) {
+    suspend fun getActiveOrder(): Result<OrderPublic?> = withContext(Dispatchers.IO) {
         safeApiCall { api.getMyOrders() }.map { list ->
-            list.any { it.status == OrderStatusApi.ACCEPTED }
+            list.firstOrNull { it.status == OrderStatusApi.ACCEPTED }
         }
     }
+
+
+//    suspend fun getOrderRoute(orderId: String): Result<DirectionsRoute> = withContext(Dispatchers.IO) {
+//        try {
+//            val res = api.getRouteForOrder(orderId)
+//            if (res.isSuccessful && res.body() != null) {
+//                Result.success(res.body()!!.toDirectionsRoute(5))
+//            } else {
+//                Result.failure(Exception("Route error: ${res.code()}"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+
 
 }

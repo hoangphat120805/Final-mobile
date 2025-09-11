@@ -158,7 +158,11 @@ interface ApiService {
 
     /** Lấy route từ vị trí hiện tại (server tính) đến pickup của đơn */
     @GET("/api/orders/{order_id}/route")
-    suspend fun getRouteForOrder(@Path("order_id") orderId: String): Response<RoutePublic>
+    suspend fun getRouteForOrder(
+        @Path("order_id") orderId: String,
+        @Query("lat") lat: Double,
+        @Query("lon") lon: Double   // CHÚ Ý: 'lon' theo OpenAPI mới
+    ): Response<RoutePublic>
 
     /**
      * Hoàn tất đơn & tạo transaction: -> COMPLETED.
