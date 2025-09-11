@@ -109,4 +109,7 @@ interface ApiService {
 
     @GET("/api/chat/conversations/{conversation_id}/messages/")
     suspend fun getMessages(@Path("conversation_id") conversationId: String): Response<List<MessagePublic>>
+
+    @GET("/api/user/{user_id}")
+    suspend fun getUser(@Path("user_id") userId: String): Response<UserPublic>
 }

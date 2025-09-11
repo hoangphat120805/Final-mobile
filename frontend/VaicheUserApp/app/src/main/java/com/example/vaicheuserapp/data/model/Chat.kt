@@ -12,8 +12,14 @@ data class MessagePublic(
     @SerializedName("conversation_id") val conversationId: String,
     @SerializedName("sender_id") val senderId: String,
     val content: String,
-    @SerializedName("created_at") val createdAt: String // date-time string
-) : Parcelable
+    @SerializedName("created_at") val createdAt: String, // date-time string
+    val viewType: Int = VIEW_TYPE_MESSAGE
+) : Parcelable {
+    companion object {
+        const val VIEW_TYPE_MESSAGE = 0 // Regular message
+        const val VIEW_TYPE_DATE_SEPARATOR = 1 // <-- NEW: For date separators
+    }
+}
 
 // For websocket message sending
 data class MessageCreate(
@@ -45,6 +51,7 @@ data class ConversationWithLastMessage(
     val id: String,
     val name: String?,
     val type: ConversationType,
+    @SerializedName("member_ids") val memberIds: List<String>?,
     @SerializedName("last_message_id") val lastMessageId: String?,
     @SerializedName("created_at") val createdAt: String,
     @SerializedName("updated_at") val updatedAt: String,

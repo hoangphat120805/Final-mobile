@@ -1,9 +1,12 @@
 package com.example.vaicheuserapp.ui.notifications
 
 import android.annotation.SuppressLint
+import android.os.Build
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.annotation.RequiresApi
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -20,6 +23,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import androidx.lifecycle.lifecycleScope
 
 // Timezone & Date Formatter (can be moved to common place)
 private val VIETNAM_ZONE_ID = ZoneId.of("Asia/Ho_Chi_Minh")
@@ -31,19 +35,18 @@ interface OnConversationClickListener {
 
 class ConversationListAdapter(
     private val listener: OnConversationClickListener,
-    private val currentUserId: String // Pass the current user's ID to identify "other" member
+    private val currentUserId: String, // Pass the current user's ID to identify "other" member
+
+    private val fetchUserProfile: (String, (UserPublic?) -> Unit) -> Unit
 ) : ListAdapter<ConversationWithLastMessage, ConversationListAdapter.ConversationViewHolder>(ConversationDiffCallback()) {
 
     inner class ConversationViewHolder(private val binding: ItemConversationBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
+        @RequiresApi(Build.VERSION_CODES.O)
         @SuppressLint("SetTextI18n")
         fun bind(conversation: ConversationWithLastMessage) {
-            // Determine conversation name (for private chats, it's the other person's name)
-            // This requires a separate API call or knowing all users in the conversation.
-            // For now, let's just show a generic name or conversation ID
-            binding.tvConversationName.text = conversation.name ?: "Chat with User" // Or fetch other member's name
-
+            binding.tvConversationName.text = conversation.name ?: "Loading..."
             binding.tvLastMessageContent.text = conversation.lastMessage?.content ?: "No messages yet."
 
             conversation.lastMessage?.createdAt?.let {
@@ -52,14 +55,33 @@ class ConversationListAdapter(
                 binding.tvLastMessageTime.text = ""
             }
 
-            // Load avatar for the conversation (e.g., the other user's avatar in private chat)
-            // This will likely require fetching conversation members and identifying the other user.
-            // For now, use a placeholder or the current user's avatar if available from context.
-            binding.ivConversationAvatar.load(R.drawable.default_avatar) { // Placeholder
-                crossfade(true)
-                transformations(CircleCropTransformation())
-                placeholder(R.drawable.default_avatar)
-                error(R.drawable.bg_image_error)
+            // --- CRITICAL FIX: Use the fetchUserProfile lambda provided by the fragment ---
+            val otherMemberId = conversation.memberIds?.firstOrNull { it != currentUserId }
+
+            if (otherMemberId != null) {
+                binding.tvConversationName.text = "Loading..." // Set initial state
+                binding.ivConversationAvatar.setImageResource(R.drawable.default_avatar) // Default placeholder
+
+                // Call the lambda to fetch and cache user profile
+                fetchUserProfile(otherMemberId) { fetchedUser ->
+                    if (fetchedUser != null) {
+                        binding.tvConversationName.text = fetchedUser.fullName
+                        binding.ivConversationAvatar.load(fetchedUser.avtUrl, RetrofitClient.imageLoader) {
+                            crossfade(true)
+                            transformations(CircleCropTransformation())
+                            placeholder(R.drawable.default_avatar)
+                            error(R.drawable.bg_image_error)
+                        }
+                    } else {
+                        // Fallback if fetching fails
+                        binding.tvConversationName.text = conversation.name ?: "Chat Partner"
+                        binding.ivConversationAvatar.setImageResource(R.drawable.default_avatar)
+                    }
+                }
+            } else {
+                // Group chat or no other member found
+                binding.tvConversationName.text = conversation.name ?: "Group Chat"
+                binding.ivConversationAvatar.setImageResource(R.drawable.default_avatar) // Generic group icon
             }
 
             binding.root.setOnClickListener {
@@ -96,6 +118,7 @@ class ConversationListAdapter(
         return ConversationViewHolder(binding)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onBindViewHolder(holder: ConversationViewHolder, position: Int) {
         val conversation = getItem(position)
         holder.bind(conversation)
@@ -106,7 +129,7 @@ class ConversationListAdapter(
             return oldItem.id == newItem.id
         }
 
-        override fun areContentsTheSame(oldItem: ConversationWithLastMessage, newItem: ConversationWithLastMessage): Boolean {
+        override fun areContentsTheSame(oldItem: ConversationWithLastMessage, newItem: ConversationWithLastMessage): Boolean { // Renamed for consistency
             return oldItem == newItem
         }
     }

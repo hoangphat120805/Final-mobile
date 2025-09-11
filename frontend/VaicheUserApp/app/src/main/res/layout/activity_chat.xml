@@ -13,7 +13,7 @@
     <RelativeLayout
         android:id="@+id/custom_toolbar_container"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
+        android:layout_height="80dp"
         android:background="@color/teal_primary"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -31,11 +31,26 @@
             android:contentDescription="Back"
             app:tint="@color/white" />
 
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/iv_chat_toolbar_avatar"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_toEndOf="@id/iv_back_button"
+            android:layout_marginStart="16dp"
+            android:layout_centerVertical="true"
+            android:padding="1dp"
+            app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.CornerSize50Percent"
+            app:strokeColor="#C0C0C0"
+            app:strokeWidth="1dp"
+            android:src="@drawable/default_avatar"
+            android:scaleType="centerCrop"
+            android:contentDescription="Chat Partner Avatar" />
+
         <TextView
             android:id="@+id/tv_toolbar_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_toEndOf="@id/iv_back_button"
+            android:layout_toEndOf="@id/iv_chat_toolbar_avatar"
             android:layout_marginStart="16dp"
             android:layout_centerVertical="true"
             tools:text="Chat with BKSky"
@@ -52,6 +67,7 @@
         android:paddingHorizontal="8dp"
         android:paddingTop="8dp"
         android:paddingBottom="8dp"
+        android:clipToPadding="false"
         app:layout_constraintTop_toBottomOf="@id/custom_toolbar_container"
         app:layout_constraintBottom_toTopOf="@id/ll_message_input_container"
         app:layout_constraintStart_toStartOf="parent"
@@ -87,7 +103,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:hint="Type a message..."
-            android:inputType="textMultiLine"
+            android:inputType="textMultiLine|textCapSentences"
             android:maxLines="5"
             android:background="@drawable/bg_rounded_white"
             android:padding="12dp"
@@ -102,7 +118,8 @@
             android:backgroundTint="@color/teal_primary"
             app:fabCustomSize="48dp"
             app:maxImageSize="24dp"
-            android:contentDescription="Send Message" />
+            android:contentDescription="Send Message"
+            android:layout_gravity="center_vertical"/>
 
     </LinearLayout>
 
