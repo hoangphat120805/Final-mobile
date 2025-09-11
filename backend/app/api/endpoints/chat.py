@@ -40,7 +40,6 @@ async def chat_websocket(
                                     "conversation_id": str(message.conversation_id),
                                     "sender_id": str(message.sender_id),
                                     "content": message.content,
-                                    "is_read": message.is_read,
                                     "created_at": message.created_at.isoformat()
                                 }
                             })
