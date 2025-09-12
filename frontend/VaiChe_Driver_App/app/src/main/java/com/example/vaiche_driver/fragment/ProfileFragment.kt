@@ -35,12 +35,8 @@ class ProfileFragment : Fragment() {
         return inflater.inflate(R.layout.fragment_profile, container, false)
     }
 
-    override fun onResume() {
-        super.onResume()
-        // ép tải lại profile + reviews (xoá cache + gọi API)
-        viewModel.refresh()
-    }
-
+    // ⚠️ ĐÃ BỎ onResume() để tránh refresh mỗi lần quay lại gây load 2 lần
+    // override fun onResume() { ... }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -86,7 +82,6 @@ class ProfileFragment : Fragment() {
                 }
             }
         })
-
     }
 
     private fun observeViewModel() {
@@ -155,5 +150,4 @@ class ProfileFragment : Fragment() {
         view.findViewById<TextView>(R.id.tv_plate_label).visibility = View.GONE
         view.findViewById<TextView>(R.id.tv_plate_value).visibility = View.GONE
     }
-
 }
