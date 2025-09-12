@@ -3,6 +3,7 @@ import uuid
 import httpx
 from typing import Optional
 from sqlmodel import Session, select
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
@@ -10,7 +11,7 @@ from app.schemas.user import UserCreate, UserPublic, UserUpdate
 from app.schemas.category import CategoryCreate
 from app.schemas.order import OrderItemCreate, OrderCreate
 from app.schemas.notification import NotificationCreate, NotificationPublic, UserNotification
-from app.schemas.chat import ConversationCreate, ConversationWithLastMessage, MessageCreate, MessagePublic
+from app.schemas.chat import ConversationCreate, MessageCreate, MessagePublic
 from app.models import Message, Noti_User, Notification, OrderStatus, User, UserRole, ScrapCategory, Order, OrderItem,Transaction, ConversationMember
 from math import radians, sin, cos, asin, sqrt
 from geoalchemy2.functions import ST_DWithin, ST_Distance
@@ -450,20 +451,16 @@ def mark_messages_as_read(session: Session, conversation_id: uuid.UUID, user_id:
         session.add(message)
     session.commit()
 
-def get_user_conversations_and_last_message(session: Session, user_id: uuid.UUID) -> list[ConversationWithLastMessage]:
-    statement = select(Conversation).join(ConversationMember).where(ConversationMember.user_id == user_id)
+def get_user_conversations_and_last_message(session: Session, user_id: uuid.UUID) -> list[Conversation]:
+    statement = (
+        select(Conversation)
+        .join(ConversationMember)
+        .where(ConversationMember.user_id == user_id)
+        .options(selectinload(Conversation.last_message))
+        .options(selectinload(Conversation.members))
+    )
     conversations = session.exec(statement).all()
-    result = []
-    for convo in conversations:
-        last_message = None
-        if convo.last_message_id:
-            last_message = session.get(Message, convo.last_message_id)
-            convo = ConversationWithLastMessage.model_validate(
-                    {**convo.model_dump(), "last_message": last_message},
-                    from_attributes=True
-                )
-        result.append(convo)
-    return result
+    return conversations
 
 # ============================== End Chat CRUD ====================================================
 
