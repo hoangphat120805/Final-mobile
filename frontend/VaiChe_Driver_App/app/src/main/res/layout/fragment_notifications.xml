@@ -14,7 +14,7 @@
         android:layout_width="0dp"
         android:layout_height="?attr/actionBarSize"
         android:gravity="center"
-        android:text="My schedule"
+        android:text="Notifications"
         android:background="@color/teal_200"
         android:textColor="@color/white"
         android:textSize="20sp"
@@ -24,16 +24,41 @@
         app:layout_constraintEnd_toEndOf="parent"/>
 
     <!-- Nội dung chính đặt dưới toolbar -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_notifications"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_title"
+        app:layout_constraintVertical_bias="1.0"
+        tools:listitem="@layout/item_notification" />
+
     <TextView
-        android:id="@+id/notifications_placeholder"
+        android:id="@+id/tv_no_notifications"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Notifications Fragment"
-        android:textSize="16sp"
+        android:text="No notifications yet."
         android:textColor="@color/black"
+        android:textSize="16sp"
+        android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/toolbar_title"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"/>
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ProgressBar
+        android:id="@+id/pb_loading_notifications"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_title"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

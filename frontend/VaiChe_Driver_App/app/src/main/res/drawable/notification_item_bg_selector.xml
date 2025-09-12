@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- State for "read" (e.g., when the item has an attribute indicating it's read) -->
+    <!-- We will set this in code by changing the 'activated' state of the view -->
+    <item android:state_activated="true" android:drawable="@color/notification_read_background" />
+
+    <!-- Default state (unread) -->
+    <item android:drawable="@color/notification_unread_background" />
+</selector>
