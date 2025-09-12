@@ -1,0 +1,4 @@
+<resources>
+    <!-- 60dp (bottom nav) + 12dp khoảng trống -->
+    <dimen name="hud_bottom_margin">72dp</dimen>
+</resources>

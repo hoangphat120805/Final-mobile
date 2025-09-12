@@ -47,10 +47,18 @@ class ProfileViewModel(app: Application) : AndroidViewModel(app) {
     private var isLoadingReviews = false
     private val pageSize = 5
 
+    // ========== NEW: chặn loadInitial trùng ==========
+    private var isInitialLoading = false
+
     /** Tải dữ liệu ban đầu cho màn hình Profile */
     fun loadInitialProfileData(force: Boolean = false) {
+        // nếu đang load initial thì bỏ
+        if (isInitialLoading) return
+
+        // nếu đã có dữ liệu và không force thì bỏ
         if (!force && _userProfile.value != null && !_reviews.value.isNullOrEmpty()) return
 
+        isInitialLoading = true
         _isLoading.value = true
         viewModelScope.launch {
             try {
@@ -66,6 +74,7 @@ class ProfileViewModel(app: Application) : AndroidViewModel(app) {
                 loadMoreReviewsInternal(updateAvg = true)
             } finally {
                 _isLoading.value = false
+                isInitialLoading = false
             }
         }
     }
@@ -103,8 +112,8 @@ class ProfileViewModel(app: Application) : AndroidViewModel(app) {
                     if (updateAvg) {
                         _userStats.value = UserStats(
                             averageRating = if (avg.isFinite()) avg else 0f,
-                            satisfactionRate = 60,   // placeholder
-                            cancellationRate = 8     // placeholder
+                            satisfactionRate = 100,   // placeholder
+                            cancellationRate = 0     // placeholder
                         )
                     }
                 }.onFailure { e ->

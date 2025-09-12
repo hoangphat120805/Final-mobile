@@ -1,3 +1,4 @@
+// app/build.gradle.kts
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -15,20 +16,23 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Lấy token
+        // Lấy Mapbox public token từ gradle.properties (MAPBOX_ACCESS_TOKEN) hoặc env
         val token = (project.findProperty("MAPBOX_ACCESS_TOKEN") as String?)
-            ?: System.getenv("MAPBOX_ACCESS_TOKEN") ?: ""
+            ?: System.getenv("MAPBOX_ACCESS_TOKEN")
+            ?: ""
 
         // BuildConfig.MAPBOX_ACCESS_TOKEN
         buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$token\"")
-
-        //  @string/mapbox_access_token
+        // @string/mapbox_access_token
         resValue("string", "mapbox_access_token", token)
+
+
     }
 
     buildFeatures {
         buildConfig = true
-        viewBinding = true }
+        viewBinding = true
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -46,18 +50,22 @@ android {
                 "proguard-rules.pro"
             )
         }
+        debug {
+            // để log dễ hơn, có thể bật shrinkResources=false nếu cần
+            isMinifyEnabled = false
+        }
     }
 
-    android {
-        packaging {
-            jniLibs.useLegacyPackaging = false
+    packaging {
+        // Tránh xung đột jni .so (Nav v3 đã kéo đúng Maps SDK, không cần add thêm)
+        jniLibs {
+            useLegacyPackaging = false
         }
     }
 }
 
 dependencies {
-
-    // --- CORE & UI ---
+    // --- CORE & UI (dùng Version Catalog nếu có) ---
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
@@ -87,15 +95,19 @@ dependencies {
     implementation("androidx.startup:startup-runtime:1.1.1")
     implementation("androidx.profileinstaller:profileinstaller:1.3.1")
 
-
-    // Mapbox Maps SDK v11 (biến thể ndk27)
-    implementation("com.mapbox.maps:android-ndk27:11.14.4")
-
-    // (Optional) Location Google nếu bạn đã dùng FusedLocationProvider
-    implementation("com.google.android.gms:play-services-location:21.3.0")
-
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    // --- ANDROIDX NAVIGATION (fragment) ---
     implementation(libs.androidx.navigation.fragment.ktx)
+
+    // Mapbox Navigation v3.11.7 (NDK27 – hỗ trợ 16KB page size)
+    implementation("com.mapbox.navigationcore:android-ndk27:3.11.7")
+    implementation("com.mapbox.navigationcore:ui-maps-ndk27:3.11.7")
+    implementation("com.mapbox.navigationcore:tripdata-ndk27:3.11.7")
+    implementation("com.mapbox.navigationcore:voice-ndk27:3.11.7")
+    implementation("com.mapbox.navigationcore:ui-components-ndk27:3.11.7")
+
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
     // --- TESTING ---
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
