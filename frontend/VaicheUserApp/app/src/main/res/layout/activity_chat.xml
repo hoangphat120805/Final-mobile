@@ -6,13 +6,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_light"
+    android:fitsSystemWindows="true"
     tools:context=".ChatActivity">
 
     <!-- Custom Top Toolbar -->
     <RelativeLayout
         android:id="@+id/custom_toolbar_container"
         android:layout_width="match_parent"
-        android:layout_height="80dp"
+        android:layout_height="?actionBarSize"
         android:background="@color/teal_primary"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -25,10 +26,9 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_alignParentStart="true"
-            android:layout_alignParentBottom="true"
             android:src="@drawable/ic_arrow_back"
             android:contentDescription="Back"
-            android:layout_marginBottom="10dp"/>
+            android:layout_centerInParent="true"/>
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/iv_chat_toolbar_avatar"
@@ -36,13 +36,13 @@
             android:layout_height="48dp"
             android:layout_toEndOf="@id/iv_back_button"
             android:layout_marginStart="16dp"
-            android:layout_alignParentBottom="true"
             android:padding="1dp"
             app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.CornerSize50Percent"
             app:strokeColor="#C0C0C0"
             app:strokeWidth="1dp"
             android:src="@drawable/default_avatar"
             android:scaleType="centerCrop"
+            android:layout_centerInParent="true"
             android:contentDescription="Chat Partner Avatar" />
 
         <TextView
@@ -50,12 +50,11 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:layout_alignParentBottom="true"
+
             android:layout_marginStart="16dp"
             android:layout_toEndOf="@id/iv_chat_toolbar_avatar"
             tools:text="Bottle"
             android:textColor="@color/white"
-            android:layout_marginBottom="10dp"
             android:textSize="20sp"
             android:textStyle="bold" />
     </RelativeLayout>

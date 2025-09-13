@@ -6,6 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_light"
+    android:fitsSystemWindows="true"
     tools:context=".ui.history.HistoryFragment">
 
     <!-- Header Section -->
@@ -23,13 +24,16 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:paddingHorizontal="16dp"
-        android:paddingVertical="8dp"
+        android:clipToPadding="false"
+        android:paddingBottom="110dp"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/view_header_background"
-        tools:listitem="@layout/item_order_history" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:listitem="@layout/item_order_history">
+
+    </androidx.recyclerview.widget.RecyclerView>
 
     <TextView
         android:id="@+id/tv_no_history"

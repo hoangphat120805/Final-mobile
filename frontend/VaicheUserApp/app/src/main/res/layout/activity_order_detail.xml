@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout
-xmlns:android="http://schemas.android.com/apk/res/android"
-xmlns:app="http://schemas.android.com/apk/res-auto"
-xmlns:tools="http://schemas.android.com/tools"
-android:layout_width="match_parent"
-android:layout_height="match_parent"
-android:background="@color/background_light"
-tools:context=".ui.history.OrderDetailActivity">
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_light"
+    android:fitsSystemWindows="true"
+    tools:context=".ui.history.OrderDetailActivity">
 
 <!-- Custom Top Toolbar -->
     <RelativeLayout
         android:id="@+id/custom_toolbar_container"
         android:layout_width="match_parent"
-        android:layout_height="80dp"
+        android:layout_height="?actionBarSize"
         android:background="@color/teal_primary"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -25,7 +26,7 @@ tools:context=".ui.history.OrderDetailActivity">
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_alignParentStart="true"
-            android:layout_alignParentBottom="true"
+            android:layout_centerInParent="true"
             android:src="@drawable/ic_arrow_back"
             android:contentDescription="Back"
             android:layout_marginBottom="10dp"/>
@@ -35,7 +36,6 @@ tools:context=".ui.history.OrderDetailActivity">
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:layout_alignParentBottom="true"
             tools:text="Bottle"
             android:textColor="@color/white"
             android:layout_marginBottom="10dp"

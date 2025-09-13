@@ -6,6 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_light"
+    android:fitsSystemWindows="true"
     tools:context=".ui.notifications.MessageListFragment">
 
     <androidx.recyclerview.widget.RecyclerView
@@ -13,12 +14,13 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:paddingHorizontal="16dp"
-        android:paddingVertical="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:listitem="@layout/item_conversation" />
+        tools:listitem="@layout/item_conversation"
+        android:paddingBottom="110dp"
+        android:clipToPadding="false"/>
 
     <TextView
         android:id="@+id/tv_no_conversations"
