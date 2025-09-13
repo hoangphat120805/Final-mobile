@@ -21,6 +21,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 class MessageListFragment : Fragment(), OnConversationClickListener {
 
@@ -32,6 +34,8 @@ class MessageListFragment : Fragment(), OnConversationClickListener {
     private var currentUserId: String = "" // Will be set from shared preferences
 
     private val userProfileCache = mutableMapOf<String, UserPublic>()
+
+    private val BACKEND_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -104,7 +108,25 @@ class MessageListFragment : Fragment(), OnConversationClickListener {
             try {
                 val response = RetrofitClient.instance.getConversations()
                 if (response.isSuccessful && response.body() != null) {
-                    allConversations = response.body()!!
+                    var fetchedConversations = response.body()!!
+
+                    // --- CRITICAL FIX: Sort conversations by latest activity ---
+                    // Sort by last_message.created_at if available, otherwise by conversation.updated_at
+                    fetchedConversations = fetchedConversations.sortedByDescending { conversation ->
+                        try {
+                            val lastMessageTime = conversation.lastMessage?.createdAt?.let {
+                                LocalDateTime.parse(it, BACKEND_DATETIME_FORMATTER)
+                            }
+                            val conversationUpdateTime = LocalDateTime.parse(conversation.updatedAt, BACKEND_DATETIME_FORMATTER)
+                            // Prioritize last message time, fallback to conversation update time
+                            lastMessageTime ?: conversationUpdateTime
+                        } catch (e: Exception) {
+                            Log.e("MessageListFragment", "Error parsing date for sorting conversation ${conversation.id}: ${e.message}")
+                            LocalDateTime.MIN // Place unparseable dates at the end
+                        }
+                    }
+
+                    allConversations = fetchedConversations
                     if (allConversations.isNotEmpty()) {
                         // --- NEW: Pre-fetch and cache all relevant user profiles ---
                         // Collect all unique user IDs from all conversations
