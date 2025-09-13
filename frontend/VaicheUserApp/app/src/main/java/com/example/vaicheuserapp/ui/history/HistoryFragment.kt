@@ -20,6 +20,8 @@ import com.example.vaicheuserapp.data.model.OrderStatus
 import com.example.vaicheuserapp.data.network.RetrofitClient
 import com.example.vaicheuserapp.databinding.FragmentHistoryBinding
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 class HistoryFragment : Fragment(), OnOrderClickListener {
 
@@ -28,6 +30,8 @@ class HistoryFragment : Fragment(), OnOrderClickListener {
 
     private lateinit var orderHistoryAdapter: OrderHistoryAdapter
     private var allOrders = listOf<OrderPublic>()
+
+    private val BACKEND_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -59,7 +63,19 @@ class HistoryFragment : Fragment(), OnOrderClickListener {
             try {
                 val response = RetrofitClient.instance.getOrders() // Call the new API method
                 if (response.isSuccessful && response.body() != null) {
-                    allOrders = response.body()!!
+                    var fetchedOrders = response.body()!!
+
+                    // --- CRITICAL FIX: Sort orders by creation time (newest first) ---
+                    fetchedOrders = fetchedOrders.sortedByDescending { order ->
+                        try {
+                            LocalDateTime.parse(order.createdAt, BACKEND_DATETIME_FORMATTER)
+                        } catch (e: Exception) {
+                            Log.e("HistoryFragment", "Error parsing createdAt for order ${order.id}: ${e.message}")
+                            LocalDateTime.MIN // Place unparseable dates at the end
+                        }
+                    }
+
+                    allOrders = fetchedOrders
                     if (allOrders.isNotEmpty()) {
                         orderHistoryAdapter.submitList(allOrders)
                         binding.rvOrderHistory.visibility = View.VISIBLE

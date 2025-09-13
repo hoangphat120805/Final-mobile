@@ -159,7 +159,6 @@ class DashboardFragment : Fragment() {
                 speedLimitView?.render(it)
                 speedLimitView?.visibility = View.VISIBLE
             }
-
             // 4) gửi ws khi đang giao
             maybeSendWs(enhanced.latitude, enhanced.longitude)
         }

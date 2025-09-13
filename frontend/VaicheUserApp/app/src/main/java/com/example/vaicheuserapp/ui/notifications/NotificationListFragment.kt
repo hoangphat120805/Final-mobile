@@ -16,6 +16,8 @@ import com.example.vaicheuserapp.data.model.NotificationPublic
 import com.example.vaicheuserapp.data.network.RetrofitClient
 import com.example.vaicheuserapp.databinding.FragmentNotificationListBinding
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 // Implement the click listener interface
 class NotificationListFragment : Fragment(), OnNotificationClickListener {
@@ -25,6 +27,8 @@ class NotificationListFragment : Fragment(), OnNotificationClickListener {
 
     private lateinit var notificationAdapter: NotificationAdapter
     private var allNotifications = listOf<NotificationPublic>()
+
+    private val BACKEND_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -56,7 +60,19 @@ class NotificationListFragment : Fragment(), OnNotificationClickListener {
             try {
                 val response = RetrofitClient.instance.getNotifications()
                 if (response.isSuccessful && response.body() != null) {
-                    allNotifications = response.body()!!
+                    var fetchedNotifications = response.body()!!
+
+                    // --- CRITICAL FIX: Sort notifications by creation time (newest first) ---
+                    fetchedNotifications = fetchedNotifications.sortedByDescending { notification ->
+                        try {
+                            LocalDateTime.parse(notification.createdAt, BACKEND_DATETIME_FORMATTER)
+                        } catch (e: Exception) {
+                            Log.e("NotificationList", "Error parsing createdAt for notification ${notification.id}: ${e.message}")
+                            LocalDateTime.MIN // Place unparseable dates at the end
+                        }
+                    }
+
+                    allNotifications = fetchedNotifications
                     if (allNotifications.isNotEmpty()) {
                         notificationAdapter.submitList(allNotifications)
                         binding.rvNotifications.visibility = View.VISIBLE
