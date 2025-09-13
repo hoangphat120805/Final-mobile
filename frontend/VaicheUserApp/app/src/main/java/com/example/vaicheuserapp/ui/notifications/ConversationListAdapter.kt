@@ -58,8 +58,6 @@ class ConversationListAdapter(
             // --- CRITICAL FIX: Get partner from the chatParticipantsMap ---
             val otherMemberId = conversation.members?.map { it.userId }?.firstOrNull { it != currentUserId }
 
-            Toast.makeText(binding.root.context, "otherMemberId: $otherMemberId", Toast.LENGTH_SHORT).show()
-
             if (otherMemberId != null) {
                 val partner = chatParticipantsMap[otherMemberId] // Get partner from the map
                 binding.tvConversationName.text = partner?.fullName ?: conversation.name ?: "Chat Partner"

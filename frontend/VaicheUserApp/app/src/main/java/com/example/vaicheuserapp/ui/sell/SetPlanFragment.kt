@@ -112,7 +112,7 @@ class SetPlanFragment : Fragment(), LocationPickerDialog.OnLocationSelectedListe
                 if (response.isSuccessful && response.body() != null) {
                     val createdOrder = response.body()
                     Log.d("SetPlanFragment", "Order created: ${createdOrder?.id}")
-                    Toast.makeText(requireContext(), "Order scheduled successfully! Order ID: ${createdOrder?.id}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(requireContext(), "Order scheduled successfully!", Toast.LENGTH_LONG).show()
                     // Navigate back to home or a confirmation screen
                     findNavController().navigate(R.id.nav_home_fragment)
                 } else {

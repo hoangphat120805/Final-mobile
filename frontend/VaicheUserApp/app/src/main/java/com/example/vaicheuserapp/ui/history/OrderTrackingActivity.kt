@@ -53,7 +53,13 @@ import com.mapbox.maps.plugin.LocationPuck2D
 import com.mapbox.turf.TurfConstants
 import com.mapbox.turf.TurfMeasurement
 import android.R.attr.strokeWidth
+import android.content.Intent
 import android.graphics.Paint
+import com.example.vaicheuserapp.ChatActivity
+import com.example.vaicheuserapp.data.model.ConversationCreate
+import com.example.vaicheuserapp.data.model.ConversationType
+import com.example.vaicheuserapp.data.model.ConversationWithLastMessage
+import java.io.IOException
 
 class OrderTrackingActivity : AppCompatActivity() {
 
@@ -64,6 +70,7 @@ class OrderTrackingActivity : AppCompatActivity() {
     private var order: OrderPublic? = null
     private var owner: UserPublic? = null
     private var collector: CollectorPublic? = null
+    private lateinit var currentUserId: String
 
     private var ownerPickupLocation: Point? = null
     private var collectorCurrentLocation: Point? = null
@@ -94,6 +101,15 @@ class OrderTrackingActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityOrderTrackingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        currentUserId = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            .getString("user_id", "") ?: ""
+
+        if (currentUserId.isEmpty()) {
+            Toast.makeText(this, "User ID not found. Cannot proceed.", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         mapView = binding.mapView
@@ -151,8 +167,80 @@ class OrderTrackingActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         binding.btnContactCollector.setOnClickListener {
-            Toast.makeText(this, "Contact collector clicked", Toast.LENGTH_SHORT).show()
+            // --- CRITICAL FIX: Implement chat navigation logic ---
+            val collectorId = collector?.id
+            if (collectorId != null) {
+                findOrCreateConversation(collectorId)
+            } else {
+                Toast.makeText(this, "Collector details not loaded yet. Please wait.", Toast.LENGTH_SHORT).show()
+            }
         }
+    }
+
+    private fun findOrCreateConversation(collectorId: String) {
+        binding.btnContactCollector.isEnabled = false // Disable button during API call
+        Toast.makeText(this, "Opening chat...", Toast.LENGTH_SHORT).show()
+
+        lifecycleScope.launch {
+            try {
+                // 1. Fetch all existing conversations
+                val conversationsResponse = RetrofitClient.instance.getConversations()
+                if (!conversationsResponse.isSuccessful || conversationsResponse.body() == null) {
+                    throw IOException("Failed to fetch conversations: ${conversationsResponse.errorBody()?.string()}")
+                }
+
+                val conversations = conversationsResponse.body()!!
+                val targetMemberIds = listOf(currentUserId, collectorId).sorted() // Sort IDs for consistent matching
+
+                // 2. Check if a private conversation with this collector already exists
+                val existingConversation = conversations.firstOrNull {
+                    it.type == ConversationType.PRIVATE &&
+                            it.members?.map { member -> member.userId }?.sorted() == targetMemberIds
+                }
+
+                if (existingConversation != null) {
+                    // Conversation found, navigate to it
+                    Log.d("OrderTracking", "Existing conversation found: ${existingConversation.id}")
+                    navigateToChat(existingConversation)
+                } else {
+                    // 3. Conversation not found, create a new one
+                    Log.d("OrderTracking", "No existing conversation. Creating new one...")
+                    val createRequest = ConversationCreate(
+                        name = null, // Backend handles naming for private chats
+                        type = ConversationType.PRIVATE,
+                        memberIds = listOf(currentUserId, collectorId) // Send both IDs
+                    )
+
+                    val createResponse = RetrofitClient.instance.createConversation(createRequest)
+                    if (createResponse.isSuccessful && createResponse.body() != null) {
+                        val newConversation = createResponse.body()!!
+                        // We must fetch it again as ConversationWithLastMessage to include all fields
+                        val newConvResponse = RetrofitClient.instance.getConversations().body()?.firstOrNull { it.id == newConversation.id }
+                        if (newConvResponse != null) {
+                            Log.d("OrderTracking", "New conversation created: ${newConvResponse.id}")
+                            navigateToChat(newConvResponse)
+                        } else {
+                            throw IOException("Failed to fetch details of newly created conversation.")
+                        }
+                    } else {
+                        throw IOException("Failed to create conversation: ${createResponse.errorBody()?.string()}")
+                    }
+                }
+
+            } catch (e: Exception) {
+                Log.e("OrderTracking", "Error finding or creating conversation: ${e.message}", e)
+                Toast.makeText(this@OrderTrackingActivity, "Error opening chat: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                binding.btnContactCollector.isEnabled = true // Re-enable button
+            }
+        }
+    }
+
+    // --- NEW: Helper to navigate to ChatActivity ---
+    private fun navigateToChat(conversation: ConversationWithLastMessage) {
+        val intent = Intent(this, ChatActivity::class.java)
+        intent.putExtra("EXTRA_CONVERSATION", conversation)
+        startActivity(intent)
     }
 
     private fun setupMapboxMap() {
@@ -448,9 +536,6 @@ class OrderTrackingActivity : AppCompatActivity() {
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
                 Log.e("WebSocket", "Failure: ${t.message}", t)
-                runOnUiThread {
-                    Toast.makeText(this@OrderTrackingActivity, "Tracking lost: ${t.message}", Toast.LENGTH_LONG).show()
-                }
             }
         })
     }
