@@ -9,9 +9,10 @@ from app import crud
 from app.models import User
 from app.api.deps import CurrentUser, SessionDep, get_current_admin
 from app.services.email import verify_token
+from app.services.upload import upload_avatar
 from app.core.config import settings
 from app.core.security import verify_password, get_password_hash
-from app.schemas.user import UserUpdateMe, UpdatePassword, UserPublic, UsersPublic
+from app.schemas.user import UserUpdate, UserUpdateMe, UpdatePassword, UserPublic, UsersPublic
 from app.schemas.auth import Message
 from app.schemas.notification import NotificationPublic, UserNotification
 
@@ -98,7 +99,7 @@ def update_password(session: SessionDep, current_user: CurrentUser, password_upd
     return Message(message="Password updated successfully")
 
 @router.post("/upload/avatar", response_model=Message)
-def upload_avatar(session: SessionDep, current_user: CurrentUser, file: UploadFile = File(...)) -> Any:
+def upload_user_avatar(session: SessionDep, current_user: CurrentUser, file: UploadFile = File(...)) -> Any:
     """
     Upload a new avatar image for the current authenticated user.
     """
@@ -108,24 +109,10 @@ def upload_avatar(session: SessionDep, current_user: CurrentUser, file: UploadFi
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid file type. Please upload an image.",
         )
-    
-    response = requests.post(
-        "https://api.imgbb.com/1/upload",
-        params={
-            "key": settings.IMGBB_API_KEY,
-        },
-        files={
-            "image": file.file.read()
-        }
-    )
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to upload image"
-        )
-    image_url = response.json().get("data", {}).get("url")
-    crud.update_user(session, current_user, UserUpdateMe(avt_url=image_url))
-    return Message(message="Avatar uploaded successfully")
+
+    image_url = upload_avatar(file, str(current_user.id))
+    crud.update_user(session, current_user, UserUpdate(avt_url=image_url))
+    return Message(message=image_url)
 
 @router.get("/me/notifications", response_model=list[UserNotification])
 def get_notifications(

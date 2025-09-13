@@ -12,11 +12,12 @@ class UserBase(SQLModel):
     full_name: str
     gender: str | None = Field(default=None)
     birth_date: str | None = Field(default=None)
-    avt_url: str  = Field(default=settings.DEFAULT_AVATAR_URL)
+    
 
 class UserCreate(UserBase):
     role: UserRole
     password: str
+    avt_url: str  = Field(default=settings.DEFAULT_AVATAR_URL)
 
 class UserRegister(SQLModel):
     email: str
@@ -48,6 +49,7 @@ class UpdatePassword(SQLModel):
 class UserPublic(UserBase):
     id: uuid.UUID
     role: UserRole
+    avt_url: str
 
 class UsersPublic(SQLModel):
     data: list[UserPublic]

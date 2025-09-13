@@ -82,8 +82,6 @@ class UpdatePasswordFragment : Fragment() {
             ev.getContentIfNotHandled()?.let {
                 // Về Settings
                 parentFragmentManager.popBackStack()
-                // Về Profile
-                parentFragmentManager.popBackStack()
             }
         }
     }

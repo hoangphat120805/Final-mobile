@@ -40,12 +40,4 @@ class SettingsRepository(
             }
             result
         }
-
-    /** Logout: xoá token local (nếu có endpoint revoke token, hãy gọi trước khi clear). */
-    fun logout(): Result<Unit> = try {
-        sessionManager.clearAuthToken()
-        Result.success(Unit)
-    } catch (e: Exception) {
-        Result.failure(e)
-    }
 }

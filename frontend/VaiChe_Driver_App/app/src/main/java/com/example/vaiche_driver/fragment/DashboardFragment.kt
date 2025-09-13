@@ -15,11 +15,14 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.setFragmentResultListener
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.example.vaiche_driver.R
 import com.example.vaiche_driver.model.DriverState
 import com.example.vaiche_driver.navigation.CameraController
@@ -63,6 +66,7 @@ import com.mapbox.navigation.ui.components.maneuver.view.MapboxManeuverView
 import com.mapbox.navigation.ui.components.tripprogress.view.MapboxTripProgressView
 import com.mapbox.navigation.ui.components.speedlimit.view.MapboxSpeedInfoView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -117,11 +121,17 @@ class DashboardFragment : Fragment() {
     private var lastFollowAt = 0L
     private val followDebounceMs = 800L
 
+    // Guard to avoid double-init when permission callback fires quickly
+    private var initializedAfterPermission = false
+
     private val askFineLocation = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) enablePuck()
-        else Toast.makeText(requireContext(), "Location permission is required to display the map.", Toast.LENGTH_LONG).show()
+        if (granted) {
+            onLocationPermissionGranted()
+        } else {
+            Toast.makeText(requireContext(), "Location permission is required to display the map.", Toast.LENGTH_LONG).show()
+        }
     }
 
     // ===== Observers =====
@@ -197,10 +207,39 @@ class DashboardFragment : Fragment() {
         cameraController?.requestFollowing()
     }
 
+    // ===== Warm avatar early (no logic change to image pipeline) =====
+    private fun warmAvatarEarly() {
+        viewLifecycleOwnerLiveData.observe(this) { owner ->
+            owner?.lifecycleScope?.launch {
+                val url: String? = withContext(Dispatchers.IO) {
+                    try {
+                        val repo = com.example.vaiche_driver.data.repository.ProfileRepository {
+                            com.example.vaiche_driver.data.network.RetrofitClient.instance
+                        }
+                        repo.getUserProfile().getOrNull()?.avatarUrl
+                    } catch (_: Throwable) { null }
+                }
+                if (url != null) {
+                    lastCollectorAvtUrl = url
+                    withContext(Dispatchers.IO) {
+                        try {
+                            Glide.with(requireContext())
+                                .asBitmap()
+                                .load(url)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .preload(128, 128)
+                        } catch (_: Throwable) { }
+                    }
+                }
+            }
+        }
+    }
+
     // ===== Lifecycle =====
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         MapboxNavManager.setup(requireContext().applicationContext)
+        warmAvatarEarly()
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
@@ -224,34 +263,39 @@ class DashboardFragment : Fragment() {
         routeRenderer = RouteRenderer(requireContext())
         cameraController = CameraController(mapView!!)
 
+        // ==== LẮNG NGHE tín hiệu từ Settings/EditProfile để reload avatar puck ====
+        parentFragmentManager.setFragmentResultListener("profile_updated", viewLifecycleOwner) { _, b ->
+            if (b.getBoolean("changed", false)) {
+                viewLifecycleOwner.lifecycleScope.launch { refreshCollectorAvatar() }
+            }
+        }
+        // Key dự phòng nếu bạn muốn gửi URL trực tiếp
+        parentFragmentManager.setFragmentResultListener("collector_avatar_updated", viewLifecycleOwner) { _, b ->
+            val newUrl = b.getString("url")
+            viewLifecycleOwner.lifecycleScope.launch { setCollectorPuckFromUrl(newUrl) }
+        }
+
         // Load style và gắn provider SAU khi xong style
         mapView?.mapboxMap?.loadStyleUri("mapbox://styles/mapbox/navigation-day-v1") { st ->
             style = st
             mapView?.location?.setLocationProvider(navLocationProvider)
             mapView?.location?.updateSettings {
-                enabled = true                 // phải bật
-                pulsingEnabled = true          // nháy nhịp, dễ thấy
+                enabled = true
+                pulsingEnabled = true
                 puckBearingEnabled = true
                 puckBearing = PuckBearing.COURSE
-
-                // Puck 2D mặc định (sẽ được thay = avatar collector khi có)
                 locationPuck = LocationPuck2D()
             }
 
-            // Sau khi style load xong và ensurePuckVisible():
+            // ✅ Hiển thị placeholder ngay lập tức, không chờ ảnh mạng
+            showDefaultPuck()
+
+            // Sau khi style load xong: đặt avatar puck (cache-first, không đổi logic cũ)
             lifecycleScope.launch {
                 if (lastCollectorAvtUrl == null) {
-                    val myAvt: String? = try {
-                        val repo = com.example.vaiche_driver.data.repository.ProfileRepository {
-                            com.example.vaiche_driver.data.network.RetrofitClient.instance
-                        }
-                        repo.getUserProfile().getOrNull()?.avatarUrl
-                    } catch (_: Throwable) { null }
-
-                    setCollectorPuckFromUrl(myAvt)
+                    refreshCollectorAvatar() // fetch url + set puck
                 } else {
-                    // nếu đã cache từ lần trước → re-apply luôn
-                    setCollectorPuckFromUrl(lastCollectorAvtUrl)
+                    setCollectorPuckFromUrl(lastCollectorAvtUrl) // re-apply cache
                 }
             }
 
@@ -275,10 +319,21 @@ class DashboardFragment : Fragment() {
         bindViewModel()
     }
 
+    private fun hasLocationPermission(): Boolean {
+        val fine = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        return fine || coarse
+    }
+
     override fun onStart() {
         super.onStart()
         mapView?.onStart()
-        startTripSession() // luôn chạy để nhận vị trí -> puck/camera luôn cập nhật
+
+        if (!hasLocationPermission()) {
+            askFineLocation.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        } else {
+            onLocationPermissionGranted()
+        }
     }
 
     override fun onStop() {
@@ -286,6 +341,7 @@ class DashboardFragment : Fragment() {
         mapView?.onStop()
         stopFindingOrder()
         stopTripSession()
+        initializedAfterPermission = false
     }
 
     override fun onDestroyView() {
@@ -309,17 +365,17 @@ class DashboardFragment : Fragment() {
                 DriverState.OFFLINE -> {
                     tvCenterTitle?.text = "Offline"; tvCenterTitle?.isEnabled = true
                     clearRoutes()
-                    clearDestinationAvatar()                       // xóa điểm đích khi OFFLINE
+                    clearDestinationAvatar()
                     mapboxNavigation?.setNavigationRoutes(emptyList())
                     vm.stopWebSocket()
-                    startTripSession()                              // vẫn giữ trip session để hiển thị puck
-                    ensurePuckVisible()                             // luôn bật puck + re-apply avatar
+                    startTripSession()
+                    ensurePuckVisible()
                     cameraController?.requestFollowing()
                 }
                 DriverState.ONLINE -> {
                     tvCenterTitle?.text = "Online"; tvCenterTitle?.isEnabled = true
                     clearRoutes()
-                    clearDestinationAvatar()                       // xóa đích cũ khi ONLINE
+                    clearDestinationAvatar()
                     vm.stopWebSocket()
                     if (parentFragmentManager.findFragmentByTag("SetPlanDialog") == null) {
                         SetPlanDialogFragment().show(parentFragmentManager, "SetPlanDialog")
@@ -331,7 +387,7 @@ class DashboardFragment : Fragment() {
                 DriverState.FINDING_ORDER -> {
                     tvCenterTitle?.text = "Finding..."; tvCenterTitle?.isEnabled = false
                     clearRoutes()
-                    clearDestinationAvatar()                       // khi tìm đơn, không cần đích cũ
+                    clearDestinationAvatar()
                     vm.stopWebSocket()
                     startTripSession()
                     ensurePuckVisible()
@@ -345,17 +401,11 @@ class DashboardFragment : Fragment() {
                     requestRouteForActiveOrder()
                     cameraController?.requestFollowing()
 
-                    // Tải avatar collector + owner và gán UI
+                    // Tải avatar collector + owner và gán UI (giữ logic cũ, nhưng kèm placeholder đã hiện ngay)
                     val orderId = vm.activeOrder.value?.id
                     lifecycleScope.launch {
-                        // 1) avatar collector (chính mình)
-                        val myAvt: String? = try {
-                            val repo = com.example.vaiche_driver.data.repository.ProfileRepository {
-                                com.example.vaiche_driver.data.network.RetrofitClient.instance
-                            }
-                            repo.getUserProfile().getOrNull()?.avatarUrl
-                        } catch (_: Throwable) { null }
-                        setCollectorPuckFromUrl(myAvt)   // cache + bật puck
+                        // 1) avatar collector (chính mình) — refresh để lấy bản mới nhất khi vào DELIVERING
+                        refreshCollectorAvatar()
 
                         // 2) avatar user (owner) + set vào điểm đến (sau khi có routePoints)
                         val ownerAvt: String? = try {
@@ -387,7 +437,6 @@ class DashboardFragment : Fragment() {
         vm.routePoints.observe(viewLifecycleOwner) { pts ->
             if (pts.isNullOrEmpty()) { clearRoutes(); return@observe }
 
-            // Khi có điểm BE, xin route Mapbox để camera + vanishing + maneuver
             val origin = navLocationProvider.lastLocation?.let {
                 Point.fromLngLat(it.longitude, it.latitude)
             } ?: pts.first()
@@ -402,7 +451,7 @@ class DashboardFragment : Fragment() {
                     destination = dest,
                     bearingDeg = bearing,
                     allowAlternatives = true
-                ) { /* RoutesObserver sẽ vẽ route + cameraController.onRoutesChanged */ }
+                ) { /* RoutesObserver sẽ vẽ route */ }
             }
 
             // Cập nhật marker đích theo avatar owner
@@ -432,14 +481,12 @@ class DashboardFragment : Fragment() {
         val order = vm.activeOrder.value ?: return
 
         fun callBe(lat: Double, lng: Double) {
-            vm.loadRoute(order.id, lat, lng) // sẽ kích hoạt vm.routePoints -> xin Mapbox route
+            vm.loadRoute(order.id, lat, lng)
         }
 
         navLocationProvider.lastLocation?.let { callBe(it.latitude, it.longitude); return }
 
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
+        if (hasLocationPermission()) {
             fused.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener { loc ->
                     if (loc != null) callBe(loc.latitude, loc.longitude) else waitForFirstEnhancedFix(::callBe)
@@ -503,14 +550,51 @@ class DashboardFragment : Fragment() {
         mapboxNavigation = null
     }
 
+    // ===== Permission → full init entrypoint =====
+    @SuppressLint("MissingPermission")
+    private fun onLocationPermissionGranted() {
+        if (!isAdded || view == null || mapView == null) return
+        if (initializedAfterPermission) return
+        initializedAfterPermission = true
+
+        if (style == null) {
+            mapView?.mapboxMap?.loadStyleUri("mapbox://styles/mapbox/navigation-day-v1") { st ->
+                style = st
+                mapView?.location?.setLocationProvider(navLocationProvider)
+                ensurePuckVisible()
+                startTripSession()
+                kickstartFlowsByState()
+            }
+        } else {
+            ensurePuckVisible()
+            startTripSession()
+            kickstartFlowsByState()
+        }
+    }
+
+    private fun kickstartFlowsByState() {
+        when (vm.driverState.value) {
+            DriverState.OFFLINE -> {
+                cameraController?.requestFollowing()
+            }
+            DriverState.ONLINE -> {
+                cameraController?.requestFollowing()
+            }
+            DriverState.FINDING_ORDER -> {
+                cameraController?.requestFollowing()
+                startFindingOrder(immediate = true)
+            }
+            DriverState.DELIVERING -> {
+                cameraController?.requestFollowing()
+                requestRouteForActiveOrder()
+                viewLifecycleOwner.lifecycleScope.launch { refreshCollectorAvatar() }
+            }
+            else -> Unit
+        }
+    }
+
     // ===== Helpers =====
     private fun enablePuck() {
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            askFineLocation.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-            return
-        }
         mapView?.location?.setLocationProvider(navLocationProvider)
         mapView?.location?.updateSettings { enabled = true }
     }
@@ -524,10 +608,14 @@ class DashboardFragment : Fragment() {
             puckBearingEnabled = true
             puckBearing = PuckBearing.COURSE
         }
-        // nếu có avatar đã cache → re-apply
-        lastCollectorAvtUrl?.let { cached ->
+        // nếu có avatar đã cache → re-apply; nếu chưa có → lấy URL ngay
+        if (lastCollectorAvtUrl != null) {
             viewLifecycleOwner.lifecycleScope.launch {
-                try { setCollectorPuckFromUrl(cached) } catch (_: Throwable) {}
+                try { setCollectorPuckFromUrl(lastCollectorAvtUrl) } catch (_: Throwable) {}
+            }
+        } else {
+            viewLifecycleOwner.lifecycleScope.launch {
+                try { refreshCollectorAvatar() } catch (_: Throwable) {}
             }
         }
         bringPuckToFront()
@@ -543,7 +631,6 @@ class DashboardFragment : Fragment() {
         tripProgressView?.visibility = View.GONE
         speedLimitView?.visibility = View.GONE
         // KHÔNG động vào puck
-        // KHÔNG xóa dest ở đây (đã có clearDestinationAvatar khi cần)
     }
 
     private fun clearDestinationAvatar() {
@@ -599,49 +686,90 @@ class DashboardFragment : Fragment() {
     }
 
     // ===== Avatars: puck (collector) & destination marker (owner) =====
+
+    /** Hiển thị puck mặc định (placeholder) ngay lập tức */
+    private fun showDefaultPuck() {
+        val ph = BitmapFactory.decodeResource(resources, R.drawable.ic_user)
+        mapView?.location?.updateSettings {
+            enabled = true
+            pulsingEnabled = true
+            puckBearingEnabled = true
+            puckBearing = PuckBearing.COURSE
+            locationPuck = LocationPuck2D(
+                bearingImage = ImageHolder.from(ph),
+                topImage = ImageHolder.from(ph),
+                shadowImage = null
+            )
+        }
+        bringPuckToFront()
+    }
+
+    /** Gọi API profile lấy avatarUrl và set puck (giữ logic cũ, bọc tiện hơn) */
+    private suspend fun refreshCollectorAvatar() {
+        val myAvt: String? = withContext(Dispatchers.IO) {
+            try {
+                val repo = com.example.vaiche_driver.data.repository.ProfileRepository {
+                    com.example.vaiche_driver.data.network.RetrofitClient.instance
+                }
+                repo.getUserProfile().getOrNull()?.avatarUrl
+            } catch (_: Throwable) { null }
+        }
+        setCollectorPuckFromUrl(myAvt)
+    }
+
     private suspend fun loadCircleBitmap(
         url: String?,
         sizePx: Int = 112,
         borderPx: Int = 6
     ): Bitmap? = withContext(Dispatchers.IO) {
+        if (url.isNullOrBlank()) return@withContext null
+        // 1) cache-first: lấy ngay nếu đã có (nhanh, tránh mạng)
         try {
-            if (url.isNullOrBlank()) return@withContext null
-            val bmp = Glide.with(requireContext())
+            val cached = Glide.with(requireContext())
                 .asBitmap()
                 .load(url)
+                .onlyRetrieveFromCache(true)
                 .submit(sizePx, sizePx)
                 .get()
-
-            val out = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-            val c = Canvas(out)
-            val r = sizePx / 2f
-            val path = Path().apply { addCircle(r, r, r - borderPx, Path.Direction.CW) }
-
-            c.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-
-            c.save()
-            c.clipPath(path)
-            val src = Rect(0, 0, bmp.width, bmp.height)
-            val dst = Rect(0, 0, sizePx, sizePx)
-            c.drawBitmap(bmp, src, dst, null)
-            c.restore()
-
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
-                style = Paint.Style.STROKE
-                strokeWidth = borderPx.toFloat()
-            }
-            c.drawCircle(r, r, r - borderPx, paint)
-
-            out
+            return@withContext circleCropWithBorder(cached, sizePx, borderPx)
         } catch (_: Throwable) {
-            null
+            // 2) cache miss → tải MẠNG NGAY (blocking trên IO) để đảm bảo lần đầu có ảnh
+            return@withContext try {
+                val fresh = Glide.with(requireContext())
+                    .asBitmap()
+                    .load(url)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .submit(sizePx, sizePx)
+                    .get()
+                circleCropWithBorder(fresh, sizePx, borderPx)
+            } catch (_: Throwable) {
+                null
+            }
         }
+    }
+
+
+    private fun circleCropWithBorder(bmp: Bitmap, sizePx: Int, borderPx: Int): Bitmap {
+        val out = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val c = Canvas(out)
+        val r = sizePx / 2f
+        val path = Path().apply { addCircle(r, r, r - borderPx, Path.Direction.CW) }
+        c.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+        c.save()
+        c.clipPath(path)
+        c.drawBitmap(bmp, Rect(0,0,bmp.width,bmp.height), Rect(0,0,sizePx,sizePx), null)
+        c.restore()
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE; style = Paint.Style.STROKE; strokeWidth = borderPx.toFloat()
+        }
+        c.drawCircle(r, r, r - borderPx, paint)
+        return out
     }
 
     private suspend fun setCollectorPuckFromUrl(url: String?) {
         lastCollectorAvtUrl = url // cache để re-apply
         val bmp = loadCircleBitmap(url, sizePx = 128, borderPx = 6) ?: return
+
         withContext(Dispatchers.Main) {
             mapView?.location?.updateSettings {
                 enabled = true
@@ -654,7 +782,6 @@ class DashboardFragment : Fragment() {
                     shadowImage = null
                 )
             }
-            // đảm bảo puck nổi trên route
             bringPuckToFront()
         }
     }
@@ -666,7 +793,6 @@ class DashboardFragment : Fragment() {
 
         val bmp = loadCircleBitmap(url, sizePx = 128, borderPx = 6) ?: return
         withContext(Dispatchers.Main) {
-            // nếu manager chưa có (ví dụ trước khi vẽ route), tạo ngay tại đây
             if (destManager == null) {
                 destManager = mapView?.annotations?.createPointAnnotationManager()
             }
@@ -683,7 +809,6 @@ class DashboardFragment : Fragment() {
     // ===== Kéo Puck (location layers) lên TOP =====
     private fun bringPuckToFront() {
         val st = style ?: return
-
         val puckLayers = listOf(
             "mapbox-location-layer",
             "mapbox-location-shadow-layer",
@@ -693,9 +818,10 @@ class DashboardFragment : Fragment() {
             "mapbox-location-puck-layer",
             "mapbox-location-top-layer"
         )
-
         puckLayers.forEach { id ->
             runCatching { st.moveStyleLayer(id, null) } // null = move to top
         }
     }
+
 }
+
