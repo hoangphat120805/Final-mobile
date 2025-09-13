@@ -31,4 +31,10 @@
     <color name="teal_200">#03DAC5</color>
 
     <color name="background_light">#F8F8F8</color>
+
+    <color name="bnv_surface">#CC0B1220</color>   <!-- 80% opaque, cùng tone bottom nav -->
+    <color name="bnv_stroke">#3348566A</color>   <!-- viền nhẹ -->
+
+    <color name="notification_read_background">#FFFFFF</color>
+    <color name="notification_unread_background">#E0F2F1</color>
 </resources>

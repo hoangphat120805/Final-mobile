@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
@@ -29,6 +30,7 @@ import com.example.vaiche_driver.model.OrderDetail
 import com.example.vaiche_driver.model.OrderStatus
 import com.example.vaiche_driver.fragment.ItemFragment
 import com.example.vaiche_driver.viewmodel.OrderDetailViewModel
+import com.example.vaiche_driver.viewmodel.SharedViewModel
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +44,10 @@ class OrderDetailFragment : Fragment() {
 
     private var orderId: String? = null
     private val viewModel: OrderDetailViewModel by viewModels()
+
+    private val sharedVM: SharedViewModel by activityViewModels()
+
+
 
     // --- CAMERA / PHOTO ---
     private var latestTmpUri: Uri? = null
@@ -107,6 +113,11 @@ class OrderDetailFragment : Fragment() {
 
         viewModel.orderCompletedEvent.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandled()?.let {
+
+                sharedVM.onDeliveryFinished()     // -> driverState = OFFLINE, activeOrder = null
+                sharedVM.stopWebSocket()          // ngừng gửi WS
+                sharedVM.debugSetRoutePoints(emptyList()) // (tuỳ chọn) xoá polyline
+
                 Toast.makeText(requireContext(), "Order completed!", Toast.LENGTH_SHORT).show()
                 val id = orderId ?: return@let
                 (activity as? MainActivity)?.selectMainTab(BottomNavScreen.SCHEDULE, clearBackStack = true)

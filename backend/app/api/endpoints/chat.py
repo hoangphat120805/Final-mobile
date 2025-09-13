@@ -1,9 +1,8 @@
-from http.client import HTTPException
 import time
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
 
 from app import crud
-from app.schemas.chat import ConversationCreate, ConversationWithLastMessage, MessageCreate, ConversationPublic, MessagePublic
+from app.schemas.chat import ConversationCreate, MessageCreate, ConversationPublic, MessagePublic
 from app.schemas.user import UserPublic
 from app.api.deps import SessionDep, CurrentUser, CurrentUserWs
 from typing import Dict, Annotated
@@ -58,7 +57,7 @@ async def create_conversation(
     conversation = crud.create_conversation(session = session, conversation_create = conversation_create, user_id = current_user.id)
     return conversation
 
-@router.get("/conversations/", response_model=list[ConversationWithLastMessage])
+@router.get("/conversations/", response_model=list[ConversationPublic])
 async def get_conversations(
     session: SessionDep,
     current_user: CurrentUser,

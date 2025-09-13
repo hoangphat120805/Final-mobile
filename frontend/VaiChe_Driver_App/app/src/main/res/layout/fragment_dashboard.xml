@@ -4,6 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- Bản đồ -->
     <com.mapbox.maps.MapView
         android:id="@+id/mapView"
         android:layout_width="match_parent"
@@ -12,7 +13,7 @@
         app:mapbox_cameraTargetLng="106.66"
         app:mapbox_cameraZoom="12.0" />
 
-    <!-- Thanh top của bạn -->
+    <!-- Thanh top -->
     <LinearLayout
         android:id="@+id/top_bar"
         android:layout_width="match_parent"
@@ -40,22 +41,33 @@
             android:textStyle="bold"/>
     </LinearLayout>
 
-<!--    &lt;!&ndash; UI chỉ dẫn rẽ &ndash;&gt;-->
-<!--    <com.mapbox.navigation.ui.maneuver.view.MapboxManeuverView-->
-<!--        android:id="@+id/maneuverView"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:layout_alignParentTop="true"-->
-<!--        android:paddingTop="8dp"-->
-<!--        android:paddingHorizontal="16dp"-->
-<!--        android:background="@android:color/transparent"/>-->
+    <!-- ============ Navigation UI Components ============ -->
 
-<!--    &lt;!&ndash; UI tiến trình lộ trình &ndash;&gt;-->
-<!--    <com.mapbox.navigation.ui.tripprogress.view.MapboxTripProgressView-->
-<!--        android:id="@+id/tripProgressView"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:layout_below="@id/maneuverView"-->
-<!--        android:padding="8dp"-->
-<!--        android:background="@android:color/transparent"/>-->
+    <com.mapbox.navigation.ui.components.maneuver.view.MapboxManeuverView
+        android:id="@+id/maneuverView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="45dp"
+        android:layout_marginHorizontal="16dp"
+        android:visibility="gone"/>
+
+    <com.mapbox.navigation.ui.components.tripprogress.view.MapboxTripProgressView
+        android:id="@+id/tripProgressView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:visibility="gone"/>
+
+    <com.mapbox.navigation.ui.components.speedlimit.view.MapboxSpeedInfoView
+        android:id="@+id/speedLimitView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="15dp"
+        android:visibility="gone"/>
+
+
+
 </RelativeLayout>
