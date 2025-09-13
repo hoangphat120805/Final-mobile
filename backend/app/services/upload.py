@@ -17,7 +17,7 @@ def upload_avatar(file: UploadFile, public_id: str) -> str:
         return result.get("secure_url")
     except Exception as e:
         print(f"Error uploading image to Cloudinary: {e}")
-        return ""
+        return f"Error uploading image to Cloudinary: {e}"
 
 def upload_category_icon(file: UploadFile, public_id: str) -> str:
     try:

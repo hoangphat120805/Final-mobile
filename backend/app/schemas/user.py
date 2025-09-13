@@ -35,6 +35,7 @@ class UserUpdate(UserBase):
     phone_number: str | None = Field(default=None)
     full_name: str | None = Field(default=None)
     role: UserRole | None = Field(default=None)
+    avt_url: str | None = Field(default=None)
 
 class UserUpdateMe(UserBase):
     email: EmailStr | None = Field(default=None)
@@ -48,7 +49,7 @@ class UpdatePassword(SQLModel):
 class UserPublic(UserBase):
     id: uuid.UUID
     role: UserRole
-    avt_url: str  = Field(default=settings.DEFAULT_AVATAR_URL)
+    avt_url: str
 
 class UsersPublic(SQLModel):
     data: list[UserPublic]
