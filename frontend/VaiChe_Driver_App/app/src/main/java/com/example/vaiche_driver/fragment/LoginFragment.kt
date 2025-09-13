@@ -28,6 +28,13 @@ class LoginFragment : Fragment() {
         return inflater.inflate(R.layout.fragment_login, container, false)
     }
 
+    // LoginFragment.kt
+    override fun onResume() {
+        super.onResume()
+        (requireActivity() as MainActivity).hideBottomNavForAuthScreens()
+    }
+
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 

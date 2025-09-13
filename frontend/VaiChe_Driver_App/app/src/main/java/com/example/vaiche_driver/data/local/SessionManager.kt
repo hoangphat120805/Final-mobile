@@ -14,28 +14,20 @@ class SessionManager(context: Context) {
         const val AUTH_TOKEN = "auth_token"
     }
 
-    /**
-     * Lưu Access Token.
-     */
     fun saveAuthToken(token: String) {
-        val editor = prefs.edit()
-        editor.putString(AUTH_TOKEN, token)
-        editor.apply()
+        prefs.edit().putString(AUTH_TOKEN, token).apply()
     }
 
-    /**
-     * Lấy Access Token.
-     */
     fun fetchAuthToken(): String? {
         return prefs.getString(AUTH_TOKEN, null)
     }
 
-    /**
-     * Xóa Access Token (khi logout).
-     */
     fun clearAuthToken() {
-        val editor = prefs.edit()
-        editor.remove(AUTH_TOKEN)
-        editor.apply()
+        prefs.edit().remove(AUTH_TOKEN).apply()
+    }
+
+    /** ✨ Dùng khi muốn logout cứng, đảm bảo ghi xuống đĩa ngay */
+    fun clearAllSync() {
+        prefs.edit().clear().commit()   // commit = đồng bộ
     }
 }

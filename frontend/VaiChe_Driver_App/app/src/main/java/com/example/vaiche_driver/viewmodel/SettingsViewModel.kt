@@ -1,7 +1,6 @@
 package com.example.vaiche_driver.viewmodel
 
 import android.content.Context
-import android.content.Intent
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -12,6 +11,13 @@ import com.example.vaiche_driver.model.UpdateProfileRequest
 import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
 
+/**
+ * ViewModel cho Settings screen
+ * - Đổi mật khẩu
+ * - Upload avatar
+ * - Update profile info
+ * - Logout (chỉ phát tín hiệu, không tự restart app trong ViewModel)
+ */
 class SettingsViewModel(
     private val repo: SettingsRepository
 ) : ViewModel() {
@@ -22,16 +28,20 @@ class SettingsViewModel(
     private val _toastMessage = MutableLiveData<Event<String>>()
     val toastMessage: LiveData<Event<String>> = _toastMessage
 
-    private val _loggedOut = MutableLiveData(false)
-    val loggedOut: LiveData<Boolean> = _loggedOut
 
-    // ===== Signals for navigation =====
+    // ===== Signals for navigation / UI =====
     private val _passwordUpdated = MutableLiveData<Event<Unit>>()
     val passwordUpdated: LiveData<Event<Unit>> = _passwordUpdated
 
+    /** Bắn riêng khi avatar đổi thành công, kèm signatureKey để bust cache Glide */
+    private val _avatarUpdated = MutableLiveData<Event<String>>() // signatureKey
+    val avatarUpdated: LiveData<Event<String>> = _avatarUpdated
+
+    /** Bắn khi chỉ thay đổi các trường profile text (fullName/gender/birthDate/email) */
     private val _profileUpdated = MutableLiveData<Event<Unit>>()
     val profileUpdated: LiveData<Event<Unit>> = _profileUpdated
 
+    /** Đổi mật khẩu */
     fun updatePassword(old: String, new: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -49,6 +59,7 @@ class SettingsViewModel(
         }
     }
 
+    /** Upload avatar (ảnh) */
     fun uploadAvatar(part: MultipartBody.Part) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -56,6 +67,9 @@ class SettingsViewModel(
                 val result = repo.uploadAvatar(part)
                 if (result.isSuccess) {
                     _toastMessage.value = Event("Avatar updated")
+                    // signatureKey có thể dùng timestamp hoặc version trả về từ server (nếu có)
+                    val signatureKey = System.currentTimeMillis().toString()
+                    _avatarUpdated.value = Event(signatureKey)
                 } else {
                     _toastMessage.value = Event(result.exceptionOrNull()?.message ?: "Upload avatar failed")
                 }
@@ -65,6 +79,7 @@ class SettingsViewModel(
         }
     }
 
+    /** Update thông tin cá nhân (không bao gồm avatar) */
     fun updateProfile(fullName: String?, gender: String?, birthDateIso: String?, email: String?) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -80,25 +95,6 @@ class SettingsViewModel(
                 _isLoading.value = false
             }
         }
-    }
+    } /** Logout – chỉ phát loggedOut, để Fragment quyết định restart app */
 
-    fun logout(context: Context) {
-        val result = repo.logout()
-        if (result.isSuccess) {
-            _toastMessage.value = Event("Logged out")
-
-            // Restart app về màn hình splash/login
-            restartApp(context)
-
-            _loggedOut.value = true
-        } else {
-            _toastMessage.value = Event(result.exceptionOrNull()?.message ?: "Logout failed")
-        }
-    }
-
-    private fun restartApp(context: Context) {
-        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-        intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
-    }
 }
