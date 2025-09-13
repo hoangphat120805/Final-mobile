@@ -17,6 +17,9 @@ import com.example.vaicheuserapp.data.model.ConversationWithLastMessage
 import com.example.vaicheuserapp.data.model.UserPublic
 import com.example.vaicheuserapp.data.network.RetrofitClient
 import com.example.vaicheuserapp.databinding.FragmentMessageListBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 
 class MessageListFragment : Fragment(), OnConversationClickListener {
@@ -43,7 +46,7 @@ class MessageListFragment : Fragment(), OnConversationClickListener {
 
         // Get current user ID (assuming it's stored in shared preferences after login)
         currentUserId = requireContext().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            .getString("user_id", "") ?: "" // TODO: Store user_id in prefs after login
+            .getString("user_id", "") ?: ""
 
         if (currentUserId.isEmpty()) {
             Log.e("MessageListFragment", "Current user ID not found. Cannot fetch conversations.")
@@ -63,39 +66,34 @@ class MessageListFragment : Fragment(), OnConversationClickListener {
     }
 
     private fun setupRecyclerView() {
-        // --- CRITICAL FIX: Pass the lambda for fetching/caching user profiles ---
-        conversationListAdapter = ConversationListAdapter(this, currentUserId) { userId, callback ->
-            fetchAndCacheUserProfile(userId, callback)
-        }
+        // --- CRITICAL FIX: Pass the userProfileCache to the adapter ---
+        conversationListAdapter = ConversationListAdapter(this, currentUserId, userProfileCache)
         binding.rvConversations.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = conversationListAdapter
         }
     }
 
-    private fun fetchAndCacheUserProfile(userId: String, callback: (UserPublic?) -> Unit) {
+    private suspend fun fetchAndCacheUserProfile(userId: String): UserPublic? { // Make it suspend
         // Check cache first
         userProfileCache[userId]?.let { cachedUser ->
-            callback(cachedUser)
-            return
+            return cachedUser
         }
 
         // If not in cache, fetch from API
-        lifecycleScope.launch {
-            try {
-                val response = RetrofitClient.instance.getUser(userId)
-                if (response.isSuccessful && response.body() != null) {
-                    val user = response.body()!!
-                    userProfileCache[userId] = user // Cache the user
-                    callback(user)
-                } else {
-                    Log.e("MessageListFragment", "Failed to fetch user $userId: ${response.code()}")
-                    callback(null)
-                }
-            } catch (e: Exception) {
-                Log.e("MessageListFragment", "Error fetching user $userId: ${e.message}")
-                callback(null)
+        return try {
+            val response = RetrofitClient.instance.getUser(userId) // Use the GET /api/user/{user_id} API
+            if (response.isSuccessful && response.body() != null) {
+                val user = response.body()!!
+                userProfileCache[userId] = user // Cache the user
+                user
+            } else {
+                Log.e("MessageListFragment", "Failed to fetch user $userId: ${response.code()} - ${response.errorBody()?.string()}")
+                null
             }
+        } catch (e: Exception) {
+            Log.e("MessageListFragment", "Error fetching user $userId: ${e.message}", e)
+            null
         }
     }
 
@@ -108,6 +106,20 @@ class MessageListFragment : Fragment(), OnConversationClickListener {
                 if (response.isSuccessful && response.body() != null) {
                     allConversations = response.body()!!
                     if (allConversations.isNotEmpty()) {
+                        // --- NEW: Pre-fetch and cache all relevant user profiles ---
+                        // Collect all unique user IDs from all conversations
+                        val allUserIds = allConversations
+                            .flatMap { it.members?.map { member -> member.userId } ?: emptyList() } // Correctly get member IDs
+                            .distinct()
+
+                        // Fetch all unique user profiles concurrently
+                        val deferredUsers = allUserIds.map { userId ->
+                            async(Dispatchers.IO) {
+                                fetchAndCacheUserProfile(userId) // Call suspend function
+                            }
+                        }
+                        deferredUsers.awaitAll() // Wait for all user fetches to complete
+
                         conversationListAdapter.submitList(allConversations)
                         binding.rvConversations.visibility = View.VISIBLE
                     } else {

@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -37,7 +38,7 @@ class ConversationListAdapter(
     private val listener: OnConversationClickListener,
     private val currentUserId: String, // Pass the current user's ID to identify "other" member
 
-    private val fetchUserProfile: (String, (UserPublic?) -> Unit) -> Unit
+    private val chatParticipantsMap: Map<String, UserPublic>
 ) : ListAdapter<ConversationWithLastMessage, ConversationListAdapter.ConversationViewHolder>(ConversationDiffCallback()) {
 
     inner class ConversationViewHolder(private val binding: ItemConversationBinding) :
@@ -46,7 +47,6 @@ class ConversationListAdapter(
         @RequiresApi(Build.VERSION_CODES.O)
         @SuppressLint("SetTextI18n")
         fun bind(conversation: ConversationWithLastMessage) {
-            binding.tvConversationName.text = conversation.name ?: "Loading..."
             binding.tvLastMessageContent.text = conversation.lastMessage?.content ?: "No messages yet."
 
             conversation.lastMessage?.createdAt?.let {
@@ -55,33 +55,24 @@ class ConversationListAdapter(
                 binding.tvLastMessageTime.text = ""
             }
 
-            // --- CRITICAL FIX: Use the fetchUserProfile lambda provided by the fragment ---
-            val otherMemberId = conversation.memberIds?.firstOrNull { it != currentUserId }
+            // --- CRITICAL FIX: Get partner from the chatParticipantsMap ---
+            val otherMemberId = conversation.members?.map { it.userId }?.firstOrNull { it != currentUserId }
+
+            Toast.makeText(binding.root.context, "otherMemberId: $otherMemberId", Toast.LENGTH_SHORT).show()
 
             if (otherMemberId != null) {
-                binding.tvConversationName.text = "Loading..." // Set initial state
-                binding.ivConversationAvatar.setImageResource(R.drawable.default_avatar) // Default placeholder
-
-                // Call the lambda to fetch and cache user profile
-                fetchUserProfile(otherMemberId) { fetchedUser ->
-                    if (fetchedUser != null) {
-                        binding.tvConversationName.text = fetchedUser.fullName
-                        binding.ivConversationAvatar.load(fetchedUser.avtUrl, RetrofitClient.imageLoader) {
-                            crossfade(true)
-                            transformations(CircleCropTransformation())
-                            placeholder(R.drawable.default_avatar)
-                            error(R.drawable.bg_image_error)
-                        }
-                    } else {
-                        // Fallback if fetching fails
-                        binding.tvConversationName.text = conversation.name ?: "Chat Partner"
-                        binding.ivConversationAvatar.setImageResource(R.drawable.default_avatar)
-                    }
+                val partner = chatParticipantsMap[otherMemberId] // Get partner from the map
+                binding.tvConversationName.text = partner?.fullName ?: conversation.name ?: "Chat Partner"
+                binding.ivConversationAvatar.load(partner?.avtUrl, RetrofitClient.imageLoader) {
+                    crossfade(true)
+                    transformations(CircleCropTransformation())
+                    placeholder(R.drawable.default_avatar)
+                    error(R.drawable.bg_image_error)
                 }
             } else {
-                // Group chat or no other member found
+                // Group chat or no other member found (e.g., conversation with self or empty chat)
                 binding.tvConversationName.text = conversation.name ?: "Group Chat"
-                binding.ivConversationAvatar.setImageResource(R.drawable.default_avatar) // Generic group icon
+                binding.ivConversationAvatar.setImageResource(R.drawable.default_avatar)
             }
 
             binding.root.setOnClickListener {

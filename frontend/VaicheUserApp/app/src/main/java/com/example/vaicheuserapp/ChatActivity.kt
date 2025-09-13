@@ -1,7 +1,6 @@
 package com.example.vaicheuserapp
 
 import android.content.Context
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -14,13 +13,15 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.example.vaicheuserapp.data.model.ConversationWithLastMessage
 import com.example.vaicheuserapp.data.model.MessageCreate
 import com.example.vaicheuserapp.data.model.MessagePublic
 import com.example.vaicheuserapp.data.model.UserPublic
 import com.example.vaicheuserapp.data.network.RetrofitClient
 import com.example.vaicheuserapp.databinding.ActivityChatBinding
-import com.example.vaicheuserapp.ui.chat.ChatAdapter // <-- NEW IMPORT
+import com.example.vaicheuserapp.ui.chat.ChatAdapter
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -29,16 +30,17 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-import okio.ByteString
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-import coil.load
-import coil.transform.CircleCropTransformation
+import kotlin.collections.Map
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 
 class ChatActivity : AppCompatActivity() {
 
@@ -47,12 +49,13 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var currentConversation: ConversationWithLastMessage
     private lateinit var currentUserId: String
 
-    private var chatPartner: UserPublic? = null
+    // --- CRITICAL FIX: Keep a map of all participants for avatar/name lookup ---
+    private val chatParticipants = mutableMapOf<String, UserPublic>() // userId -> UserPublic
+
     private var webSocket: WebSocket? = null
     private val okHttpClient = OkHttpClient.Builder().readTimeout(30, TimeUnit.SECONDS).build()
     private val gson = Gson()
 
-    // Timezone & Date Formatter (can be moved to common place)
     private val VIETNAM_ZONE_ID = ZoneId.of("Asia/Ho_Chi_Minh")
     private val BACKEND_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
 
@@ -77,25 +80,31 @@ class ChatActivity : AppCompatActivity() {
             return
         }
 
+        // Add current user to participants map (for their own avatar/name lookup)
+        // This requires fetching current user's full details (e.g., from ProfileFragment cache or API)
+        // For now, let's assume current user's profile is available or fetched.
+        fetchCurrentUserProfile() // Will populate chatParticipants with current user
+
         setupToolbar()
         setupRecyclerView()
         setupListeners()
-        fetchChatPartnerDetails()
-        fetchMessages()
-        connectWebSocket()
+
+        // --- Fetch all participants first, then messages ---
+        fetchConversationParticipants()
     }
 
     private fun setupToolbar() {
         binding.ivBackButton.setOnClickListener { finish() }
-        binding.tvToolbarTitle.text = currentConversation.name ?: "Chat"
+        // Chat partner name and avatar updated by fetchChatPartnerDetails
+        binding.tvToolbarTitle.text = currentConversation.name ?: "Chat" // Default until partner is loaded
     }
 
     private fun setupRecyclerView() {
-        chatAdapter = ChatAdapter(currentUserId)
+        chatAdapter = ChatAdapter(currentUserId, chatParticipants) // Pass the participants map
         binding.rvChatMessages.apply {
             layoutManager = LinearLayoutManager(this@ChatActivity)
             adapter = chatAdapter
-            // --- CRITICAL FIX: Ensure scroll after layout passes, especially for initial load ---
+            // --- CRITICAL FIX: Add a listener for keyboard to scroll to bottom ---
             // This listener ensures that when layout changes (e.g., keyboard pops up),
             // it scrolls to the last message.
             addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
@@ -114,43 +123,84 @@ class ChatActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         binding.btnSendMessage.setOnClickListener { sendMessage() }
-        binding.etMessageInput.setOnClickListener {
-            // Scroll to bottom when input is focused/keyboard appears
-            binding.rvChatMessages.scrollToPosition(chatAdapter.itemCount - 1)
+    }
+
+    // --- NEW: Fetch current user profile to add to participants map ---
+    private fun fetchCurrentUserProfile() {
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.instance.getUserMe()
+                if (response.isSuccessful && response.body() != null) {
+                    chatParticipants[currentUserId] = response.body()!!
+                } else {
+                    Log.e("ChatActivity", "Failed to fetch current user profile: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatActivity", "Error fetching current user profile: ${e.message}", e)
+            }
         }
     }
 
-    private fun fetchChatPartnerDetails() {
+    // --- Fetch chat partner details for toolbar ---
+    private fun fetchConversationParticipants() {
         lifecycleScope.launch {
             try {
-                val otherMemberId = currentConversation.memberIds?.firstOrNull { it != currentUserId }
+                // Extract all unique user IDs from the current conversation object
+                val allUserIds = currentConversation.members // <-- CRITICAL: Access 'members'
+                    ?.map { it.userId } // <-- Extract userId from ConversationMember
+                    ?.distinct() ?: emptyList()
 
-                if (otherMemberId != null) {
-                    val response = RetrofitClient.instance.getUser(otherMemberId) // Call /api/user/{user_id}
-                    if (response.isSuccessful && response.body() != null) {
-                        chatPartner = response.body()
-                        binding.tvToolbarTitle.text = chatPartner?.fullName ?: currentConversation.name ?: "Chat Partner"
-                        binding.ivChatToolbarAvatar.load(chatPartner?.avtUrl, RetrofitClient.imageLoader) {
-                            crossfade(true)
-                            transformations(CircleCropTransformation())
-                            placeholder(R.drawable.default_avatar)
-                            error(R.drawable.bg_image_error)
+                val otherUserIds = allUserIds.filter { it != currentUserId }
+
+                val deferredUserFetches = (otherUserIds + currentUserId).distinct().map { userId ->
+                    async(Dispatchers.IO) { // Using async here
+                        if (chatParticipants.containsKey(userId)) {
+                            chatParticipants[userId] // Use cached if available
+                        } else {
+                            val response = RetrofitClient.instance.getUser(userId)
+                            if (response.isSuccessful && response.body() != null) {
+                                val user = response.body()!!
+                                chatParticipants[userId] = user // Cache it
+                                user
+                            } else {
+                                Log.e("ChatActivity", "Failed to fetch user $userId: ${response.code()}")
+                                null
+                            }
                         }
-                    } else {
-                        Log.e("ChatActivity", "Failed to get chat partner details for ID $otherMemberId: ${response.code()}")
-                        binding.tvToolbarTitle.text = currentConversation.name ?: "Chat Partner (Error)"
-                        binding.ivChatToolbarAvatar.setImageResource(R.drawable.default_avatar)
                     }
-                } else {
-                    // Group chat or no other member found (e.g., conversation with self)
-                    binding.tvToolbarTitle.text = currentConversation.name ?: "Group Chat"
-                    binding.ivChatToolbarAvatar.setImageResource(R.drawable.default_avatar) // Generic group icon
                 }
+                deferredUserFetches.awaitAll()
+
+                fetchChatPartnerDetails()
+                fetchMessages()
+                connectWebSocket()
             } catch (e: Exception) {
-                Log.e("ChatActivity", "Error fetching chat partner details: ${e.message}", e)
-                binding.tvToolbarTitle.text = currentConversation.name ?: "Chat Partner (Error)"
-                binding.ivChatToolbarAvatar.setImageResource(R.drawable.default_avatar)
+                Log.e("ChatActivity", "Error fetching conversation participants: ${e.message}", e)
+                fetchChatPartnerDetails()
+                fetchMessages()
+                connectWebSocket()
             }
+        }
+    }
+
+    // --- CRITICAL FIX: Fetch chat partner details for toolbar (using .members) ---
+    private fun fetchChatPartnerDetails() {
+        val otherMemberId = currentConversation.members // <-- CRITICAL: Access 'members'
+            ?.map { it.userId } // <-- Extract userId
+            ?.firstOrNull { it != currentUserId }
+
+        if (otherMemberId != null) {
+            val partner = chatParticipants[otherMemberId]
+            binding.tvToolbarTitle.text = partner?.fullName ?: currentConversation.name ?: "Chat Partner"
+            binding.ivChatToolbarAvatar.load(partner?.avtUrl, RetrofitClient.imageLoader) {
+                crossfade(true)
+                transformations(CircleCropTransformation())
+                placeholder(R.drawable.default_avatar)
+                error(R.drawable.bg_image_error)
+            }
+        } else {
+            binding.tvToolbarTitle.text = currentConversation.name ?: "Group Chat"
+            binding.ivChatToolbarAvatar.setImageResource(R.drawable.default_avatar)
         }
     }
 
@@ -163,8 +213,9 @@ class ChatActivity : AppCompatActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val messages = response.body()!!
                     val messagesWithSeparators = addDateSeparators(messages)
-                    chatAdapter.submitList(messagesWithSeparators)
-                    binding.rvChatMessages.scrollToPosition(messages.size - 1) // Scroll to latest
+                    chatAdapter.submitList(messagesWithSeparators) {
+                        binding.rvChatMessages.scrollToPosition(chatAdapter.itemCount - 1)
+                    }
                 } else {
                     Log.e("ChatActivity", "Failed to load messages: ${response.code()} - ${response.errorBody()?.string()}")
                     Toast.makeText(this@ChatActivity, "Failed to load messages.", Toast.LENGTH_SHORT).show()
@@ -181,54 +232,65 @@ class ChatActivity : AppCompatActivity() {
     private fun addDateSeparators(messages: List<MessagePublic>): List<MessagePublic> {
         if (messages.isEmpty()) return emptyList()
 
-        // 1. Sort messages first (important for correct date separator placement)
-        val sortedMessages = messages.sortedBy { LocalDateTime.parse(it.createdAt, BACKEND_DATETIME_FORMATTER) }
+        val sortedMessages = messages.sortedBy {
+            try {
+                LocalDateTime.parse(it.createdAt, BACKEND_DATETIME_FORMATTER)
+            } catch (e: Exception) {
+                Log.e("ChatActivity", "Failed to parse message createdAt for sorting: ${it.createdAt}", e)
+                LocalDateTime.MIN // Default to min date to put invalid dates at start
+            }
+        }
+
         val messagesWithSeparators = mutableListOf<MessagePublic>()
         var lastDate: LocalDate? = null
 
         sortedMessages.forEach { message ->
-            // Skip processing if it's already a date separator (prevent duplicates from re-processing)
+            // Skip processing if it's already a date separator. We'll ensure it's not duplicated.
             if (message.viewType == MessagePublic.VIEW_TYPE_DATE_SEPARATOR) {
-                // Ensure no redundant separators if a message on the same date follows
+                // If the last message added was not a separator, and this separator is new, add it.
+                // Otherwise, it might be a duplicate being re-added by submitList.
                 val separatorDate = try { LocalDateTime.parse(message.createdAt, BACKEND_DATETIME_FORMATTER).toLocalDate() } catch (e: Exception) { null }
-                if (lastDate == null || separatorDate?.isAfter(lastDate) == true) {
+                if (messagesWithSeparators.lastOrNull()?.viewType != MessagePublic.VIEW_TYPE_DATE_SEPARATOR ||
+                    (separatorDate != null && lastDate != null && separatorDate.isAfter(lastDate))) {
                     messagesWithSeparators.add(message)
                     lastDate = separatorDate
                 }
-                return@forEach // Continue to next message
+                return@forEach
             }
 
-            val messageDateTime = LocalDateTime.parse(message.createdAt, BACKEND_DATETIME_FORMATTER)
-            val messageDate = messageDateTime.toLocalDate()
+            val messageDateTime = try {
+                LocalDateTime.parse(message.createdAt, BACKEND_DATETIME_FORMATTER)
+            } catch (e: Exception) {
+                Log.e("ChatActivity", "Failed to parse message date for separator logic: ${message.createdAt}", e)
+                null // Treat as new day if parsing fails, to ensure a separator is added
+            }
+            val messageDate = messageDateTime?.toLocalDate()
 
-            // Check if a new date separator is needed
-            // Only add if the date is different from the last date processed
-            if (lastDate == null || !messageDate.isEqual(lastDate)) {
+            if (messageDate != null && (lastDate == null || !messageDate.isEqual(lastDate))) {
                 val separatorMessage = MessagePublic(
                     id = UUID.randomUUID().toString(),
                     conversationId = message.conversationId,
-                    senderId = "", // No sender for separator
-                    content = formatDateSeparator(messageDate), // Format the date
+                    senderId = "",
+                    content = formatDateSeparator(messageDate),
                     createdAt = message.createdAt, // Use message's time for sorting
                     viewType = MessagePublic.VIEW_TYPE_DATE_SEPARATOR
                 )
                 messagesWithSeparators.add(separatorMessage)
-                lastDate = messageDate // Update lastDate
+                lastDate = messageDate
             }
-            messagesWithSeparators.add(message) // Add the actual message
+            messagesWithSeparators.add(message)
         }
         return messagesWithSeparators
     }
 
     private fun formatDateSeparator(date: LocalDate): String {
-        // Use the current date in the specific timezone for consistent comparison
-        val today = LocalDate.now(VIETNAM_ZONE_ID)
-        val yesterday = today.minusDays(1)
+        val nowInVietnam = ZonedDateTime.now(VIETNAM_ZONE_ID).toLocalDate()
+        val yesterdayInVietnam = nowInVietnam.minusDays(1)
         val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("vi", "VN"))
 
         return when {
-            date.isEqual(today) -> "TODAY"
-            date.isEqual(yesterday) -> "YESTERDAY"
+            date.isEqual(nowInVietnam) -> "TODAY"
+            date.isEqual(yesterdayInVietnam) -> "YESTERDAY"
             else -> date.format(dateFormatter)
         }
     }
