@@ -24,6 +24,7 @@ enum class OrderStatus {
 }
 
 data class OrderUser(
+    val userid: String,
     val fullName: String?,
     val phoneNumber: String,
     val avatarUrl: String?

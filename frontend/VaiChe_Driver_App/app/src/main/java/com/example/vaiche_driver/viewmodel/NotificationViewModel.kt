@@ -52,4 +52,14 @@ class NotificationViewModel(
                 }
         }
     }
+
+    fun refresh() {
+        _isLoading.value = true
+        viewModelScope.launch {
+            repo.getNotifications()
+                .onSuccess { _notifications.value = it }
+                .onFailure { e -> _error.value = Event(e.message ?: "Load notifications failed") }
+            _isLoading.value = false
+        }
+    }
 }
