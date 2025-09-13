@@ -41,6 +41,8 @@ import java.util.concurrent.TimeUnit
 import kotlin.collections.Map
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import java.time.Instant
+import java.time.ZoneOffset
 
 class ChatActivity : AppCompatActivity() {
 
@@ -57,7 +59,8 @@ class ChatActivity : AppCompatActivity() {
     private val gson = Gson()
 
     private val VIETNAM_ZONE_ID = ZoneId.of("Asia/Ho_Chi_Minh")
-    private val BACKEND_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
+    private val BACKEND_DATETIME_FORMATTER_WITH_ZONE = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'") // Expects 'Z'
+    private val BACKEND_DATETIME_FORMATTER_NO_ZONE = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS") // For parsing
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -232,68 +235,72 @@ class ChatActivity : AppCompatActivity() {
     private fun addDateSeparators(messages: List<MessagePublic>): List<MessagePublic> {
         if (messages.isEmpty()) return emptyList()
 
-        val sortedMessages = messages.sortedBy {
-            try {
-                LocalDateTime.parse(it.createdAt, BACKEND_DATETIME_FORMATTER)
+        // Helper to parse any message createdAt string into a ZonedDateTime in Vietnam time
+        fun parseAndConvertToVietnamTime(dateTimeString: String): ZonedDateTime? {
+            return try {
+                if (dateTimeString.endsWith("Z")) { // If it has 'Z' (from optimistic update)
+                    Instant.parse(dateTimeString).atZone(VIETNAM_ZONE_ID)
+                } else { // If no 'Z' (from backend)
+                    LocalDateTime.parse(dateTimeString, BACKEND_DATETIME_FORMATTER_NO_ZONE)
+                        .atZone(ZoneId.of("UTC")).withZoneSameInstant(VIETNAM_ZONE_ID)
+                }
             } catch (e: Exception) {
-                Log.e("ChatActivity", "Failed to parse message createdAt for sorting: ${it.createdAt}", e)
-                LocalDateTime.MIN // Default to min date to put invalid dates at start
+                Log.e("ChatActivity", "Failed to parse/convert date for separator logic: $dateTimeString", e)
+                null
             }
         }
 
-        val messagesWithSeparators = mutableListOf<MessagePublic>()
-        var lastDate: LocalDate? = null
+        // 1. Sort messages by their actual ZonedDateTime in Vietnam
+        val sortedMessages = messages.mapNotNull { msg ->
+            parseAndConvertToVietnamTime(msg.createdAt)?.let { Pair(msg, it) }
+        }.sortedBy { it.second } // Sort by the ZonedDateTime
 
-        sortedMessages.forEach { message ->
-            // Skip processing if it's already a date separator. We'll ensure it's not duplicated.
+        val finalMessagesWithSeparators = mutableListOf<MessagePublic>()
+        var lastDateProcessed: LocalDate? = null
+
+        sortedMessages.forEach { (message, messageVietnamZonedDateTime) -> // Deconstruct pair
+            val messageDateInVietnam = messageVietnamZonedDateTime.toLocalDate()
+
+            // Skip processing if it's already a date separator (prevent duplicates)
             if (message.viewType == MessagePublic.VIEW_TYPE_DATE_SEPARATOR) {
-                // If the last message added was not a separator, and this separator is new, add it.
-                // Otherwise, it might be a duplicate being re-added by submitList.
-                val separatorDate = try { LocalDateTime.parse(message.createdAt, BACKEND_DATETIME_FORMATTER).toLocalDate() } catch (e: Exception) { null }
-                if (messagesWithSeparators.lastOrNull()?.viewType != MessagePublic.VIEW_TYPE_DATE_SEPARATOR ||
-                    (separatorDate != null && lastDate != null && separatorDate.isAfter(lastDate))) {
-                    messagesWithSeparators.add(message)
-                    lastDate = separatorDate
+                if (lastDateProcessed == null || !messageDateInVietnam.isEqual(lastDateProcessed)) {
+                    finalMessagesWithSeparators.add(message) // Add existing separator
+                    lastDateProcessed = messageDateInVietnam
                 }
                 return@forEach
             }
 
-            val messageDateTime = try {
-                LocalDateTime.parse(message.createdAt, BACKEND_DATETIME_FORMATTER)
-            } catch (e: Exception) {
-                Log.e("ChatActivity", "Failed to parse message date for separator logic: ${message.createdAt}", e)
-                null // Treat as new day if parsing fails, to ensure a separator is added
-            }
-            val messageDate = messageDateTime?.toLocalDate()
-
-            if (messageDate != null && (lastDate == null || !messageDate.isEqual(lastDate))) {
+            if (lastDateProcessed == null || !messageDateInVietnam.isEqual(lastDateProcessed)) {
                 val separatorMessage = MessagePublic(
                     id = UUID.randomUUID().toString(),
                     conversationId = message.conversationId,
                     senderId = "",
-                    content = formatDateSeparator(messageDate),
-                    createdAt = message.createdAt, // Use message's time for sorting
+                    content = formatDateSeparator(messageDateInVietnam),
+                    createdAt = message.createdAt, // Use original createdAt for consistency in MessagePublic
                     viewType = MessagePublic.VIEW_TYPE_DATE_SEPARATOR
                 )
-                messagesWithSeparators.add(separatorMessage)
-                lastDate = messageDate
+                finalMessagesWithSeparators.add(separatorMessage)
+                lastDateProcessed = messageDateInVietnam
             }
-            messagesWithSeparators.add(message)
+            finalMessagesWithSeparators.add(message)
         }
-        return messagesWithSeparators
+        return finalMessagesWithSeparators
     }
 
+
+    // --- CRITICAL FIX: formatDateSeparator logic is correct, ensures consistent 'today' in VN timezone ---
     private fun formatDateSeparator(date: LocalDate): String {
-        val nowInVietnam = ZonedDateTime.now(VIETNAM_ZONE_ID).toLocalDate()
-        val yesterdayInVietnam = nowInVietnam.minusDays(1)
+        val todayInVietnam = ZonedDateTime.now(VIETNAM_ZONE_ID).toLocalDate()
+        val yesterdayInVietnam = todayInVietnam.minusDays(1)
         val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("vi", "VN"))
 
         return when {
-            date.isEqual(nowInVietnam) -> "TODAY"
+            date.isEqual(todayInVietnam) -> "TODAY"
             date.isEqual(yesterdayInVietnam) -> "YESTERDAY"
             else -> date.format(dateFormatter)
         }
     }
+
 
     private fun connectWebSocket() {
         val token = getSharedPreferences("app_prefs", Context.MODE_PRIVATE).getString("auth_token", null)
@@ -327,7 +334,7 @@ class ChatActivity : AppCompatActivity() {
                             val convId = it["conversation_id"] as? String ?: currentConversation.id
                             val senderId = it["sender_id"] as? String ?: UUID.randomUUID().toString()
                             val content = it["content"] as? String ?: ""
-                            val createdAt = it["created_at"] as? String ?: LocalDateTime.now(ZoneId.of("UTC")).format(BACKEND_DATETIME_FORMATTER)
+                            val createdAt = it["created_at"] as? String ?: LocalDateTime.now(ZoneId.of("UTC")).format(BACKEND_DATETIME_FORMATTER_NO_ZONE)
 
                             val receivedMessage = MessagePublic(id, convId, senderId, content, createdAt)
 
@@ -350,9 +357,6 @@ class ChatActivity : AppCompatActivity() {
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
                 Log.e("ChatWebSocket", "WebSocket Failure: ${t.message}", t)
-                runOnUiThread {
-                    Toast.makeText(this@ChatActivity, "Chat disconnected: ${t.message}", Toast.LENGTH_LONG).show()
-                }
             }
         })
     }
@@ -367,15 +371,13 @@ class ChatActivity : AppCompatActivity() {
         webSocket?.send(messageJson)
 
         val tempMessageId = UUID.randomUUID().toString()
-        val currentTimeFormatted = LocalDateTime.now(ZoneId.of("UTC")).format(BACKEND_DATETIME_FORMATTER)
+        // --- CRITICAL FIX: Format local time WITH 'Z' suffix to be unambiguously UTC ---
+        val currentTimeFormatted = ZonedDateTime.now(ZoneId.of("UTC")).format(BACKEND_DATETIME_FORMATTER_WITH_ZONE)
         val tempMessage = MessagePublic(tempMessageId, currentConversation.id, currentUserId, messageContent, currentTimeFormatted)
 
-        // Add message to adapter
-        // Then re-process the list to add separators correctly
         val updatedList = (chatAdapter.currentList + tempMessage).toMutableList()
         val messagesWithSeparators = addDateSeparators(updatedList)
         chatAdapter.submitList(messagesWithSeparators) {
-            // --- CRITICAL FIX: Scroll after submitList is done updating UI ---
             binding.rvChatMessages.scrollToPosition(chatAdapter.itemCount - 1)
         }
 

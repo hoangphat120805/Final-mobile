@@ -448,9 +448,6 @@ class OrderTrackingActivity : AppCompatActivity() {
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
                 Log.e("WebSocket", "Failure: ${t.message}", t)
-                runOnUiThread {
-                    Toast.makeText(this@OrderTrackingActivity, "Tracking lost: ${t.message}", Toast.LENGTH_LONG).show()
-                }
             }
         })
     }
