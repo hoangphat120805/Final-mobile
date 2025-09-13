@@ -101,6 +101,8 @@ class DashboardFragment : Fragment() {
     // WS
     private val pingIntervalMs = 5_000L
     private var lastWsAt = 0L
+    // ✅ Guard: đảm bảo chỉ mở WS một lần cho mỗi order
+    private var openedWsForOrderId: String? = null
 
     // Finding order loop
     private val findingHandler = Handler(Looper.getMainLooper())
@@ -159,6 +161,7 @@ class DashboardFragment : Fragment() {
                 speedLimitView?.render(it)
                 speedLimitView?.visibility = View.VISIBLE
             }
+
             // 4) gửi ws khi đang giao
             maybeSendWs(enhanced.latitude, enhanced.longitude)
         }
@@ -367,6 +370,7 @@ class DashboardFragment : Fragment() {
                     clearDestinationAvatar()
                     mapboxNavigation?.setNavigationRoutes(emptyList())
                     vm.stopWebSocket()
+                    openedWsForOrderId = null // ✅ reset guard khi rời Delivering
                     startTripSession()
                     ensurePuckVisible()
                     cameraController?.requestFollowing()
@@ -376,6 +380,7 @@ class DashboardFragment : Fragment() {
                     clearRoutes()
                     clearDestinationAvatar()
                     vm.stopWebSocket()
+                    openedWsForOrderId = null // ✅ reset guard
                     if (parentFragmentManager.findFragmentByTag("SetPlanDialog") == null) {
                         SetPlanDialogFragment().show(parentFragmentManager, "SetPlanDialog")
                     }
@@ -388,6 +393,7 @@ class DashboardFragment : Fragment() {
                     clearRoutes()
                     clearDestinationAvatar()
                     vm.stopWebSocket()
+                    openedWsForOrderId = null // ✅ reset guard
                     startTripSession()
                     ensurePuckVisible()
                     startFindingOrder(immediate = true)
@@ -400,19 +406,27 @@ class DashboardFragment : Fragment() {
                     requestRouteForActiveOrder()
                     cameraController?.requestFollowing()
 
-                    // Tải avatar collector + owner và gán UI (giữ logic cũ, nhưng kèm placeholder đã hiện ngay)
+                    // ✅ Mở WS đúng 1 lần cho mỗi order
                     val orderId = vm.activeOrder.value?.id
+                    val token = com.example.vaiche_driver.data.local.SessionManager(requireContext()).fetchAuthToken()
+                    if (!token.isNullOrBlank() && !orderId.isNullOrBlank() && openedWsForOrderId != orderId) {
+                        vm.openWebSocket(orderId!!, token)
+                        openedWsForOrderId = orderId
+                    }
+
+                    // Tải avatar collector + owner và gán UI (giữ logic cũ, nhưng kèm placeholder đã hiện ngay)
+                    val oid = orderId
                     lifecycleScope.launch {
                         // 1) avatar collector (chính mình) — refresh để lấy bản mới nhất khi vào DELIVERING
                         refreshCollectorAvatar()
 
                         // 2) avatar user (owner) + set vào điểm đến (sau khi có routePoints)
                         val ownerAvt: String? = try {
-                            if (orderId != null) {
+                            if (oid != null) {
                                 val repo = com.example.vaiche_driver.data.repository.OrderRepository {
                                     com.example.vaiche_driver.data.network.RetrofitClient.instance
                                 }
-                                repo.getOrderOwner(orderId).getOrNull()?.avatarUrl
+                                repo.getOrderOwner(oid).getOrNull()?.avatarUrl
                             } else null
                         } catch (_: Throwable) { null }
 
@@ -823,4 +837,3 @@ class DashboardFragment : Fragment() {
     }
 
 }
-
