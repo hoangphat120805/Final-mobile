@@ -152,6 +152,7 @@ fun OrderPublic.toOrderDetail(
     return OrderDetail(
         id = id,
         user = OrderUser(
+            userid = owner?.id ?: "Unknown",
             fullName = owner?.fullName ?: "Unknown User",
             phoneNumber = owner?.phoneNumber ?: "N/A",
             avatarUrl = owner?.avatarUrl
@@ -188,6 +189,7 @@ fun OrderPublic.toOrderDetailFallback(
     return OrderDetail(
         id = id,
         user = OrderUser(
+            userid = owner?.id ?: "Unknown",
             fullName = owner?.fullName ?: "Unknown User",
             phoneNumber = owner?.phoneNumber ?: "N/A",
             avatarUrl = owner?.avatarUrl

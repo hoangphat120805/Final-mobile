@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.example.vaiche_driver.data.network.RetrofitClient
 import com.example.vaiche_driver.data.repository.ProfileRepository
@@ -49,6 +50,17 @@ class ProfileViewModel(app: Application) : AndroidViewModel(app) {
 
     // ========== NEW: chặn loadInitial trùng ==========
     private var isInitialLoading = false
+
+
+    // 1) LiveData tiện lấy userId
+    val myUserId: LiveData<String?> = userProfile.map { it?.id }
+
+    // 2) Gọi nhẹ để đảm bảo đã có profile (nếu chưa thì load)
+    fun ensureUserLoaded() {
+        if (userProfile.value == null && isLoading.value != true) {
+            loadInitialProfileData(force = false)
+        }
+    }
 
     /** Tải dữ liệu ban đầu cho màn hình Profile */
     fun loadInitialProfileData(force: Boolean = false) {

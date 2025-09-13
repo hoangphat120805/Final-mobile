@@ -76,6 +76,29 @@ interface ApiService {
         @Path("notification_id") notificationId: String
     ): Response<Unit>
 
+    @GET("/api/chat/conversations/")
+    suspend fun getConversations(): retrofit2.Response<List<ConversationPublic>>
+
+    @GET("/api/chat/conversations/{conversation_id}/messages/")
+    suspend fun getMessages(
+        @Path("conversation_id") conversationId: String
+    ): retrofit2.Response<List<MessagePublic>>
+
+    @POST("/api/chat/conversations/{conversation_id}/messages/")
+    suspend fun sendMessage(
+        @Path("conversation_id") conversationId: String,
+        @Body body: MessageCreate
+    ): Response<MessagePublic>
+
+    // User
+    @GET("/api/user/{user_id}")
+    suspend fun getUserById(@Path("user_id") userId: String): Response<UserPublic>
+
+
+    @POST("/api/chat/conversations/")
+    suspend fun createConversation(@Body body: ConversationCreate): Response<ConversationPublic>
+
+
     //==================== CATEGORY ====================
 
     /** Danh sách category để thêm item */

@@ -43,4 +43,17 @@
         <!-- This is crucial to keep text visible over the white background -->
     </style>
 
+    <style name="ShapeAppearanceOverlay.App.CornerSize50Percent" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="Shape.SegPill">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <style name="Shape" parent="ShapeAppearanceOverlay.App.CornerSize50Percent"/>
+
+
 </resources>

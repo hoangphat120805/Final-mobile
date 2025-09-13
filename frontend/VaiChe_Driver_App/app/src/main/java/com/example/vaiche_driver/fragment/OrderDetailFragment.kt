@@ -28,7 +28,10 @@ import com.example.vaiche_driver.data.network.RetrofitClient
 import com.example.vaiche_driver.data.repository.OrderRepository
 import com.example.vaiche_driver.model.OrderDetail
 import com.example.vaiche_driver.model.OrderStatus
-import com.example.vaiche_driver.fragment.ItemFragment
+import com.example.vaiche_driver.model.ConversationCreate
+import com.example.vaiche_driver.model.ConversationMember
+import com.example.vaiche_driver.model.ConversationPublic
+import com.example.vaiche_driver.model.ConversationType
 import com.example.vaiche_driver.viewmodel.OrderDetailViewModel
 import com.example.vaiche_driver.viewmodel.SharedViewModel
 import com.google.android.material.appbar.MaterialToolbar
@@ -44,10 +47,7 @@ class OrderDetailFragment : Fragment() {
 
     private var orderId: String? = null
     private val viewModel: OrderDetailViewModel by viewModels()
-
     private val sharedVM: SharedViewModel by activityViewModels()
-
-
 
     // --- CAMERA / PHOTO ---
     private var latestTmpUri: Uri? = null
@@ -113,7 +113,6 @@ class OrderDetailFragment : Fragment() {
 
         viewModel.orderCompletedEvent.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandled()?.let {
-
                 sharedVM.onDeliveryFinished()     // -> driverState = OFFLINE, activeOrder = null
                 sharedVM.stopWebSocket()          // ngừng gửi WS
                 sharedVM.debugSetRoutePoints(emptyList()) // (tuỳ chọn) xoá polyline
@@ -157,7 +156,9 @@ class OrderDetailFragment : Fragment() {
 
         toolbar.title = "Order Detail #${order.id.takeLast(4)}"
         toolbar.setNavigationOnClickListener { (activity as? MainActivity)?.selectMainTab(BottomNavScreen.SCHEDULE, clearBackStack = true) }
-        ivMessage.setOnClickListener { navigateToMessages(order.id) }
+
+        // Mở chat với người bán
+        ivMessage.setOnClickListener { openChatWithSeller(order) }
 
         Glide.with(this).load(order.user.avatarUrl)
             .placeholder(R.drawable.ic_person_circle)
@@ -453,9 +454,82 @@ class OrderDetailFragment : Fragment() {
         }
     }
 
-    private fun navigateToMessages(conversationKey: String) {
-        Toast.makeText(requireContext(), "Open messages (stub)", Toast.LENGTH_SHORT).show()
+    // ======== CHAT helpers ========
+
+    private fun openChatWithSeller(order: OrderDetail) {
+        val partnerId   = order.user.userid
+        val partnerName = order.user.fullName ?: "User"
+        val partnerAvt  = order.user.avatarUrl
+
+        if (partnerId.isNullOrBlank()) {
+            Toast.makeText(requireContext(), "Missing seller id", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val myId = ensureMyUserId()
+            if (myId == null) {
+                Toast.makeText(requireContext(), "Can't load your profile", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            val convId = withContext(Dispatchers.IO) { findOrCreateConversationId(partnerId) }
+            if (convId.isNullOrBlank()) {
+                Toast.makeText(requireContext(), "Open chat failed", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            parentFragmentManager.beginTransaction()
+                .replace(
+                    R.id.fragment_container,
+                    MessagesThreadFragment.newInstance(
+                        conversationId   = convId,
+                        myUserId         = myId,
+                        partnerName      = partnerName,
+                        partnerAvatarUrl = partnerAvt
+                    )
+                )
+                .addToBackStack("order_detail")
+                .commit()
+        }
     }
+
+    /** Lấy my user id từ /api/user/me */
+    private suspend fun ensureMyUserId(): String? = withContext(Dispatchers.IO) {
+        try { RetrofitClient.instance.getMe().body()?.id } catch (_: Exception) { null }
+    }
+
+    /** Tìm conversation private với partner; nếu chưa có thì tạo mới và trả về id */
+    private suspend fun findOrCreateConversationId(partnerId: String): String? = withContext(Dispatchers.IO) {
+        try {
+            // GET list
+            val existed = RetrofitClient.instance
+                .getConversations()
+                .body()
+                .orEmpty()
+                .firstOrNull { conv: ConversationPublic ->
+                    conv.type == ConversationType.PRIVATE &&
+                            conv.members.any { m: ConversationMember -> m.userId == partnerId }
+                }
+                ?.id
+
+            if (existed != null) return@withContext existed
+
+            // POST create
+            val res = RetrofitClient.instance.createConversation(
+                ConversationCreate(
+                    name = null,
+                    type = ConversationType.PRIVATE,
+                    memberIds = listOf(partnerId)
+                )
+            )
+            if (res.isSuccessful) res.body()?.id else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    // =============================
 
     private fun formatCurrency(amount: Double): String {
         return try {
