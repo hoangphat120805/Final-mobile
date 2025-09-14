@@ -23,6 +23,7 @@ import androidx.fragment.app.setFragmentResultListener
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.example.vaiche_driver.MainActivity
 import com.example.vaiche_driver.R
 import com.example.vaiche_driver.model.DriverState
 import com.example.vaiche_driver.navigation.CameraController

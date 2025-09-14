@@ -26,7 +26,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottomNavView: View
     private val sharedViewModel: SharedViewModel by viewModels()
 
-    // ⚠️ chặn double-tap logout
     private var isLoggingOut = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,13 +43,26 @@ class MainActivity : AppCompatActivity() {
 
         setupBottomNavigation()
 
-        supportFragmentManager.addOnBackStackChangedListener {
-            val top = supportFragmentManager.findFragmentById(R.id.fragment_container)
-            val isMain = top is DashboardFragment || top is ScheduleFragment ||
-                    top is ProfileFragment || top is NotificationsFragment
-            setBottomNavVisibility(isMain && !isLoggingOut) // nếu đang logout thì vẫn ẩn
-        }
+        // ===== Auto ẩn/hiện nav theo fragment đang RESUME =====
+        supportFragmentManager.registerFragmentLifecycleCallbacks(
+            object : FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentResumed(fm: FragmentManager, f: Fragment) {
+                    if (isLoggingOut) {
+                        setBottomNavVisibility(false)
+                        return
+                    }
+                    val showOnMain = f is DashboardFragment ||
+                            f is ScheduleFragment  ||
+                            f is ProfileFragment   ||
+                            f is NotificationsFragment
+                    setBottomNavVisibility(showOnMain)
+                }
+            },
+            true
+        )
     }
+
+    // ===== Main flow =====
 
     private fun ensureMainFragmentsAdded() {
         if (dashboardFragment == null) dashboardFragment = DashboardFragment()
@@ -72,6 +84,7 @@ class MainActivity : AppCompatActivity() {
             bottomNavView,
             BottomNavScreen.DASHBOARD
         ) { screen ->
+            ensureMainFragmentsAdded()
             val fragmentToShow = when (screen) {
                 BottomNavScreen.DASHBOARD     -> dashboardFragment!!
                 BottomNavScreen.SCHEDULE      -> scheduleFragment!!
@@ -83,6 +96,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Gọi sau khi login thành công (hoặc Splash xác nhận đã login) */
     fun navigateToDashboard() {
         supportFragmentManager.findFragmentById(R.id.fragment_container)?.let { f ->
             if (f is SplashFragment) {
@@ -100,6 +114,7 @@ class MainActivity : AppCompatActivity() {
             show(dashboardFragment!!)
         }
         activeFragment = dashboardFragment
+
         setBottomNavVisibility(true)
         BottomNavHelper.updateIconColorsOnly(bottomNavView, BottomNavScreen.DASHBOARD)
 
@@ -127,7 +142,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showMainFragment(fragmentToShow: Fragment, screen: BottomNavScreen) {
         if (fragmentToShow == activeFragment) {
-            setBottomNavVisibility(true && !isLoggingOut)
+            setBottomNavVisibility(true)
             BottomNavHelper.updateIconColorsOnly(bottomNavView, screen)
             return
         }
@@ -139,57 +154,46 @@ class MainActivity : AppCompatActivity() {
         }
 
         activeFragment = fragmentToShow
-        setBottomNavVisibility(true && !isLoggingOut)
+        setBottomNavVisibility(true)
         BottomNavHelper.updateIconColorsOnly(bottomNavView, screen)
     }
 
     private fun setBottomNavVisibility(isVisible: Boolean) {
         bottomNavView.visibility = if (isVisible) View.VISIBLE else View.GONE
         bottomNavView.isEnabled = isVisible
+        bottomNavView.alpha = if (isVisible) 1f else 0f
+        bottomNavView.translationY = if (isVisible) 0f else bottomNavView.height.toFloat()
     }
 
-    /** Logout mềm: ẩn bottom bar ngay lập tức, dọn session/cache, xoá fragment cũ, về Login */
+    // ===== Logout mềm không kill app =====
     fun logoutToLogin() {
         if (isLoggingOut) return
         isLoggingOut = true
 
-        // Ẩn & khoá bottom bar NGAY khi bấm logout
         setBottomNavVisibility(false)
 
         lifecycleScope.launch {
-            // 1) dọn session/cache/cookies + reset Retrofit
             SessionCleaner.hardLogout(applicationContext)
-
-            // 2) xoá ViewModels của Activity
             viewModelStore.clear()
 
-            // 3) remove toàn bộ main fragments để khỏi reuse instance cũ
             supportFragmentManager.commit {
                 listOfNotNull(dashboardFragment, scheduleFragment, profileFragment, notificationsFragment)
                     .forEach { if (it.isAdded) remove(it) }
             }
 
-            // 4) bỏ reference để lần sau tạo lại fragment mới
             dashboardFragment = null
             scheduleFragment = null
             profileFragment = null
             notificationsFragment = null
             activeFragment = null
 
-            // 5) clear back stack & về Login
             supportFragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
             supportFragmentManager.beginTransaction()
                 .replace(R.id.fragment_container, LoginFragment())
                 .commit()
 
-            // vẫn để ẩn bottom bar ở màn Login
-            // nếu có case hủy logout giữa chừng, nhớ bật lại:
-            isLoggingOut = false
             setBottomNavVisibility(false)
+            isLoggingOut = false
         }
-    }
-
-    fun hideBottomNavForAuthScreens() {
-        setBottomNavVisibility(false)
     }
 }

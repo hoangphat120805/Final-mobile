@@ -31,7 +31,7 @@ class LoginFragment : Fragment() {
     // LoginFragment.kt
     override fun onResume() {
         super.onResume()
-        (requireActivity() as MainActivity).hideBottomNavForAuthScreens()
+        //(requireActivity() as MainActivity).hideBottomNavForAuthScreens()
     }
 
 
