@@ -364,12 +364,12 @@ def review_collector_for_order(order_id: uuid.UUID, review: ReviewCreate, curren
     return db_review
 
 @router.get("/{order_id}/review", response_model=ReviewPublic)
-def get_order_review(order_id: uuid.UUID, session:SessionDep, current_user:CurrentUser, current_collector:CurrentCollector=None):
+def get_order_review(order_id: uuid.UUID, session:SessionDep, current_user:CurrentUser):
     """
     Get review for a specific order.
     """
     order = crud.get_order_by_id(session=session, order_id=order_id)
-    if order.owner_id != current_user.id and (not current_collector or order.collector_id != current_collector.id):
+    if order.owner_id != current_user.id and order.collector_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only view reviews for your own orders")
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
