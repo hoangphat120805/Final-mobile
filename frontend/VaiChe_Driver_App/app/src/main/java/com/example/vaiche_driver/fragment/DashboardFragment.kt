@@ -448,6 +448,22 @@ class DashboardFragment : Fragment() {
             }
         }
 
+        vm.orderRejectedEvent.observe(viewLifecycleOwner) { ev ->
+            if (ev.getContentIfNotHandled() == true) {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    // ✅ Delay 1.2s để tránh chạy khi dialog reject vừa đóng
+                    delay(1200)
+
+                    if (vm.driverState.value == DriverState.FINDING_ORDER) {
+                        startFindingOrder(immediate = true)
+                    } else {
+                        vm.onPlanConfirmed()
+                        startFindingOrder(immediate = true)
+                    }
+                }
+            }
+        }
+
         vm.routePoints.observe(viewLifecycleOwner) { pts ->
             if (pts.isNullOrEmpty()) { clearRoutes(); return@observe }
 

@@ -1,12 +1,10 @@
 package com.example.vaiche_driver.viewmodel
 
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.vaiche_driver.data.local.SessionManager
 import com.example.vaiche_driver.data.repository.OrderRepository
 import com.example.vaiche_driver.model.DriverState
 import com.example.vaiche_driver.model.NearbyOrderPublic
@@ -44,6 +42,7 @@ class SharedViewModel : ViewModel() {
     private val _foundNewOrder = MutableLiveData<Event<NearbyOrderPublic>>()
     val foundNewOrder: LiveData<Event<NearbyOrderPublic>> = _foundNewOrder
 
+    // Blacklist các order đã reject trong phiên FINDING
     private val rejectedOrderIds = mutableSetOf<String>()
 
     private val _orderAcceptedEvent = MutableLiveData<Event<Boolean>>()
@@ -130,7 +129,6 @@ class SharedViewModel : ViewModel() {
         Log.d("WebSocket", "Opening WS for order=$orderId, token=$token")
     }
 
-
     fun sendLocation(lat: Double, lng: Double) {
         val json = """{"lat": $lat, "lng": $lng}"""
         webSocket?.send(json)
@@ -147,7 +145,7 @@ class SharedViewModel : ViewModel() {
         stopWebSocket()
     }
 
-    // ----------------- LOGIC CŨ GIỮ NGUYÊN -----------------
+    // ----------------- LOGIC CŨ (có chỉnh nhẹ) -----------------
     fun toggleOnlineStatus() {
         if (_driverState.value == DriverState.OFFLINE) {
             _driverState.value = DriverState.ONLINE
@@ -156,12 +154,17 @@ class SharedViewModel : ViewModel() {
         }
     }
 
+    /**
+     * BẮT ĐẦU phiên tìm đơn => reset blacklist để tránh "kẹt" do reject tích lũy
+     */
     fun onPlanConfirmed() {
+        rejectedOrderIds.clear() // ✅ thêm
         _driverState.value = DriverState.FINDING_ORDER
     }
 
     fun onPlanConfirmed(lat: Double, lng: Double) {
         _workingLocation.value = Pair(lat, lng)
+        rejectedOrderIds.clear() // ✅ thêm
         _driverState.value = DriverState.FINDING_ORDER
     }
 
@@ -181,7 +184,17 @@ class SharedViewModel : ViewModel() {
 
             res.onSuccess { nearbyOrders ->
                 Log.d(TAG, "findNearbyOrder(): DONE, size=${nearbyOrders.size}")
-                val newOrder = nearbyOrders.firstOrNull { it.id !in rejectedOrderIds }
+
+                // Ưu tiên những đơn chưa bị reject
+                var newOrder = nearbyOrders.firstOrNull { it.id !in rejectedOrderIds }
+
+                // ✅ Soft reset nếu tất cả đều bị blacklist (tránh "kẹt" dù size>0)
+                if (newOrder == null && nearbyOrders.isNotEmpty() && rejectedOrderIds.isNotEmpty()) {
+                    Log.d(TAG, "findNearbyOrder(): all candidates blacklisted -> soft reset blacklist")
+                    rejectedOrderIds.clear()
+                    newOrder = nearbyOrders.firstOrNull()
+                }
+
                 if (newOrder != null) {
                     _foundNewOrder.value = Event(newOrder)
                 } else {
@@ -208,7 +221,7 @@ class SharedViewModel : ViewModel() {
 
     fun onOrderRejected(orderId: String) {
         rejectedOrderIds.add(orderId)
-        _orderRejectedEvent.value = Event(true)
+        _orderRejectedEvent.value = Event(true) // Dashboard nghe event này để restart tìm đơn
     }
 
     fun onDeliveryFinished() {
@@ -230,7 +243,6 @@ class SharedViewModel : ViewModel() {
                     _activeOrder.value = order.toSchedule(order.localStatus())
                     _driverState.value = DriverState.DELIVERING
 
-                    // Load lại route nếu đã có vị trí
                     if (lat != null && lng != null) {
                         loadRoute(order.id, lat, lng)
                     }
@@ -242,5 +254,4 @@ class SharedViewModel : ViewModel() {
             }
         }
     }
-
 }

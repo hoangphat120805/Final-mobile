@@ -43,23 +43,35 @@ class MainActivity : AppCompatActivity() {
 
         setupBottomNavigation()
 
-        // ===== Auto ẩn/hiện nav theo fragment đang RESUME =====
+        // ===== Auto ẩn/hiện nav theo FRAGMENT TOP trong container chính =====
         supportFragmentManager.registerFragmentLifecycleCallbacks(
             object : FragmentManager.FragmentLifecycleCallbacks() {
                 override fun onFragmentResumed(fm: FragmentManager, f: Fragment) {
-                    if (isLoggingOut) {
-                        setBottomNavVisibility(false)
-                        return
-                    }
-                    val showOnMain = f is DashboardFragment ||
-                            f is ScheduleFragment  ||
-                            f is ProfileFragment   ||
-                            f is NotificationsFragment
-                    setBottomNavVisibility(showOnMain)
+                    updateBottomNavByTop()
+                }
+                override fun onFragmentPaused(fm: FragmentManager, f: Fragment) {
+                    updateBottomNavByTop()
+                }
+                override fun onFragmentViewDestroyed(fm: FragmentManager, f: Fragment) {
+                    updateBottomNavByTop()
                 }
             },
-            true
+            /* recursive = */ true
         )
+    }
+
+    /** Quyết định hiển thị BottomNav dựa vào fragment đang ở TOP trong container chính */
+    private fun updateBottomNavByTop() {
+        if (isLoggingOut) {
+            setBottomNavVisibility(false)
+            return
+        }
+        val top = supportFragmentManager.findFragmentById(R.id.fragment_container)
+        val showOnMain = top is DashboardFragment ||
+                top is ScheduleFragment  ||
+                top is ProfileFragment   ||
+                top is NotificationsFragment
+        setBottomNavVisibility(showOnMain)
     }
 
     // ===== Main flow =====

@@ -1,4 +1,4 @@
-package com.example.vaiche_driver.fragment // Gói (package) được đề xuất
+package com.example.vaiche_driver.fragment
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -11,15 +11,19 @@ import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.vaiche_driver.R
-import com.example.vaiche_driver.adapter.BottomNavHelper
-import com.example.vaiche_driver.adapter.BottomNavScreen
 import com.example.vaiche_driver.adapter.ScheduleAdapter
 import com.example.vaiche_driver.viewmodel.ScheduleViewModel
+import com.example.vaiche_driver.viewmodel.SharedViewModel
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class ScheduleFragment: Fragment() {
 
-    // Sử dụng activityViewModels để ViewModel tồn tại qua các lần chuyển đổi Fragment
+    // ViewModel của tab Schedule
     private val viewModel: ScheduleViewModel by activityViewModels()
+    // SharedViewModel để nghe tín hiệu từ Dashboard/luồng đơn
+    private val sharedVM: SharedViewModel by activityViewModels()
 
     private lateinit var scheduleAdapter: ScheduleAdapter
     private lateinit var recyclerView: RecyclerView
@@ -38,6 +42,7 @@ class ScheduleFragment: Fragment() {
 
         setupViews(view)
         observeViewModel()
+        observeSharedSignals() // ✅ lắng nghe tín hiệu từ SharedViewModel
     }
 
     override fun onResume() {
@@ -56,7 +61,7 @@ class ScheduleFragment: Fragment() {
 
     private fun setupViews(view: View) {
         // Tìm ProgressBar trong layout cha (RelativeLayout)
-        progressBar = view.findViewById(R.id.progress_bar) // Thêm ID này vào XML
+        progressBar = view.findViewById(R.id.progress_bar) // Thêm ID này vào XML nếu chưa có
 
         recyclerView = view.findViewById(R.id.recycler_view_schedule)
         scheduleAdapter = ScheduleAdapter { clickedSchedule ->
@@ -72,7 +77,10 @@ class ScheduleFragment: Fragment() {
         // Lắng nghe danh sách tổng hợp
         viewModel.scheduleList.observe(viewLifecycleOwner) { list ->
             scheduleAdapter.submitList(list) {
-                layoutManager.scrollToPositionWithOffset(viewModel.scrollIndex, viewModel.scrollOffset)
+                layoutManager.scrollToPositionWithOffset(
+                    viewModel.scrollIndex,
+                    viewModel.scrollOffset
+                )
             }
         }
 
@@ -95,6 +103,46 @@ class ScheduleFragment: Fragment() {
         }
     }
 
+    /**
+     * ✅ Lắng nghe các tín hiệu từ SharedViewModel để reload Schedule:
+     * - Khi có NewOrder (foundNewOrder): đôi khi BE cũng đẩy vào danh sách lịch/schedule → reload.
+     * - Khi Accept (orderAcceptedEvent): chắc chắn lịch thay đổi → reload.
+     * - (Tuỳ chọn) Khi hoàn tất đơn và về OFFLINE cũng có thể reload nếu bạn muốn.
+     */
+    private fun observeSharedSignals() {
+        // New order tới → reload (kèm delay nhẹ để BE kịp ghi)
+        sharedVM.foundNewOrder.observe(viewLifecycleOwner) { ev ->
+            ev.getContentIfNotHandled()?.let {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    delay(400) // nhẹ, đủ cho backend cập nhật
+                    viewModel.loadSchedules()
+                }
+            }
+        }
+
+        // Sau khi Accept → chắc chắn có lịch mới
+        sharedVM.orderAcceptedEvent.observe(viewLifecycleOwner) { ev ->
+            if (ev.getContentIfNotHandled() == true) {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    delay(300)
+                    viewModel.loadSchedules()
+                }
+            }
+        }
+
+        // (Tuỳ chọn) Khi kết thúc giao hàng → refresh lịch để Completed cập nhật
+        // Nếu bạn có bắn event riêng khi finish thì nghe ở đây; hiện tại có thể dựa theo driverState:
+        sharedVM.driverState.observe(viewLifecycleOwner) { state ->
+            // Nếu bạn muốn, có thể reload khi chuyển về OFFLINE/ONLINE
+            // Ví dụ:
+            // if (state == DriverState.OFFLINE) {
+            //     viewLifecycleOwner.lifecycleScope.launch {
+            //         delay(300)
+            //         viewModel.loadSchedules()
+            //     }
+            // }
+        }
+    }
 
     private fun navigateToDetail(orderId: String) {
         val detailFragment = OrderDetailFragment.newInstance(orderId)
