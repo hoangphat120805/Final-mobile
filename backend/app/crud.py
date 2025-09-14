@@ -389,7 +389,14 @@ def update_order_img(sesion: Session, order_id: uuid.UUID, img_url1: Optional[st
 
 
 def get_user_reviews(session: Session, user_id: uuid.UUID):
-    return session.exec(select(Review).where(Review.user_id == user_id)).all()
+    statement = select(Order).where(
+        Order.collector_id == user_id,
+        Order.review != None,
+        Order.status == OrderStatus.COMPLETED
+    ).options(selectinload(Order.review))
+    orders_with_reviews = session.exec(statement).all()
+    reviews = [order.review for order in orders_with_reviews if order.review is not None]
+    return reviews
 
 def get_user_average_rating(session: Session, user_id: uuid.UUID):
     reviews = get_user_reviews(session, user_id)
