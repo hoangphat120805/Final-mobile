@@ -7,10 +7,6 @@
         android:name="android.hardware.camera"
         android:required="true" />
 
-    <permission
-        android:name="com.example.vaiche_driver.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-        android:protectionLevel="signature" />
-
     <uses-permission android:name="com.example.vaiche_driver.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -31,7 +27,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="VaiCheDriver"
         android:supportsRtl="true"
-        android:testOnly="true"
         android:theme="@style/Theme.VaiChe_Driver"
         android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="28"
@@ -47,15 +42,6 @@
             </intent-filter>
         </activity>
 
-        <!-- ✅ RebooterActivity chạy ở process phụ -->
-        <activity
-            android:name="com.example.vaiche_driver.util.RebooterActivity"
-            android:exported="false"
-            android:process=":rebooter"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen"
-            android:excludeFromRecents="true"
-            android:taskAffinity=""
-            android:finishOnTaskLaunch="true" />
 
         <!-- FileProvider để chia sẻ file ảnh an toàn -->
         <provider
@@ -67,43 +53,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
-
-        <!-- AndroidX Startup -->
-        <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="${applicationId}.androidx-startup"
-            android:exported="false">
-            <meta-data
-                android:name="androidx.emoji2.text.EmojiCompatInitializer"
-                android:value="androidx.startup" />
-            <meta-data
-                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-                android:value="androidx.startup" />
-            <meta-data
-                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
-                android:value="androidx.startup" />
-        </provider>
-
-        <!-- Profile installer -->
-        <receiver
-            android:name="androidx.profileinstaller.ProfileInstallReceiver"
-            android:directBootAware="false"
-            android:enabled="true"
-            android:exported="true"
-            android:permission="android.permission.DUMP">
-            <intent-filter>
-                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
-            </intent-filter>
-        </receiver>
 
     </application>
 </manifest>

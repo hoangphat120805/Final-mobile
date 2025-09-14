@@ -102,11 +102,11 @@ dependencies {
     implementation("com.mapbox.navigationcore:android-ndk27:3.11.7")
     implementation("com.mapbox.navigationcore:ui-maps-ndk27:3.11.7")
     implementation("com.mapbox.navigationcore:tripdata-ndk27:3.11.7")
-    implementation("com.mapbox.navigationcore:voice-ndk27:3.11.7")
     implementation("com.mapbox.navigationcore:ui-components-ndk27:3.11.7")
 
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
 
     // --- TESTING ---
     testImplementation(libs.junit)
