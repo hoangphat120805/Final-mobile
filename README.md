@@ -2,7 +2,7 @@
 
 ## Overview
 
-VAICHE is a comprehensive mobile service platform designed to connect users and drivers in a seamless, scalable, and secure environment. The project consists of a robust Python backend and two dedicated Android applications (Driver & User), enabling real-time service management, communication, and location tracking. Built with modern technologies and best practices, VECHAI is engineered for reliability, maintainability, and ease of deployment.
+VAICHE is a comprehensive mobile service platform designed to connect users and drivers in a seamless, scalable, and secure environment. The project consists of a robust Python backend and two dedicated Android applications (Driver & User), enabling real-time service management, communication, and location tracking. Built with modern technologies and best practices, VAICHE is engineered for reliability, maintainability, and ease of deployment.
 
 ---
 
