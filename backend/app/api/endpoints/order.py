@@ -258,13 +258,18 @@ async def get_route_for_order(
         raise HTTPException(status_code=400, detail="Order does not have a valid location")
     if order.collector_id != current_collector.id:
         raise HTTPException(status_code=403, detail="You can only view routes for your own orders")
-    order = OrderPublic.from_orm(order)
+    
+    # Convert the order to proper format to access location data
+    from geoalchemy2.shape import to_shape
+    from shapely.geometry import mapping
+    location_shape = to_shape(order.location)
+    location_data = mapping(location_shape)
     
     route_info = await mapbox.get_route_from_mapbox(
         start_lon=lon,
         start_lat=lat,
-        end_lon=order.location['coordinates'][0],
-        end_lat=order.location['coordinates'][1]
+        end_lon=location_data['coordinates'][0],
+        end_lat=location_data['coordinates'][1]
     )
     
     if not route_info:

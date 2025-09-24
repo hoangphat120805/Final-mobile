@@ -128,24 +128,20 @@ def get_orders_by_collector(session: Session, collector_id: uuid.UUID) -> list[O
     return session.exec(statement).all()
 
 async def create_order(session: Session, order_create: OrderCreate, owner_id: uuid.UUID) -> Order:
-    MAPBOX_TOKEN = settings.MAPBOX_ACCESS_TOKEN
-
+    # Use the mapbox service for geocoding instead of direct API call
+    from app.services import mapbox
+    
     address = order_create.pickup_address
-    geocode_url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{address}.json?access_token={MAPBOX_TOKEN}&limit=1"
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(geocode_url)
-        data = resp.json()
-        if "features" not in data:
-            raise ValueError(f"Mapbox API error: {data}")   
-        if not data["features"]:
-            raise ValueError(f"Could not find coordinates for address: {address}")
-        coords = data["features"][0]["geometry"]["coordinates"]  # [lng, lat]
+    geocode_result = await mapbox.geocode_address(address)
+    
+    if not geocode_result:
+        raise ValueError(f"Could not find coordinates for address: {address}")
+    
+    lng, lat = geocode_result["lng"], geocode_result["lat"]
 
     # Convert coordinates to WKT for PostGIS
-    point = Point(coords[0], coords[1])
+    point = Point(lng, lat)
     location_wkt = f'SRID=4326;{point.wkt}'
-
-
 
     db_order = Order.model_validate(
         order_create,
